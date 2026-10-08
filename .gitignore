@@ -1,0 +1,79 @@
+# Environment and secrets
+.env
+.env*.local
+!.env.example
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+.vite/
+
+# Caches and logs
+models_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Models weights (keep README and manifest)
+document-standardization/models/*
+!document-standardization/models/README.md
+!document-standardization/models/manifest.json
+models/*
+!models/README.md
+!models/manifest.json
+
+# Client reports and outputs
+document-standardization/outputs/
+document-standardization/reports/
+document-standardization/VAPT-API/
+document-standardization/result_json/
+document-standardization/deep_storage/
+backend/storage/reports/*
+!backend/storage/reports/.gitkeep
+
+# IDE and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
