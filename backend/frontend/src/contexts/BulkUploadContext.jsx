@@ -122,17 +122,28 @@ export const BulkUploadProvider = ({ children }) => {
 
         updateFileStatus(fileData.id, 'Uploading', attempt > 1 ? `Uploading (Retry ${attempt})...` : 'Uploading to storage...');
 
-        const formData = new FormData();
-        formData.append('file', file, cleanName);
-        if (selectedAgency) formData.append('agency_id', selectedAgency);
-        if (matchedPassword) formData.append('file_password', matchedPassword);
-        if (extractedPasswords && extractedPasswords.length > 0) formData.append('bulk_passwords', JSON.stringify(extractedPasswords));
+        let uploadRes;
+        if (file.isLocal) {
+            updateFileStatus(fileData.id, 'Uploading', attempt > 1 ? `Starting local process (Retry ${attempt})...` : 'Starting local process...');
+            uploadRes = await api.post('/api/reports/upload-local', {
+                file_path: file.path,
+                agency_id: selectedAgency || null,
+                file_password: matchedPassword || null,
+                bulk_passwords: (extractedPasswords && extractedPasswords.length > 0) ? JSON.stringify(extractedPasswords) : null
+            }, { timeout: 0 });
+        } else {
+            const formData = new FormData();
+            formData.append('file', file, cleanName);
+            if (selectedAgency) formData.append('agency_id', selectedAgency);
+            if (matchedPassword) formData.append('file_password', matchedPassword);
+            if (extractedPasswords && extractedPasswords.length > 0) formData.append('bulk_passwords', JSON.stringify(extractedPasswords));
 
-        // Upload
-        const uploadRes = await api.post('/api/reports/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: 0 // Infinite
-        });
+            // Upload
+            uploadRes = await api.post('/api/reports/upload', formData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+              timeout: 0 // Infinite
+            });
+        }
         reportId = uploadRes.data.report_id;
 
         // Pipeline

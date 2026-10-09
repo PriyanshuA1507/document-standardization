@@ -105,6 +105,131 @@ async def upload_report(
         )
 
 
+from pydantic import BaseModel
+from typing import List, Optional
+
+class LocalFolderRequest(BaseModel):
+    folder_path: str
+
+class LocalFolderResponse(BaseModel):
+    files: List[str]
+
+class LocalUploadRequest(BaseModel):
+    file_path: str
+    agency_id: Optional[uuid.UUID] = None
+    file_password: Optional[str] = None
+    bulk_passwords: Optional[str] = None
+
+@router.post("/list-local-folder", response_model=LocalFolderResponse)
+async def list_local_folder(
+    req: LocalFolderRequest,
+    current_user: User = Depends(require_roles("ADMIN", "AUDITOR")),
+):
+    """List allowed files in a server local directory."""
+    path = req.folder_path
+    if not os.path.exists(path) or not os.path.isdir(path):
+        raise HTTPException(status_code=400, detail="Folder does not exist on server")
+    
+    allowed_exts = {".pdf", ".docx", ".doc", ".txt"}
+    files = []
+    try:
+        for f in os.listdir(path):
+            full_path = os.path.join(path, f)
+            if os.path.isfile(full_path):
+                ext = os.path.splitext(f)[1].lower()
+                if ext in allowed_exts:
+                    files.append(full_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    return {"files": files}
+
+@router.post("/upload-local", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_local_file(
+    req: LocalUploadRequest,
+    current_user: User = Depends(require_roles("ADMIN", "AUDITOR")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Process a local file on the server as if it were uploaded."""
+    path = req.file_path
+    if not os.path.exists(path) or not os.path.isfile(path):
+        raise HTTPException(status_code=400, detail="File does not exist on server")
+    
+    with open(path, "rb") as f:
+        file_bytes = f.read()
+
+    max_size = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    if len(file_bytes) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB",
+        )
+
+    import json
+    passwords_to_try = []
+    if req.file_password:
+        passwords_to_try.append(req.file_password)
+    if req.bulk_passwords:
+        try:
+            parsed = json.loads(req.bulk_passwords)
+            if isinstance(parsed, list):
+                passwords_to_try.extend(parsed)
+        except Exception:
+            pass
+
+    from app.utils.file_utils import validate_extension
+    from app.utils.encryption_utils import is_pdf_encrypted, decrypt_pdf, is_docx_encrypted, decrypt_docx
+    
+    filename = os.path.basename(path)
+    ext_valid, extension = validate_extension(filename)
+    is_decrypted = False
+    if ext_valid:
+        if extension == '.pdf':
+            if is_pdf_encrypted(file_bytes):
+                if not passwords_to_try:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PASSWORD_REQUIRED")
+                
+                decrypted = False
+                for pwd in passwords_to_try:
+                    try:
+                        file_bytes = decrypt_pdf(file_bytes, pwd)
+                        decrypted = True
+                        break
+                    except Exception:
+                        continue
+                if not decrypted:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_PASSWORD")
+                is_decrypted = True
+        elif extension == '.docx':
+            if is_docx_encrypted(file_bytes):
+                if not passwords_to_try:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PASSWORD_REQUIRED")
+                
+                decrypted = False
+                for pwd in passwords_to_try:
+                    try:
+                        file_bytes = decrypt_docx(file_bytes, pwd)
+                        decrypted = True
+                        break
+                    except Exception:
+                        continue
+                if not decrypted:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_PASSWORD")
+                is_decrypted = True
+
+    try:
+        result = await report_service.upload_report(
+            db, file_bytes, filename, current_user.user_id, req.agency_id
+        )
+        if isinstance(result, dict):
+            result['decrypted'] = is_decrypted
+        return UploadResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Upload processing failed: {str(e)}")
+
+
 @router.get("", response_model=ReportListOut)
 async def list_reports(
     skip: int = Query(0, ge=0),

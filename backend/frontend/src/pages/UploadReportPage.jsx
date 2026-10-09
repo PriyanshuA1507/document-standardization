@@ -46,6 +46,8 @@ function UploadReportPage() {
   const [folderLoading, setFolderLoading] = useState(false);
   const [extractedPasswords, setExtractedPasswords] = useState([]);
   const [txtFileNames, setTxtFileNames] = useState([]);
+  const [serverPath, setServerPath] = useState('');
+
 
   useEffect(() => {
     const fetchAgencies = async () => {
@@ -496,6 +498,50 @@ function UploadReportPage() {
       e.target.value = null;
     }
   };
+  const handleServerPathSubmit = async () => {
+    if (!serverPath) return;
+    setFolderLoading(true);
+    try {
+      const res = await api.post('/api/reports/list-local-folder', { folder_path: serverPath });
+      const files = res.data.files || [];
+      if (files.length === 0) {
+        enqueueSnackbar('No valid files found in that folder', { variant: 'warning' });
+        setFolderLoading(false);
+        return;
+      }
+      
+      const syntheticFiles = files.map(path => {
+         const name = path.split('/').pop().split('\\').pop();
+         return {
+            name: name,
+            path: path,
+            isLocal: true,
+         };
+      });
+      
+      const pdfDocFiles = syntheticFiles.filter(f => f.name.toLowerCase().endsWith('.pdf') || f.name.toLowerCase().endsWith('.docx') || f.name.toLowerCase().endsWith('.doc'));
+      
+      setPdfFiles(pdfDocFiles);
+
+      const initialData = pdfDocFiles.map((f, i) => ({
+        id: i,
+        file: f,
+        name: f.name,
+        status: 'Pending',
+        details: '-',
+        protected: 'Unknown'
+      }));
+
+      setBulkFilesData(initialData);
+      setBulkFinished(false);
+      enqueueSnackbar(`Found ${pdfDocFiles.length} files on server.`, { variant: 'success' });
+      
+    } catch (err) {
+       enqueueSnackbar(err.response?.data?.detail || 'Failed to list server folder', { variant: 'error' });
+    } finally {
+       setFolderLoading(false);
+    }
+  };
 
   const handleBulkLaunch = async () => {
     if (pdfFiles.length === 0) {
@@ -725,6 +771,32 @@ function UploadReportPage() {
                 <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                   2. Select Report Folder or Files
                 </Typography>
+                
+                {/* NEW SERVER PATH SECTION */}
+                <Box sx={{ mb: 4, p: 3, border: '1px solid rgba(0,212,255,0.3)', borderRadius: 2, background: 'rgba(0, 212, 255, 0.05)' }}>
+                  <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ color: '#00D4FF' }}>
+                    Process Files Already on Server
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                    <TextField 
+                      fullWidth 
+                      label="Absolute Server Path (e.g. /home/aicloud/data)" 
+                      variant="outlined" 
+                      value={serverPath} 
+                      onChange={(e) => setServerPath(e.target.value)} 
+                      disabled={bulkRunning || folderLoading} 
+                      size="small"
+                    />
+                    <Button variant="contained" onClick={handleServerPathSubmit} disabled={bulkRunning || folderLoading || !serverPath}>
+                      Load Path
+                    </Button>
+                  </Box>
+                </Box>
+
+                <Typography align="center" variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
+                  — OR UPLOAD FROM YOUR COMPUTER —
+                </Typography>
+
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Select a folder or files containing the bulk PDF/Word reports. You can also drag and drop them here.
                 </Typography>
