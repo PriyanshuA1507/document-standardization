@@ -59,7 +59,7 @@ Update the `vllm` service in your `docker-compose.yml` to point to the new Nemot
       --served-model-name nemotron
       --max-model-len 8192
       --gpu-memory-utilization 0.90
-      --trust-remote-code
+      --trust-remote-codeclear
     deploy:
       resources:
         reservations:

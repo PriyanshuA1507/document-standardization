@@ -259,6 +259,7 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
         <Tab label="Overview" sx={{ color: '#fff', fontWeight: 600 }} />
         <Tab label="Full JSON" sx={{ color: '#fff', fontWeight: 600 }} />
         <Tab label="Vulnerabilities" sx={{ color: '#fff', fontWeight: 600 }} />
+        <Tab label="Raw JSON" sx={{ color: '#fff', fontWeight: 600 }} />
       </Tabs>
 
       <DialogContent sx={{ pt: 1, minHeight: 400 }}>
@@ -678,6 +679,14 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
                    <Typography variant="caption" color="text.secondary">Severity: {v.severity}</Typography>
                 </Box>
              ))}
+          </Box>
+        )}
+
+        {tabValue === 3 && (
+          <Box sx={{ p: 2, maxHeight: 600, overflowY: 'auto', bgcolor: '#1e1e1e', borderRadius: 1 }}>
+            <pre style={{ margin: 0, color: '#00D4FF', fontSize: '0.85rem', whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
+              {JSON.stringify(results, null, 2)}
+            </pre>
           </Box>
         )}
       </DialogContent>

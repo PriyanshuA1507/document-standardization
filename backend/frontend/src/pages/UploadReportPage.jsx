@@ -532,7 +532,7 @@ function UploadReportPage() {
       }
     }
 
-    const concurrency = batchMode === 'batch8' ? 8 : (batchMode === 'batch4' ? 4 : (batchMode === 'batch2' ? 2 : 1));
+    const concurrency = batchMode === 'batch32' ? 32 : (batchMode === 'batch16' ? 16 : (batchMode === 'batch8' ? 8 : (batchMode === 'batch4' ? 4 : (batchMode === 'batch2' ? 2 : 1))));
     
     // Call the context function
     startBulkUpload(bulkFilesData, passwordMap, selectedAgency, concurrency, extractedPasswords);
@@ -802,6 +802,8 @@ function UploadReportPage() {
                     <FormControlLabel value="batch2" control={<Radio />} label="Batch of 2" />
                     <FormControlLabel value="batch4" control={<Radio />} label="Batch of 4" />
                     <FormControlLabel value="batch8" control={<Radio />} label="Batch of 8" />
+                    <FormControlLabel value="batch16" control={<Radio />} label="Batch of 16" />
+                    <FormControlLabel value="batch32" control={<Radio />} label="Batch of 32" />
                   </RadioGroup>
                 </FormControl>
               </Box>
