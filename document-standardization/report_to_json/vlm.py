@@ -243,7 +243,10 @@ INDEX_INSTRUCTION = """List the report's findings with their identifiers, titles
 SUMMARY_SCALARS_NOTE = """
 The findings summary table is read separately: return summary_table as an empty list."""
 
-SUMMARY_ROWS_INSTRUCTION = """Extract the rows of the report's findings summary table that appear on these pages, in order. These pages are part of a longer report: if no row of that table is on them, return an empty list. Only rows of that table; findings described in detail elsewhere are not rows."""
+SUMMARY_ROWS_INSTRUCTION = """These pages come from the report's executive summary section, which holds its findings summary table. Extract every row of that table that appears on them, in order, one entry per row. Rows continue across pages, and the table header may be missing from these pages. If no table row is on them, return an empty list."""
+
+SUMMARY_ROWS_RETRY = """
+The pages above contain {rows} numbered table rows, so the list cannot be empty: each numbered row of the findings table is a row to extract."""
 
 DETAILED_START_INSTRUCTION = """This is the outline of a long audit report: each heading and the page where it first appears. Give the page on which the section holding the findings' detailed descriptions begins (usually called detailed observations or detailed findings). It is not the executive summary or any other summary section. If the report has no separate section of that kind, give null."""
 
@@ -278,6 +281,9 @@ SECTION_PROMPT_TOKENS = 120_000  # a front or back section needs the start or en
 INDEX_WINDOW_TOKENS = 100_000    # one findings-index call reads about this much of the report
 INDEX_WINDOW_OVERLAP_PAGES = 2   # a finding that straddles two windows is seen whole in one of them
 SECTION_MAX_TOKENS = 32768
+SUMMARY_ROWS_EMPTY_RETRIES = 2
+SUMMARY_ROWS_MIN_NUMBERED = 5
+_NUMBERED_ROW_RE = re.compile(r"(?m)^\|\s*\d{1,5}\s*\|")
 SUMMARY_ROWS_WINDOW_TOKENS = 20_000  # a long summary table is read this much at a time
 MIN_TRANSCRIPT_CHARS = 20_000    # never shrink a call below this, whatever the context arithmetic says
 # Share of a condensed transcript taken from the start; the rest comes from the end. The report
@@ -643,10 +649,22 @@ class Pass2Structurer:
         windows = page_windows(head, int(SUMMARY_ROWS_WINDOW_TOKENS * self._chars_per_token), 1)
 
         def read(window: str) -> Tuple[Optional[Dict], int, List[str]]:
-            return self._call(window, "extract the summary table rows", SUMMARY_ROWS_INSTRUCTION,
-                              {"summary_table": schema.template()["executive_summary"]["summary_table"]},
-                              manual.field_guide(keys), rows_schema, max_tokens=SECTION_MAX_TOKENS,
-                              accept_imperfect=False)
+            numbered = len(_NUMBERED_ROW_RE.findall(window))
+            instruction, total, notes = SUMMARY_ROWS_INSTRUCTION, 0, []
+            for _ in range(1 + SUMMARY_ROWS_EMPTY_RETRIES):
+                result, attempts, found = self._call(
+                    window, "extract the summary table rows", instruction,
+                    {"summary_table": schema.template()["executive_summary"]["summary_table"]},
+                    manual.field_guide(keys), rows_schema, max_tokens=SECTION_MAX_TOKENS,
+                    accept_imperfect=False)
+                total, notes = total + attempts, notes + found
+                # An empty answer for pages full of numbered rows is the model missing the table, not
+                # a page without one: ask again, saying what is on the pages.
+                if result is None or result["summary_table"] or numbered < SUMMARY_ROWS_MIN_NUMBERED:
+                    break
+                notes.append(f"no rows returned for {numbered} numbered table rows; asked again")
+                instruction = SUMMARY_ROWS_INSTRUCTION + SUMMARY_ROWS_RETRY.format(rows=numbered)
+            return result, total, notes
 
         parts = run_concurrently(read, windows, self.concurrency)
         issues += [i for _, _, found in parts for i in found]

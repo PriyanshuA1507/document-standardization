@@ -258,3 +258,38 @@ def test_the_index_reads_only_the_detailed_section_once_the_model_says_where_it_
     assert len(data["detailed_observations"]) == 8
     index_report = next(r for r in reports if r.name == "findings index")
     assert "detailed findings read from page 40" in index_report.issues
+
+
+def test_a_window_of_numbered_rows_that_comes_back_empty_is_asked_again(monkeypatch):
+    monkeypatch.setattr(vlm, "SUMMARY_ROWS_WINDOW_TOKENS", 100_000)
+    pages = []
+    for n in range(1, 31):
+        rows = "\n".join(f"| {10 * n + i} | asset | Title {10 * n + i} | Low |" for i in range(3))
+        pages.append(f"<!-- PAGE_START: {n} -->\n## Page {n}\n\n{rows}\n\n<!-- PAGE_END: {n} -->")
+    text = "\n\n".join(pages)
+    asked = {"empty": 0}
+
+    def respond(prompt, image, json_schema):
+        if "TASK: extract the executive summary" in prompt and "read separately" not in prompt:
+            return Generation(text="{", truncated=True)
+        if "TASK: extract the executive summary" in prompt:
+            return json.dumps(filled(["executive_summary"]))
+        if "TASK: extract the summary table rows" in prompt:
+            if "cannot be empty" not in prompt:
+                asked["empty"] += 1
+                return json.dumps({"summary_table": []})        # the model misses the table the first time
+            rows = [schema.conform({"sr_no": 1, "title": "Row"}, schema.template()["executive_summary"]["summary_table"][0])]
+            return json.dumps({"summary_table": rows})
+        if "TASK: locate the detailed findings section" in prompt:
+            return json.dumps({"detailed_start_page": 25})
+        if "TASK: index the findings" in prompt:
+            return json.dumps({"findings": []})
+        task = re.search(r"TASK: extract the ([^\n]+)", prompt).group(1)
+        return json.dumps(filled(next(k for name, k, _ in vlm.SECTIONS if name == task)))
+
+    monkeypatch.setattr(vlm, "PROMPT_OVERHEAD_TOKENS", 100)
+    monkeypatch.setattr(vlm, "CONTEXT_MARGIN_TOKENS", 10)
+    structurer, backend = structurer_for(respond, context_tokens=16384 + 40000)
+    summary, issues = structurer._read_long_summary(text, [{"start_page": 25}])
+    assert asked["empty"] >= 1 and len(summary["summary_table"]) >= 1
+    assert any("asked again" in i for i in issues)
