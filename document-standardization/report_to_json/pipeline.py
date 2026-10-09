@@ -4,22 +4,24 @@ The document standardisation pipeline. Every front-end calls ``DocumentPipeline.
   0  Malware pre-gate on the file as received (fails closed)
   1  Normalise to PDF (DOCX converted after passing the gate, then re-scanned)
   2  Offload images to deep storage; each placement gets a pointer tag
-  3  Pass 1: the model (Qwen3-VL 4B Instruct AWQ) transcribes every page (images masked by their tags)
+  3  Pass 1: the model (Nemotron 3 Nano Omni) transcribes every page (images masked by their tags)
   4  Pass 2: the same model restructures the transcript into the master schema
   5  Enforce the master schema, check completeness, save
 
 Outputs:
-  <name>.json        exactly the structure of master_schema.json, nothing else
-  <name>.meta.json   the sidecar: run status and reports, coverage,
-                     ``unmapped_content`` (transcript text no schema field holds) and
-                     ``dropped_values`` (values the schema's types/lists cannot hold)
+  <name>.json           exactly the structure of master_schema.json, nothing else
+  <name>.meta.json      the sidecar: run status and reports, gate verdicts, coverage,
+                        ``unmapped_content`` (transcript text no schema field holds) and
+                        ``dropped_values`` (values the schema's types/lists cannot hold)
+  <name>.fallback.json  instead of <name>.json when the run failed (diagnosis only)
 
 Run status (``status`` in the sidecar):
   ok            both passes ran on the model and every completeness check passed
   needs_review  model output, but a check failed (low page recall, low coverage,
                 missing image tags, schema issues)
-  fallback      the model pipeline failed somewhere and the text layer or the
-                rule-based parser was used instead
+  failed        the model pipeline failed somewhere and the text layer or the
+                rule-based parser had to be used. The run raises ``ModelPipelineFailed``;
+                the fallback output is kept for diagnosis but never delivered.
 """
 
 from __future__ import annotations
@@ -29,13 +31,16 @@ import hashlib
 import json
 import logging
 import re
+import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from . import __version__, config, coverage, schema
 from .backends import BackendError, ModelBackend, create_backend
+from .convert import ConversionError, docx_to_pdf
 from .images import offload_images
+from .security import GateUnavailableError, MalwareDetectedError, malware_gate
 from .storage import DeepStorage, LocalDeepStorage, build_manifest
 from .structurer import RuleBasedStructurer
 from .transcribe import transcribe_pdf
@@ -43,9 +48,11 @@ from .vlm import Cancelled, Pass1Transcriber, Pass2Structurer
 
 log = logging.getLogger(__name__)
 
-SUPPORTED_SUFFIXES = (".pdf",)
+SUPPORTED_SUFFIXES = (".pdf", ".docx")
 
 STAGES = [
+    "Security pre-gate",
+    "Normalising to PDF",
     "Offloading images to deep storage",
     "Pass 1: vision transcription",
     "Pass 2: schema structuring",
@@ -64,6 +71,28 @@ class PipelineCancelled(Exception):
     """Processing was cancelled by the caller."""
 
 
+class ModelPipelineFailed(PipelineError):
+    """The model pipeline failed, so the run produced no standardised JSON.
+
+    ``result`` holds what the fallback produced (``result.data``, for diagnosis only)
+    and why the model failed (``result.meta["status_reasons"]``). With an output
+    folder, the run report and ``<name>.fallback.json`` were written.
+    """
+
+    def __init__(self, result: "PipelineResult"):
+        self.result = result
+        reasons = "; ".join(result.meta.get("status_reasons") or result.warnings) or "no reason recorded"
+        super().__init__(f"Model pipeline failed: {reasons}")
+
+
+class DocumentBlocked(PipelineError):
+    """The malware pre-gate blocked the document."""
+
+    def __init__(self, scan_result: Dict[str, Any], message: str):
+        super().__init__(message)
+        self.scan_result = scan_result
+
+
 def safe_stem(stem: str) -> str:
     """Filesystem-safe output name (Windows drops trailing spaces/dots from directory names)."""
     return re.sub(r"[^\w.\-]+", "_", stem).strip("._ ") or "document"
@@ -74,7 +103,8 @@ class PipelineResult:
     data: Dict[str, Any]   # exactly the master schema
     meta: Dict[str, Any]   # run report, unmapped_content, dropped_values (the sidecar)
     status: str
-    json_path: Optional[Path]
+    json_path: Optional[Path]        # the output files; None when run without an output_dir.
+                                     # A failed run's JSON is <name>.fallback.json.
     meta_path: Optional[Path]
     transcript_path: Optional[Path]
     manifest_path: str
@@ -83,9 +113,10 @@ class PipelineResult:
 
 
 class DocumentPipeline:
-    def __init__(self, model: str = config.DEFAULT_MODEL,
+    def __init__(self, model: str = config.DEFAULT_MODEL, enable_security_gate: bool = True,
                  storage: Optional[DeepStorage] = None, backend: Optional[ModelBackend] = None):
         self.profile = config.get_model(model)
+        self.enable_security_gate = enable_security_gate
         self.storage = storage or LocalDeepStorage(config.deep_storage_dir())
         self._backend = backend
 
@@ -103,8 +134,15 @@ class DocumentPipeline:
 
     def process_file(self, input_path, output_dir=None, progress: Optional[ProgressFn] = None,
                      cancel: Optional[CancelFn] = None) -> PipelineResult:
+        """Process one report. With ``output_dir=None`` nothing is written except deep storage;
+        the result is returned only (a converted DOCX lives in a temporary folder for the run)."""
+        with tempfile.TemporaryDirectory(prefix="r2j-") as scratch:
+            return self._process_file(Path(input_path), None if output_dir is None else Path(output_dir),
+                                      Path(scratch), progress, cancel)
+
+    def _process_file(self, src: Path, out_dir: Optional[Path], scratch: Path,
+                      progress: Optional[ProgressFn], cancel: Optional[CancelFn]) -> PipelineResult:
         started = _dt.datetime.now()
-        src = Path(input_path)
         warnings: List[str] = []
 
         def step(index: int, detail: str = "") -> None:
@@ -119,28 +157,40 @@ class DocumentPipeline:
         if src.suffix.lower() not in SUPPORTED_SUFFIXES:
             raise PipelineError(f"Unsupported file type {src.suffix!r}; expected one of {SUPPORTED_SUFFIXES}")
 
+        # 0. Nothing opens the file before the gate passes.
+        step(0)
+        gate = self._run_gate(src, warnings)
+
         stem = safe_stem(src.stem)
-        json_path = None
-        meta_path = None
-        transcript_path = None
-        if output_dir is not None:
-            out_dir = Path(output_dir)
+        json_path = meta_path = transcript_path = None
+        if out_dir is not None:
             out_dir.mkdir(parents=True, exist_ok=True)
             json_path = out_dir / f"{stem}.json"
             meta_path = out_dir / f"{stem}.meta.json"
             transcript_path = out_dir / f"{stem}_transcript.md"
 
-        pdf = src
+        # 1. Normalise to PDF.
+        step(1)
+        converted_gate = None
+        if src.suffix.lower() == ".docx":
+            try:
+                pdf = docx_to_pdf(src, (out_dir or scratch) / "converted")
+            except ConversionError as exc:
+                raise PipelineError(str(exc)) from exc
+            converted_gate = self._run_gate(pdf, warnings)
+        else:
+            pdf = src
 
-        # 0. Images to deep storage, replaced by pointer tags.
-        step(0)
-        document_id = f"{stem}-({_sha256(src)})[:12]"
+        # 2. Images to deep storage, replaced by pointer tags.
+        step(2)
+        source_sha256 = gate.get("sha256") or _sha256(src)
+        document_id = f"{stem}-{source_sha256[:12]}"
         offload = offload_images(str(pdf), self.storage)
         images = offload.figures
         manifest_path = self.storage.write_manifest(
             document_id, build_manifest(document_id, src.name, offload.all_figures(), offload.layout))
 
-        # 1-2. The two model passes (or the recorded fallback).
+        # 3-4. The two model passes (or the recorded fallback).
         model_meta: Dict[str, Any] = {"key": self.profile.key, "repo_id": self.profile.repo_id}
         try:
             backend = self._get_backend()
@@ -149,31 +199,31 @@ class DocumentPipeline:
         except BackendError as exc:
             backend = None
             model_meta["unavailable"] = str(exc)
-            warnings.append(f"MODEL PIPELINE FAILED - {exc}. Output comes from the rule-based fallback.")
+            warnings.append(f"MODEL PIPELINE FAILED - {exc}")
 
         try:
             if backend is not None:
-                step(1)
+                step(3)
                 transcript, page_reports = Pass1Transcriber(backend).transcribe(
-                    str(pdf), images, detail=lambda d: step(1, d), cancel=cancel)
+                    str(pdf), images, detail=lambda d: step(3, d), cancel=cancel)
             else:
-                step(1, "fallback: text layer")
+                step(3, "fallback: text layer")
                 transcript, page_reports = transcribe_pdf(str(pdf), images), []
-            if transcript_path:
+            if transcript_path is not None:
                 transcript_path.write_text(transcript, encoding="utf-8")
 
             if backend is not None:
-                step(2)
+                step(4)
                 data, section_reports = Pass2Structurer(backend).structure(
-                    transcript, detail=lambda d: step(2, d), cancel=cancel)
+                    transcript, detail=lambda d: step(4, d), cancel=cancel)
             else:
-                step(2, "fallback: rule-based parser")
+                step(4, "fallback: rule-based parser")
                 data, section_reports = RuleBasedStructurer().structure(transcript), []
         except Cancelled as exc:
             raise PipelineCancelled() from exc
 
-        # 3. Exactly the master schema in the output; everything else in the sidecar.
-        step(3)
+        # 5. Exactly the master schema in the output; everything else in the sidecar.
+        step(5)
         data, dropped = schema.enforce(data)
         errors = schema.validate(data)  # always empty after enforce; kept as a guard
         cov = coverage.transcript_coverage(transcript, data)
@@ -187,12 +237,14 @@ class DocumentPipeline:
             "status_reasons": reasons,
             "pipeline_version": __version__,
             "source_file": src.name,
-            "source_sha256": _sha256(src),
+            "source_sha256": source_sha256,
             "document_id": document_id,
             "image_manifest": manifest_path,
             "processed_at": started.isoformat(timespec="seconds"),
             "elapsed_seconds": round(elapsed, 2),
             "model": model_meta,
+            "security_gate": _gate_summary(gate),
+            "security_gate_converted_pdf": _gate_summary(converted_gate) if converted_gate else None,
             "pass1_pages": [asdict(r) for r in page_reports],
             "pass2_sections": [asdict(r) for r in section_reports],
             "coverage": {"placed_in_schema": round(cov.ratio, 4),
@@ -204,26 +256,50 @@ class DocumentPipeline:
             "dropped_values": dropped,
             "unmapped_content": unmapped,
         }
-        if json_path:
+        if json_path is not None:
+            fallback_path = json_path.with_name(f"{stem}.fallback.json")
+            if status == "failed":  # never leave a failed run's output where the real output goes
+                json_path.unlink(missing_ok=True)
+                json_path = fallback_path
+            else:
+                fallback_path.unlink(missing_ok=True)
             json_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-        if meta_path:
             meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
         log.info("Processed %s: status=%s, %d findings, coverage %.1f%%, %.1fs", src.name, status,
                  len(data["detailed_observations"]), cov.ratio * 100, elapsed)
-        return PipelineResult(data, meta, status, json_path, meta_path, transcript_path, manifest_path,
-                              elapsed, warnings)
+        result = PipelineResult(data, meta, status, json_path, meta_path, transcript_path, manifest_path,
+                                elapsed, warnings)
+        if status == "failed":
+            raise ModelPipelineFailed(result)
+        return result
 
     # ------------------------------------------------------------------ helpers
 
+    def _run_gate(self, path: Path, warnings: List[str]) -> Dict[str, Any]:
+        if not self.enable_security_gate:
+            warnings.append(f"Malware pre-gate was disabled for {path.name}")
+            return {"verdict": "NOT_SCANNED", "rule_matches": [], "checks": [], "sha256": None}
+        try:
+            return malware_gate(str(path))
+        except MalwareDetectedError as exc:
+            raise DocumentBlocked(exc.scan_result, str(exc)) from exc
+        except GateUnavailableError as exc:
+            raise PipelineError(f"Malware pre-gate unavailable, refusing to process: {exc}") from exc
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _gate_summary(gate: Dict[str, Any]) -> Dict[str, Any]:
+    return {k: gate.get(k) for k in ("verdict", "sha256", "rule_matches", "checks")}
 
 
 def _status(model_ran: bool, pages, sections, coverage_ratio: float, errors: List[str],
             dropped: Optional[List[Dict[str, Any]]] = None):
     reasons: List[str] = []
     if not model_ran:
-        return "fallback", ["model unavailable: whole document produced by the rule-based fallback"]
+        return "failed", ["model unavailable: the whole document fell back to the rule-based parser"]
     fallback_pages = [p.page for p in pages if p.source != "model"]
     fallback_sections = [s.name for s in sections if s.source != "model"]
     if fallback_pages:
@@ -231,7 +307,7 @@ def _status(model_ran: bool, pages, sections, coverage_ratio: float, errors: Lis
     if fallback_sections:
         reasons.append(f"pass 2 fell back for: {fallback_sections}")
     if reasons:
-        return "fallback", reasons
+        return "failed", reasons
 
     threshold = config.page_recall_threshold()
     low = [p.page for p in pages if p.recall is not None and p.recall < threshold]

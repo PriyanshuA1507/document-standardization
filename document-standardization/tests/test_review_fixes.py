@@ -70,23 +70,6 @@ def test_zip_with_real_encrypted_flag_is_handled(tmp_path):
 
 # --- backends ---------------------------------------------------------------------------------
 
-def test_model_load_failure_is_a_backend_error_and_not_retried(tmp_path, monkeypatch):
-    (tmp_path / "config.json").write_text("{}")
-    backend = backends.TransformersBackend(config.get_model("qwen3-vl-4b-instruct-awq"), tmp_path)
-    calls = []
-
-    def fail():
-        calls.append(1)
-        raise OSError("processor files missing")
-
-    monkeypatch.setattr(backend, "_load_model", fail)
-    with pytest.raises(backends.BackendError, match="processor files missing"):
-        backend.check()
-    with pytest.raises(backends.BackendError):
-        backend.generate("p")
-    assert calls == [1]
-
-
 def test_non_json_server_reply_is_a_backend_error(monkeypatch):
     class Reply:
         def __enter__(self):
@@ -98,9 +81,9 @@ def test_non_json_server_reply_is_a_backend_error(monkeypatch):
         def read(self):
             return b"<html>502 Bad Gateway</html>"
 
-    monkeypatch.setattr(backends.urllib.request, "urlopen", lambda req, timeout=None: Reply())
+    monkeypatch.setattr(backends, "_open", lambda req, timeout=None: Reply())
     with pytest.raises(backends.BackendError, match="did not return JSON"):
-        backends.OpenAICompatBackend(config.get_model("qwen3-vl-4b-instruct-awq"), "http://h/v1").generate("p")
+        backends.OpenAICompatBackend(config.get_model("nemotron-3-nano-omni"), "http://127.0.0.1:8000/v1").generate("p")
 
 
 # --- conversion ------------------------------------------------------------------------------

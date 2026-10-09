@@ -8,13 +8,16 @@ IoT; PDF or DOCX). It produces a single standardised JSON format defined by
 malware gate ─► PDF ─► images to deep storage (pointer tags) ─► VLM transcription ─► schema restructuring ─► JSON
 ```
 
-- **One local model runs both passes:** NVIDIA Qwen3-VL 4B Instruct AWQ. No inference API is ever called.
+- **One local model runs both passes:** NVIDIA Nemotron 3 Nano Omni, served on this machine or the
+  private network. The pipeline refuses any endpoint outside it and ignores proxy settings, so no
+  request ever leaves the local network.
 - **Exactly the master schema.** The output JSON has precisely the structure of `master_schema.json`.
 - **Nothing is dropped.** Transcription is checked against the PDF's text layer. Text that fits no schema
   field, and values the schema can't hold, are kept in a separate run report next to the JSON.
 - **Nothing is invented.** Values the document doesn't state are `null`.
-- **Fallback is failure.** The rule-based parser only runs when the model pipeline fails, and the output
-  is then marked `fallback`.
+- **Fallback is failure.** When the model fails on any part of a report, the text layer or the rule-based
+  parser stands in so the run report shows what went wrong, but the run fails: no `<name>.json`, and
+  `ModelPipelineFailed` is raised.
 
 Details:
 - how each stage works: [docs/pipeline_overview.md](docs/pipeline_overview.md)
@@ -27,17 +30,17 @@ Details:
 python -m venv .venv
 .venv\Scripts\activate              # Windows  (source .venv/bin/activate elsewhere)
 pip install -r requirements.txt
-copy .env.example .env              # then set the model endpoints / paths
+copy .env.example .env              # then set the model endpoint
 ```
 
-Models run in a local inference server (recommended; see [docs/models.md](docs/models.md)) or in-process
-(`pip install -r requirements.txt` and put the weights in `models/`). DOCX input needs Microsoft
-Word (Windows) or LibreOffice for conversion to PDF.
+The model runs in a local inference server (vLLM; see [docs/models.md](docs/models.md)). DOCX input needs
+Microsoft Word (Windows) or LibreOffice for conversion to PDF.
 
 ## Run
 
 ```bash
-python -m report_to_json      # or run_gui.bat, or python gui_app.py
+python -m report_to_json      # the GUI (or run_gui.bat, or python gui_app.py)
+python -m report_to_json path/to/report.pdf --output-dir outputs    # headless
 ```
 
 Pick a report and press **Process report**. The model panel shows whether the model is reachable. Output goes to `outputs/`:
@@ -62,13 +65,14 @@ response = standardize_report("path/to/report.pdf")      # PDF or DOCX
 `response` is the JSON document itself, as text, with exactly the structure of `master_schema.json`.
 That response is the output; it is identical to the `<name>.json` file the run also saves.
 
-- The function returns whenever a result exists. If the model failed and the fallback produced the
-  result, the JSON is still returned; the failure is logged as a warning and recorded in the run report
-  (`<name>.meta.json`, `status: fallback`). Pass `strict=True` to raise `ModelPipelineFailed` instead.
-- It raises only when no JSON can exist: `DocumentBlocked` when the malware pre-gate blocks the file, and
-  `PipelineError` for a missing file, an unsupported type or another processing failure.
-- The run's files are written to `outputs/`, or to `output_dir=...`.
-- The model is set up on the first call and reused. Calls are processed one at a time.
+- It raises when there is no standardised JSON: `ModelPipelineFailed` when the model pipeline failed
+  (`exc.result.meta` is the run report; `<name>.meta.json` says `status: failed` and the fallback's output
+  is kept as `<name>.fallback.json` for diagnosis only), `DocumentBlocked` when the malware pre-gate
+  blocks the file, and `PipelineError` for a missing file, an unsupported type or another processing failure.
+- The run's files are written to `outputs/`, or to `output_dir=...`; `process_report(..., save_to_disk=False)`
+  writes none.
+- Documents are processed one at a time; within a document, up to `MODEL_CONCURRENCY` model calls run at
+  once (pages in pass 1, sections and findings in pass 2).
 
 When the caller also needs the run status or the run report, use `process_report`:
 
@@ -77,14 +81,14 @@ from report_to_json import process_report
 
 result = process_report("path/to/report.pdf")
 result.data      # the JSON, as a dict
-result.status    # "ok", "needs_review" or "fallback"
+result.status    # "ok" or "needs_review"
 result.meta      # the run report (also saved as <name>.meta.json)
 ```
 
 ## Development
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 pytest
 ```
 
@@ -100,10 +104,10 @@ report_to_json/
   storage.py       deep storage (content-addressed) and image manifests
   images.py        image offload, page masking with pointer tags, tag reconciliation
   vlm.py           pass 1 (transcription) and pass 2 (sectioned schema restructuring)
-  backends.py      local OpenAI-compatible server / in-process Transformers
+  backends.py      the local OpenAI-compatible server (local-network endpoints only)
   coverage.py      page recall and transcript-to-JSON coverage
-  structurer.py    rule-based fallback parser (textparse.py holds its helpers)
-  transcribe.py    text-layer fallback transcription
+  structurer.py    rule-based fallback parser, for diagnosing failed runs (textparse.py holds its helpers)
+  transcribe.py    text-layer fallback transcription, likewise
   schema/          master template, derived JSON Schemas, validation
   gui.py           Tkinter desktop app
 ```

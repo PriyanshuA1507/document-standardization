@@ -109,15 +109,9 @@ services:
       - ../document-standardization:/document-standardization
     environment:
       - R2J_MODEL_ENDPOINT=http://vllm:8000/v1
+      - MODEL_CONCURRENCY=64
     ports:
       - "8001:8001"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     restart: unless-stopped
     depends_on:
       - vllm
@@ -130,11 +124,12 @@ services:
     ports:
       - "8000:8000"
     command: >
-      --model /document-standardization/models/Qwen3-VL-4B-Instruct-AWQ-4bit
-      --served-model-name Qwen/Qwen3-VL-4B-Instruct-AWQ
-      --max-model-len 32768
-      --enforce-eager
-      --gpu-memory-utilization 0.85
+      --model /document-standardization/models/nemotron
+      --served-model-name nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16
+      --max-model-len 262144
+      --enable-prefix-caching
+      --max-num-seqs 512
+      --gpu-memory-utilization 0.90
       --trust-remote-code
     deploy:
       resources:

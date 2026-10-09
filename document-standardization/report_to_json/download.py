@@ -7,11 +7,11 @@ with its size and checksum instead.
 
 On a machine WITH internet access:
     python -m report_to_json.download --status
-    python -m report_to_json.download --model qwen3-vl-4b-instruct-awq --dest D:\\transfer\\models
+    python -m report_to_json.download --model nemotron-3-nano-omni --dest D:\\transfer\\models
     python -m report_to_json.download --refresh-manifest      # re-pin to the latest revisions
 
 On the air-gapped system, after copying the folders into MODELS_DIR:
-    python -m report_to_json.download --verify qwen3-vl-4b-instruct-awq
+    python -m report_to_json.download --verify nemotron-3-nano-omni
 
 Set ``HF_TOKEN`` if the repository requires authentication.
 The pipeline itself never downloads anything.
@@ -139,9 +139,8 @@ def verify(key: str, folder: Optional[Path] = None, manifest: Optional[Dict] = N
 def status() -> None:
     manifest = load_manifest()["models"] if MANIFEST_PATH.exists() else {}
     for profile in config.MODELS.values():
-        endpoint = config.model_endpoint(profile)
-        weights = config.local_weights(profile)
-        where = f"server {endpoint}" if endpoint else (f"weights {weights}" if weights else "NOT AVAILABLE")
+        weights = config.models_dir() / profile.local_folder
+        where = f"served at {config.model_endpoint(profile)}; weights {'in ' + str(weights) if weights.is_dir() else 'not staged'}"
         pinned = manifest.get(profile.key, {})
         size = f"{pinned['total_bytes'] / 1e9:.1f} GB @ {pinned['revision'][:12]}" if pinned else "not in manifest"
         print(f"{profile.key:22} {profile.repo_id:52} {size:24} {where}")

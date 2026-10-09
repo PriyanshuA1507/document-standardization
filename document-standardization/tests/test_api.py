@@ -53,30 +53,30 @@ def test_accepts_string_paths_and_reuses_the_pipeline(report_pdf, tmp_path, use_
     assert created == [1]  # the model is set up once per process
 
 
-def test_fallback_output_is_still_returned_with_a_warning(report_pdf, tmp_path, use_backend, caplog):
-    use_backend(FakeBackend(lambda *a: BackendError("server down")))
-    with caplog.at_level("WARNING", logger="report_to_json.api"):
-        data = json.loads(api.standardize_report(report_pdf, tmp_path / "out"))
-    assert set(data) == set(schema.template())
-    assert len(data["detailed_observations"]) == 2  # the rule-based parser's result
-    assert "model pipeline failed" in caplog.text
-    run_report = json.loads((tmp_path / "out" / "acme-report.meta.json").read_text(encoding="utf-8"))
-    assert run_report["status"] == "fallback"
-
-
-def test_strict_mode_raises_on_fallback(report_pdf, tmp_path, use_backend):
+def test_a_failed_model_pipeline_raises_and_returns_no_json(report_pdf, tmp_path, use_backend):
     use_backend(FakeBackend(lambda *a: BackendError("server down")))
     with pytest.raises(api.ModelPipelineFailed) as exc:
-        api.standardize_report(report_pdf, tmp_path / "out", strict=True)
-    assert exc.value.result.status == "fallback"
+        api.standardize_report(report_pdf, tmp_path / "out")
+    assert exc.value.result.status == "failed"
     assert "fell back" in str(exc.value)
+    assert not (tmp_path / "out" / "acme-report.json").exists()
+    run_report = json.loads((tmp_path / "out" / "acme-report.meta.json").read_text(encoding="utf-8"))
+    assert run_report["status"] == "failed"
+
+
+def test_without_saving_nothing_is_written(report_pdf, tmp_path, use_backend, monkeypatch):
+    use_backend(perfect_model(report_pdf))
+    monkeypatch.chdir(tmp_path)
+    result = api.process_report(report_pdf, tmp_path / "out", save_to_disk=False)
+    assert result.status == "ok" and result.json_path is None
+    assert not (tmp_path / "out").exists()
 
 
 def test_process_report_returns_status_and_run_report(report_pdf, tmp_path, use_backend):
     use_backend(perfect_model(report_pdf))
     result = api.process_report(report_pdf, tmp_path / "out")
     assert result.status == "ok"
-    assert result.meta["model"]["key"] == "qwen3-vl-4b-instruct-awq"
+    assert result.meta["model"]["key"] == "nemotron-3-nano-omni"
     assert result.data == json.loads(result.json_path.read_text(encoding="utf-8"))
 
 

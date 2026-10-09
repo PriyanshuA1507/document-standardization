@@ -6,8 +6,8 @@ import pytest
 from report_to_json import pipeline as pipeline_mod
 from report_to_json import schema
 from report_to_json.backends import BackendError, Generation
-from report_to_json.pipeline import (DocumentBlocked, DocumentPipeline, PipelineCancelled, PipelineError,
-                                     safe_stem)
+from report_to_json.pipeline import (DocumentBlocked, DocumentPipeline, ModelPipelineFailed, PipelineCancelled,
+                                     PipelineError, safe_stem)
 from report_to_json.security import gate as gate_mod
 from report_to_json.storage import LocalDeepStorage
 
@@ -64,6 +64,19 @@ def perfect_model(pdf_path, overrides=None):
 def run(pdf, tmp_path, backend, **kwargs):
     pipe = DocumentPipeline(backend=backend, storage=LocalDeepStorage(tmp_path / "store"), **kwargs)
     return pipe.process_file(pdf, tmp_path / "out")
+
+
+def run_failed(pdf, tmp_path, backend, **kwargs):
+    """A run that must fail: returns the failed result after checking what was (not) written."""
+    with pytest.raises(ModelPipelineFailed) as exc:
+        run(pdf, tmp_path, backend, **kwargs)
+    result = exc.value.result
+    assert result.status == "failed" and result.meta["status"] == "failed"
+    out = tmp_path / "out"
+    assert not (out / f"{pdf.stem}.json").exists()  # no standardised output for a failed run
+    assert result.json_path == out / f"{pdf.stem}.fallback.json" and result.json_path.exists()
+    assert json.loads(result.meta_path.read_text(encoding="utf-8"))["status"] == "failed"
+    return result
 
 
 @pytest.fixture(autouse=True)
@@ -186,11 +199,10 @@ def test_page_that_stays_incomplete_needs_review(report_pdf, tmp_path):
     assert result.status == "needs_review"
 
 
-def test_vision_failure_falls_back_to_text_layer_and_is_flagged(report_pdf, tmp_path):
+def test_vision_failure_falls_back_to_text_layer_and_fails_the_run(report_pdf, tmp_path):
     fail = lambda prompt: BackendError("GPU out of memory")  # noqa: E731
-    result = run(report_pdf, tmp_path, perfect_model(report_pdf, {"transcribe page 1 of 3": fail}))
+    result = run_failed(report_pdf, tmp_path, perfect_model(report_pdf, {"transcribe page 1 of 3": fail}))
     assert result.meta["pass1_pages"][0]["source"] == "text_layer_fallback"
-    assert result.status == "fallback"
     assert "Report Release Date" in result.transcript_path.read_text(encoding="utf-8")
 
 
@@ -204,11 +216,10 @@ def test_invalid_structuring_output_is_repaired(report_pdf, tmp_path):
     assert "did not match the required structure" in repair_prompt
 
 
-def test_unrepairable_section_falls_back_to_rule_based_and_is_flagged(report_pdf, tmp_path):
-    result = run(report_pdf, tmp_path, perfect_model(report_pdf, {"extract the front matter": "{}"}))
+def test_unrepairable_section_falls_back_to_rule_based_and_fails_the_run(report_pdf, tmp_path):
+    result = run_failed(report_pdf, tmp_path, perfect_model(report_pdf, {"extract the front matter": "{}"}))
     front = next(s for s in result.meta["pass2_sections"] if s["name"] == "front matter")
     assert front["source"] == "rule_based"
-    assert result.status == "fallback"
     # The rule-based parser still reads the real values from the transcript.
     assert result.data["report_meta"]["report_release_date"] == "2026-02-16"
 
@@ -221,13 +232,11 @@ def test_truncated_output_is_retried(report_pdf, tmp_path):
     assert appendices["attempts"] == 2 and "token limit" in appendices["issues"][0]
 
 
-def test_unavailable_model_produces_flagged_fallback(report_pdf, tmp_path, monkeypatch):
+def test_unavailable_model_fails_the_run(report_pdf, tmp_path, monkeypatch):
     def unavailable(key):
         raise BackendError("no server configured")
     monkeypatch.setattr(pipeline_mod, "create_backend", unavailable)
-    pipe = DocumentPipeline(storage=LocalDeepStorage(tmp_path / "store"))
-    result = pipe.process_file(report_pdf, tmp_path / "out")
-    assert result.status == "fallback"
+    result = run_failed(report_pdf, tmp_path, None)
     assert result.warnings[0].startswith("MODEL PIPELINE FAILED")
     assert [o["title"] for o in result.data["detailed_observations"]] == ["Broken Authentication",
                                                                          "Business Logic Failure"]
@@ -294,3 +303,28 @@ def test_rejects_unsupported_and_missing_files(tmp_path):
 def test_safe_stem():
     assert safe_stem("best report ") == "best_report"
     assert safe_stem("...") == "document"
+
+
+def test_a_successful_run_replaces_an_earlier_failed_output(report_pdf, tmp_path):
+    run_failed(report_pdf, tmp_path, perfect_model(report_pdf, {"extract the front matter": "{}"}))
+    result = run(report_pdf, tmp_path, perfect_model(report_pdf))
+    assert result.status == "ok" and result.json_path.exists()
+    assert not (tmp_path / "out" / "acme-report.fallback.json").exists()
+
+
+def test_model_calls_run_concurrently(report_pdf, tmp_path, monkeypatch):
+    import threading
+    monkeypatch.setenv("MODEL_CONCURRENCY", "8")
+    barrier = threading.Barrier(3, timeout=10)  # all three pages must be in flight together
+    inner = perfect_model(report_pdf)
+
+    def respond(prompt, image, json_schema):
+        if image is not None:
+            barrier.wait()
+        return inner.responder(prompt, image, json_schema)
+
+    result = run(report_pdf, tmp_path, FakeBackend(respond))
+    assert result.status == "ok"
+    assert [p["page"] for p in result.meta["pass1_pages"]] == [1, 2, 3]  # still in page order
+    assert [s["name"] for s in result.meta["pass2_sections"]][:5] == [
+        "front matter", "scope, team and tools", "executive summary", "appendices", "findings index"]

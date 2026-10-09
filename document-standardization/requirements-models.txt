@@ -1,0 +1,4 @@
+# Only for staging the weights on a CONNECTED machine: python -m report_to_json.download
+# The model itself runs in a local inference server (see docs/models.md), installed in its own environment.
+-r requirements.txt
+huggingface_hub>=0.25.0

@@ -2,9 +2,10 @@
 
 import gc
 import time
-import tkinter as tk
 
 import pytest
+
+tk = pytest.importorskip("tkinter")
 
 from report_to_json import gui as gui_mod
 from report_to_json.backends import BackendError
@@ -54,7 +55,7 @@ def _run(app, pdf, tmp_path, timeout=60):
 
 def test_model_panel_shows_the_one_model_and_no_picker(app):
     assert app.model_name_lbl.cget("text") == gui_mod.MODEL.label
-    assert "Qwen3-VL 4B Instruct AWQ" in gui_mod.MODEL.label
+    assert "Nemotron 3 Nano Omni" in gui_mod.MODEL.label
     assert not hasattr(app, "engine_combo")
 
 
@@ -71,13 +72,13 @@ def test_successful_run_renders_findings(app, report_pdf, tmp_path, monkeypatch)
     assert any("Broken Authentication" in text for text in labels)
 
 
-def test_fallback_run_is_shown_as_failure(app, report_pdf, tmp_path, monkeypatch):
+def test_failed_run_is_shown_as_failure(app, report_pdf, tmp_path, monkeypatch):
     fail = lambda prompt: BackendError("server down")  # noqa: E731
     overrides = {t: fail for t in ("extract the front matter", "extract the scope, team and tools")}
     _use_backend(monkeypatch, tmp_path, perfect_model(report_pdf, overrides))
     _run(app, report_pdf, tmp_path)
 
-    assert app._result.status == "fallback"
+    assert app._result.status == "failed"
     assert "FAILED" in app.header_status.cget("text")
     assert app.header_status.cget("fg") == gui_mod.ROSE
 

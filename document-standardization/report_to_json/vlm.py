@@ -1,5 +1,5 @@
 """
-The decoupled two-pass model pipeline. One model (Qwen3-VL 4B Instruct AWQ) runs both passes.
+The decoupled two-pass model pipeline. One model (Nemotron 3 Nano Omni) runs both passes.
 
 Pass 1 (vision)  Each page is rendered with its images replaced by labelled
                  placeholder boxes and transcribed verbatim. The transcript is
@@ -7,16 +7,19 @@ Pass 1 (vision)  Each page is rendered with its images replaced by labelled
                  re-transcribed, telling the model which words it missed.
 
 Pass 2 (text)    The transcript is restructured into the master schema, one
-                 section at a time so no single response exceeds the output limit:
-                 front matter, scope/team/tools, executive summary, appendices, a
-                 findings index, then one call per finding. On a server backend each
-                 response is constrained to the section's JSON Schema; otherwise it is
-                 validated and repaired. Prompts start with the transcript so a
-                 prefix-caching server encodes it once.
+                 section at a time so each call stays focused: front matter,
+                 scope/team/tools, executive summary, appendices, a findings index,
+                 then one call per finding. Each response is constrained to the
+                 section's JSON Schema, validated and repaired. Prompts start with the
+                 transcript so a prefix-caching server encodes it once.
+
+Calls run concurrently (``MODEL_CONCURRENCY``): all pages of pass 1, then the
+pass-2 sections together with the findings index, then all findings.
 
 Anything the model cannot do falls back to the text layer (pass 1) or the
-rule-based parser (pass 2), and every fallback is recorded: a fallback means the
-model pipeline failed for that part.
+rule-based parser (pass 2), and every fallback is recorded. A fallback means the
+model pipeline failed: the run is reported as failed and its output is never
+delivered as the standardised JSON.
 """
 
 from __future__ import annotations
@@ -24,8 +27,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import fitz
 import pdfplumber
@@ -46,6 +51,33 @@ CancelFn = Callable[[], bool]
 
 class Cancelled(Exception):
     pass
+
+
+T = TypeVar("T")
+R = TypeVar("R")
+
+
+def run_concurrently(fn: Callable[[T], R], items: Iterable[T], workers: int,
+                     on_done: Optional[Callable[[int, int], None]] = None) -> List[R]:
+    """``[fn(item) for item in items]`` with up to ``workers`` calls in flight, in input order.
+
+    The first exception (including ``Cancelled`` from ``fn`` or ``on_done``) stops the
+    rest: queued calls are dropped, calls in flight finish, and the exception is raised.
+    """
+    items = list(items)
+    results: List[Any] = [None] * len(items)
+    if not items:
+        return results
+    pool = ThreadPoolExecutor(max_workers=min(workers, len(items)), thread_name_prefix="r2j-model")
+    try:
+        futures = {pool.submit(fn, item): i for i, item in enumerate(items)}
+        for done, future in enumerate(as_completed(futures), 1):
+            results[futures[future]] = future.result()
+            if on_done:
+                on_done(done, len(items))
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
+    return results
 
 
 # --------------------------------------------------------------------------- pass 1
@@ -85,29 +117,36 @@ class Pass1Transcriber:
         self.threshold = config.page_recall_threshold()
         self.retries = config.pass1_retries()
         self.dpi = config.render_dpi()
+        self.concurrency = config.model_concurrency()
 
     def transcribe(self, pdf_path: str, images: Dict[int, List[StoredImage]],
                    detail: Optional[DetailFn] = None, cancel: Optional[CancelFn] = None
                    ) -> Tuple[str, List[PageReport]]:
-        blocks: List[str] = []
-        reports: List[PageReport] = []
+        doc_lock = threading.Lock()  # PyMuPDF and pdfplumber documents are not thread-safe
         with fitz.open(pdf_path) as doc, pdfplumber.open(pdf_path) as plumb:
-            for page in doc:
+            pages = len(doc)
+
+            def one(index: int) -> Tuple[str, PageReport]:
                 if cancel and cancel():
                     raise Cancelled()
-                no = page.number + 1
-                if detail:
-                    detail(f"page {no} of {len(doc)}")
-                page_images = images.get(no, [])
-                body, report = self._page(page, len(doc), page_images, plumb.pages[page.number])
-                blocks.append(page_block(no, body))
-                reports.append(report)
-        return "\n\n".join(blocks), reports
+                no = index + 1
+                body, report = self._page(doc, plumb, index, pages, images.get(no, []), doc_lock)
+                return page_block(no, body), report
 
-    def _page(self, page: fitz.Page, pages: int, page_images: List[StoredImage], plumb_page):
-        no = page.number + 1
-        reference = coverage.reference_words(page, [i.bbox for i in page_images if i.bbox])
-        image = render_masked_page(page, page_images, self.dpi)
+            def progress(done: int, total: int) -> None:
+                if detail:
+                    detail(f"{done} of {total} pages")
+
+            results = run_concurrently(one, range(pages), self.concurrency, progress)
+        return "\n\n".join(block for block, _ in results), [report for _, report in results]
+
+    def _page(self, doc: fitz.Document, plumb, index: int, pages: int, page_images: List[StoredImage],
+              doc_lock: threading.Lock):
+        no = index + 1
+        with doc_lock:
+            page = doc[index]
+            reference = coverage.reference_words(page, [i.bbox for i in page_images if i.bbox])
+            image = render_masked_page(page, page_images, self.dpi)
 
         best: Optional[Tuple[str, Optional[float], List[str]]] = None  # (text, recall, words it missed)
         missing: List[str] = []  # from the latest attempt; drives the retry prompt
@@ -133,7 +172,9 @@ class Pass1Transcriber:
 
         if best is None:  # every attempt failed: use the text layer, and say so
             issues.append("vision model failed on this page; text layer used")
-            body, _ = reconcile_tags(layout_page(page, plumb_page, page_images), page_images)
+            with doc_lock:
+                layout = layout_page(doc[index], plumb.pages[index], page_images)
+            body, _ = reconcile_tags(layout, page_images)
             return body, PageReport(no, "text_layer_fallback", None, attempts, issues)
 
         text, recall, best_missing = best
@@ -234,15 +275,18 @@ class Pass2Structurer:
     def __init__(self, backend: ModelBackend):
         self.backend = backend
         self.retries = config.pass2_retries()
+        self.concurrency = config.model_concurrency()
         self._rule_based: Optional[Dict[str, Any]] = None
+        self._rule_based_lock = threading.Lock()
 
     def _fallback(self, transcript: str) -> Dict[str, Any]:
-        if self._rule_based is None:
-            self._rule_based = schema.conform(RuleBasedStructurer().structure(transcript))
-        return self._rule_based
+        with self._rule_based_lock:
+            if self._rule_based is None:
+                self._rule_based = schema.conform(RuleBasedStructurer().structure(transcript))
+            return self._rule_based
 
     def _call(self, transcript: str, task: str, instruction: str, template: Any, guide: str,
-              json_schema: Dict[str, Any], max_tokens: int = 16384, accept_imperfect: bool = True
+              json_schema: Dict[str, Any], max_tokens: int = 20480, accept_imperfect: bool = True
               ) -> Tuple[Optional[Dict], int, List[str]]:
         """Run one structuring call with validation and repair retries.
 
@@ -284,67 +328,71 @@ class Pass2Structurer:
 
     def structure(self, transcript: str, detail: Optional[DetailFn] = None, cancel: Optional[CancelFn] = None
                   ) -> Tuple[Dict[str, Any], List[SectionReport]]:
-        data: Dict[str, Any] = {}
-        reports: List[SectionReport] = []
-
         def check_cancel():
             if cancel and cancel():
                 raise Cancelled()
 
-        for name, keys, instruction in SECTIONS:
+        def progress(what: str):
+            return lambda done, total: detail(f"{what}: {done} of {total}") if detail else None
+
+        # The sections and the findings index are independent: run them together.
+        def section(job) -> Tuple[Dict[str, Any], SectionReport]:
             check_cancel()
-            if detail:
-                detail(name)
+            if job is None:
+                return self._index(transcript)
+            name, keys, instruction = job
             result, attempts, issues = self._call(
                 transcript, f"extract the {name}", instruction,
                 {k: schema.template()[k] for k in keys}, manual.field_guide(keys), schema.section_schema(keys))
             if result is None:
                 fallback = self._fallback(transcript)
-                result = {k: fallback[k] for k in keys}
-                reports.append(SectionReport(name, "rule_based", attempts, issues))
-            else:
-                reports.append(SectionReport(name, "model", attempts, issues))
-            data.update({k: result.get(k) for k in keys})
+                return {k: fallback[k] for k in keys}, SectionReport(name, "rule_based", attempts, issues)
+            return {k: result.get(k) for k in keys}, SectionReport(name, "model", attempts, issues)
 
-        check_cancel()
-        if detail:
-            detail("findings index")
-        index, attempts, issues = self._call(transcript, "index the findings", INDEX_INSTRUCTION,
-                                             {"findings": [{"finding_id": "string", "title": "string",
-                                                            "start_page": "number", "end_page": "number"}]},
-                                             manual.blocks()[manual.FINDINGS_INDEX],
-                                             INDEX_SCHEMA, max_tokens=8192, accept_imperfect=False)
+        results = run_concurrently(section, [*SECTIONS, None], self.concurrency, progress("sections"))
+        data: Dict[str, Any] = {}
+        reports: List[SectionReport] = []
+        for part, report in results[:-1]:
+            data.update(part)
+            reports.append(report)
+        index, index_report = results[-1]
+        reports.append(index_report)
         if index is None:
-            reports.append(SectionReport("findings index", "rule_based", attempts, issues))
             data["detailed_observations"] = self._fallback(transcript)["detailed_observations"]
             return data, reports
-        reports.append(SectionReport("findings index", "model", attempts, issues))
 
         entries = index["findings"]
-        observations = []
-        for n, entry in enumerate(entries, 1):
+
+        def one_finding(numbered) -> Tuple[Dict[str, Any], SectionReport]:
+            n, entry = numbered
             check_cancel()
-            if detail:
-                detail(f"finding {n} of {len(entries)}")
             start, end = sorted((max(1, entry["start_page"]), max(1, entry["end_page"])))
             excerpt = _page_slice(transcript, start, end + 1)  # +1: evidence often spills onto the next page
-            item_schema = schema.item_schema("detailed_observations")
             obs, attempts, issues = self._call(
                 excerpt, f"extract finding {n}",
                 FINDING_INSTRUCTION.format(number=n, count=len(entries), title=entry["title"],
                                            finding_id=entry["finding_id"], start=start, end=end),
                 schema.template()["detailed_observations"][0], manual.field_guide(["detailed_observations"]),
-                item_schema)
+                schema.item_schema("detailed_observations"))
             name = f"finding {n}: {entry['title']}"
             if obs is None:
                 obs = self._fallback_finding(transcript, entry)
-                reports.append(SectionReport(name, "rule_based" if obs.get("_matched") else "empty", attempts, issues))
-                obs.pop("_matched", None)
-            else:
-                reports.append(SectionReport(name, "model", attempts, issues))
-            observations.append(obs)
-        data["detailed_observations"] = observations
+                source = "rule_based" if obs.pop("_matched", False) else "empty"
+                return obs, SectionReport(name, source, attempts, issues)
+            return obs, SectionReport(name, "model", attempts, issues)
+
+        found = run_concurrently(one_finding, enumerate(entries, 1), self.concurrency, progress("findings"))
+        data["detailed_observations"] = [obs for obs, _ in found]
+        reports.extend(report for _, report in found)
         return data, reports
+
+    def _index(self, transcript: str) -> Tuple[Optional[Dict[str, Any]], SectionReport]:
+        index, attempts, issues = self._call(transcript, "index the findings", INDEX_INSTRUCTION,
+                                             {"findings": [{"finding_id": "string", "title": "string",
+                                                            "start_page": "number", "end_page": "number"}]},
+                                             manual.blocks()[manual.FINDINGS_INDEX],
+                                             INDEX_SCHEMA, max_tokens=16384, accept_imperfect=False)
+        return index, SectionReport("findings index", "model" if index is not None else "rule_based", attempts, issues)
 
     def _fallback_finding(self, transcript: str, entry: Dict[str, Any]) -> Dict[str, Any]:
         wanted = re.sub(r"\W+", " ", entry["title"]).strip().lower()

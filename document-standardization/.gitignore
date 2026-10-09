@@ -95,3 +95,6 @@ models/*
 
 # Offloaded image store (client data)
 deep_storage/
+
+# Local virtual environments
+.hf-venv/

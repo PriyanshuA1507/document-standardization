@@ -1,28 +1,28 @@
 """
-Model backends. The model serves both passes through a single backend.
+The model backend: a local OpenAI-compatible server (vLLM, SGLang, TensorRT-LLM).
 
-``OpenAICompatBackend``  a local OpenAI-compatible server (vLLM, SGLang, TensorRT-LLM).
-                         Preferred: handles 100B-class MoE models across GPUs, prefix-caches
-                         the transcript shared by pass-2 calls, and enforces JSON schemas
-                         during decoding (``response_format: json_schema``).
-``TransformersBackend``  in-process Hugging Face Transformers from a local weights folder.
-                         No constrained decoding; pass 2 validates and repairs instead.
+The server handles the model across GPUs, batches concurrent calls, prefix-caches the
+transcript shared by pass-2 calls, and enforces JSON schemas during decoding
+(``response_format: json_schema``).
 
-Both are offline-only: the server must be local to the air-gapped network and
-Transformers loads with ``local_files_only=True``.
+Air-gapped by construction: the endpoint's host must resolve to a loopback, private or
+link-local address (checked on every request), and proxy settings in the environment
+are ignored, so no request can leave the local network.
 """
 
 from __future__ import annotations
 
 import base64
 import io
+import ipaddress
 import json
 import logging
 import os
+import socket
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Dict, Optional, Protocol
 
 from PIL import Image
@@ -61,6 +61,34 @@ def _png_data_url(image: Image.Image) -> str:
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def _build_opener() -> urllib.request.OpenerDirector:
+    # An empty ProxyHandler: HTTP(S)_PROXY in the environment must not route model traffic elsewhere.
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+_OPENER = _build_opener()
+
+
+def _open(req: urllib.request.Request, timeout: float):
+    return _OPENER.open(req, timeout=timeout)
+
+
+def require_local(base_url: str) -> None:
+    """Raise BackendError unless every address ``base_url``'s host resolves to is local or private."""
+    host = urllib.parse.urlsplit(base_url).hostname
+    if not host:
+        raise BackendError(f"Model endpoint {base_url!r} has no host")
+    try:
+        addresses = {info[4][0] for info in socket.getaddrinfo(host, None)}
+    except socket.gaierror as exc:
+        raise BackendError(f"Cannot resolve model server host {host!r}: {exc}") from exc
+    for address in addresses:
+        ip = ipaddress.ip_address(address.split("%")[0])
+        if not (ip.is_loopback or ip.is_private or ip.is_link_local):
+            raise BackendError(f"Refusing model endpoint {base_url}: {host} resolves to the non-local "
+                               f"address {address}. The model must be hosted on the local network.")
+
+
 class OpenAICompatBackend:
     supports_json_schema = True
 
@@ -73,12 +101,13 @@ class OpenAICompatBackend:
         self._api_key = os.environ.get("R2J_API_KEY", "")
 
     def _request(self, path: str, payload: Optional[dict] = None, timeout: Optional[float] = None) -> dict:
+        require_local(self.base_url)
         data = json.dumps(payload).encode("utf-8") if payload is not None else None
         req = urllib.request.Request(self.base_url + path, data=data, method="POST" if data else "GET",
                                      headers={"Content-Type": "application/json",
                                               **({"Authorization": f"Bearer {self._api_key}"} if self._api_key else {})})
         try:
-            with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
+            with _open(req, timeout or self.timeout) as resp:
                 body = resp.read()
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:500]
@@ -130,110 +159,7 @@ class OpenAICompatBackend:
         pass
 
 
-class TransformersBackend:
-    supports_json_schema = False
-
-    def __init__(self, profile: config.ModelProfile, weights: Path):
-        self.profile = profile
-        self.weights = weights
-        self.description = f"in-process Transformers ({weights})"
-        self._model = None
-        self._processor = None
-        self._load_error: Optional[BackendError] = None
-
-    def check(self) -> None:
-        """Loads the model, so a model that cannot run is detected before any page is processed."""
-        if not (self.weights / "config.json").exists():
-            raise BackendError(f"No model weights at {self.weights}")
-        self._load()
-
-    def _load(self) -> None:
-        if self._model is not None:
-            return
-        if self._load_error is not None:  # a failed load is not retried on every page
-            raise self._load_error
-        try:
-            self._load_model()
-        except BackendError as exc:
-            self._load_error = exc
-            raise
-        except Exception as exc:  # missing processor files, CUDA out of memory, corrupt weights...
-            self._load_error = BackendError(f"Could not load {self.weights}: {type(exc).__name__}: {exc}")
-            self._model = self._processor = None
-            raise self._load_error from exc
-
-    def _load_model(self) -> None:
-        try:
-            import importlib
-
-            importlib.import_module("torch")
-            import transformers
-        except ImportError as exc:
-            raise BackendError("In-process inference needs torch and transformers "
-                               "(pip install -r requirements-models.txt)") from exc
-        common = {"trust_remote_code": self.profile.trust_remote_code, "local_files_only": True}
-        self._processor = transformers.AutoProcessor.from_pretrained(str(self.weights), **common)
-        errors = []
-        # Which auto class the model registers under depends on the transformers version.
-        for cls_name in ("AutoModelForImageTextToText", "AutoModelForMultimodalLM", "AutoModelForCausalLM"):
-            cls = getattr(transformers, cls_name, None)
-            if cls is None:
-                continue
-            try:
-                self._model = cls.from_pretrained(str(self.weights), device_map="auto", torch_dtype="auto", **common)
-                break
-            except (ValueError, KeyError) as exc:  # model type not registered for this auto class
-                errors.append(f"{cls_name}: {exc}")
-        if self._model is None:
-            raise BackendError(f"Could not load {self.weights}: " + "; ".join(errors))
-        self._model.eval()
-        log.info("Loaded %s in-process", self.weights)
-
-    def generate(self, prompt: str, image: Optional[Image.Image] = None,
-                 json_schema: Optional[Dict[str, Any]] = None, max_tokens: int = 8192) -> Generation:
-        import torch
-
-        self._load()
-        content: list = [{"type": "image", "image": image}] if image is not None else []
-        content.append({"type": "text", "text": prompt})
-        max_new = min(max_tokens, self.profile.max_output_tokens)
-        try:
-            inputs = self._processor.apply_chat_template(
-                [{"role": "user", "content": content}], add_generation_prompt=True, tokenize=True,
-                return_dict=True, return_tensors="pt", **self.profile.chat_template_kwargs,
-                **(config.mm_processor_kwargs(self.profile) if image is not None else {}),
-            ).to(self._model.device)
-            with torch.inference_mode():
-                output = self._model.generate(**inputs, max_new_tokens=max_new, do_sample=False, repetition_penalty=1.05)
-        except Exception as exc:
-            raise BackendError(f"Generation failed: {exc}") from exc
-        new_tokens = output[0, inputs["input_ids"].shape[1]:]
-        text = self._processor.decode(new_tokens, skip_special_tokens=True)
-        return Generation(text=text, truncated=len(new_tokens) >= max_new)
-
-    def close(self) -> None:
-        self._model = self._processor = None
-        self._load_error = None
-        try:
-            import gc
-
-            import torch
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except ImportError:
-            pass
-
-
 def create_backend(model_key: str) -> ModelBackend:
-    """The configured backend for ``model_key``: a local server if one is configured, else local weights."""
+    """The backend for ``model_key``: its local server (see ``config.model_endpoint``)."""
     profile = config.get_model(model_key)
-    endpoint = config.model_endpoint(profile)
-    if endpoint:
-        return OpenAICompatBackend(profile, endpoint)
-    weights = config.local_weights(profile)
-    if weights:
-        return TransformersBackend(profile, weights)
-    raise BackendError(
-        f"{profile.label} is not available: start a local server and set {profile.env_prefix}_ENDPOINT "
-        f"(or R2J_MODEL_ENDPOINT), or place the weights in {config.models_dir() / profile.local_folder}")
+    return OpenAICompatBackend(profile, config.model_endpoint(profile))

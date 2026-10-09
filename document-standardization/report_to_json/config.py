@@ -1,9 +1,9 @@
 """
 Runtime configuration: paths, environment settings and the model registry.
 
-The system is designed for air-gapped deployment: every model runs locally,
-either behind a local OpenAI-compatible server (vLLM, SGLang, TensorRT-LLM)
-or in-process with Transformers from a local weights folder. Nothing is ever
+The system is designed for air-gapped deployment: the model runs behind a local
+OpenAI-compatible server (vLLM, SGLang, TensorRT-LLM) on this machine or the
+private network, and the pipeline refuses any other endpoint. Nothing is ever
 downloaded at runtime.
 
 Every setting can be overridden from the environment (or a ``.env`` file in the
@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_DIR.parent
@@ -78,6 +78,12 @@ def render_dpi() -> int:
     return _env_int("RENDER_DPI", 200)
 
 
+def model_concurrency() -> int:
+    """Model calls in flight at once (pages in pass 1, sections and findings in pass 2).
+    The server batches them; keep this at or below its ``--max-num-seqs``."""
+    return max(1, _env_int("MODEL_CONCURRENCY", 32))
+
+
 # --------------------------------------------------------------------------- models
 
 @dataclass(frozen=True)
@@ -106,31 +112,20 @@ class ModelProfile:
 # The pipeline runs on exactly one model. The registry shape is kept so the profile's
 # settings (template arguments, remote code, env prefix) stay in one declared place.
 MODELS: Dict[str, ModelProfile] = {
-    "qwen3-vl-4b-instruct-awq": ModelProfile(
-        key="qwen3-vl-4b-instruct-awq",
-        label="Qwen3-VL 4B Instruct AWQ (4-bit)",
-        repo_id="Qwen/Qwen3-VL-4B-Instruct-AWQ",
-        local_folder="Qwen3-VL-4B-Instruct-AWQ-4bit",
+    "nemotron-3-nano-omni": ModelProfile(
+        key="nemotron-3-nano-omni",
+        label="Nemotron 3 Nano Omni 30B-A3B (NVIDIA)",
+        repo_id="nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16",
+        local_folder="Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16",
         context_tokens=262_144,
         max_output_tokens=32_768,
-        chat_template_kwargs={},
-        trust_remote_code=False,
-        note="Qwen3 Vision Language model, 4B parameters, AWQ 4-bit quantized.",
-    ),
-    "nemotron-30b": ModelProfile(
-        key="nemotron-30b",
-        label="Nemotron 30B",
-        repo_id="nvidia/Nemotron-30B",
-        local_folder="Nemotron-30B",
-        context_tokens=32768,
-        max_output_tokens=8192,
-        chat_template_kwargs={},
+        chat_template_kwargs={"enable_thinking": False},
         trust_remote_code=True,
-        note="Nemotron 30B model",
+        note="MoE, 31B total / 3B active. Reasoning disabled for literal transcription.",
     ),
 }
 
-DEFAULT_MODEL = "qwen3-vl-4b-instruct-awq"
+DEFAULT_MODEL = "nemotron-3-nano-omni"
 
 
 def get_model(key: str) -> ModelProfile:
@@ -140,27 +135,22 @@ def get_model(key: str) -> ModelProfile:
         raise ValueError(f"Unknown model {key!r}; choose one of {sorted(MODELS)}") from None
 
 
-def model_endpoint(profile: ModelProfile) -> Optional[str]:
-    """Base URL of a local OpenAI-compatible server for this model, if configured.
+DEFAULT_ENDPOINT = "http://127.0.0.1:8000/v1"
 
-    ``R2J_<MODEL>_ENDPOINT`` wins over the shared ``R2J_MODEL_ENDPOINT``.
+
+def model_endpoint(profile: ModelProfile) -> str:
+    """Base URL of the local OpenAI-compatible server for this model.
+
+    ``R2J_<MODEL>_ENDPOINT`` wins over the shared ``R2J_MODEL_ENDPOINT``; the default is
+    a server on this machine. The host must resolve to a loopback or private address.
     """
-    return os.environ.get(f"{profile.env_prefix}_ENDPOINT") or os.environ.get("R2J_MODEL_ENDPOINT") or None
+    return (os.environ.get(f"{profile.env_prefix}_ENDPOINT") or os.environ.get("R2J_MODEL_ENDPOINT")
+            or DEFAULT_ENDPOINT)
 
 
 def served_model_name(profile: ModelProfile) -> str:
     """Model name the server was started with (``vllm serve <path> --served-model-name ...``)."""
     return os.environ.get(f"{profile.env_prefix}_SERVED_NAME", profile.repo_id)
-
-
-def local_weights(profile: ModelProfile) -> Optional[Path]:
-    """Local weights folder for in-process loading, if present."""
-    override = os.environ.get(f"{profile.env_prefix}_PATH")
-    candidates = [Path(override)] if override else [models_dir() / profile.local_folder]
-    for folder in candidates:
-        if (folder / "config.json").exists() and (any(folder.glob("*.safetensors")) or any(folder.glob("*.bin"))):
-            return folder
-    return None
 
 
 def mm_processor_kwargs(profile: ModelProfile) -> Dict[str, Any]:

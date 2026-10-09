@@ -1,6 +1,6 @@
-# Starting Guide: Running the Pipeline with Qwen3-VL AWQ
+# Starting Guide: Running the Pipeline with Nemotron 3 Nano Omni
 
-This guide details the complete, step-by-step process for running the `report_to_json` pipeline using the **Qwen3-VL-4B-Instruct-AWQ** model on Windows, leveraging an isolated Docker container to bypass native PyTorch hardware support limitations (such as missing kernels for cutting-edge GPUs like Blackwell).
+This guide details the complete, step-by-step process for running the `report_to_json` pipeline using the **Nemotron 3 Nano Omni** model on Windows, leveraging an isolated Docker container to bypass native PyTorch hardware support limitations (such as missing kernels for cutting-edge GPUs like Blackwell).
 
 ## Prerequisites
 
@@ -11,17 +11,17 @@ This guide details the complete, step-by-step process for running the `report_to
 
 ## Step 1: Start the vLLM Inference Server (Docker)
 
-To run the highly compressed 4-bit AWQ model smoothly on your GPU, we use `vllm` inside an optimized Linux Docker container. 
+To run the model on your GPU, we use `vllm` inside an optimized Linux Docker container. 
 
-Open a PowerShell terminal and run the following command. It mounts your local `models` folder into the container, exposes the server on port 8000, and explicitly defines the quantization method required by Qwen.
+Open a PowerShell terminal and run the following command. It mounts your local `models` folder into the container, exposes the server on port 8000, and serves the model under the name the pipeline expects (see [docs/models.md](docs/models.md)).
 
 ```powershell
 docker run --runtime nvidia --gpus all `
   -v "E:\Meity Main\document-standardization\document-standardization\models:/models" `
   -p 8000:8000 --ipc=host `
-  vllm/vllm-openai:latest /models/Qwen3-VL-4B-Instruct-AWQ-4bit `
-  --quantization compressed-tensors `
-  --max-model-len 32768
+  vllm/vllm-openai:latest /models/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16 `
+  --served-model-name nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16 `
+  --trust-remote-code --enable-prefix-caching
 ```
 
 > **Note:** Leave this terminal open. Wait until the logs show `Uvicorn running on http://0.0.0.0:8000` before proceeding to the next steps.
@@ -47,7 +47,7 @@ Open a **new** PowerShell terminal to set up the client-side Python application.
    .\.venv_gpu\Scripts\activate
    ```
 
-4. Install the pipeline dependencies:
+4. Install the pipeline dependencies (this includes `yara-python` for the malware pre-gate):
    ```powershell
    pip install -r requirements.txt
    ```
@@ -64,8 +64,8 @@ In your active PowerShell terminal, set the following environment variables:
 # Point the pipeline to the local Docker server (Option 1)
 $env:R2J_MODEL_ENDPOINT="http://localhost:8000/v1"
 
-# Bridge the naming gap: tell the app the exact model path the server is serving
-$env:R2J_QWEN3_VL_4B_INSTRUCT_AWQ_SERVED_NAME="/models/Qwen3-VL-4B-Instruct-AWQ-4bit"
+# Only if the server was started with a different --served-model-name:
+# $env:R2J_NEMOTRON_3_NANO_OMNI_SERVED_NAME="<that name>"
 ```
 
 ---

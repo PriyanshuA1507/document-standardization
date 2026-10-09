@@ -7,7 +7,7 @@ document that follows `report_to_json/schema/master_schema.json`. The route is f
 file ─► malware gate ─► PDF ─► images to deep storage ─► pass 1 (VLM transcription) ─► pass 2 (schema) ─► completeness check ─► JSON
 ```
 
-Everything goes through `DocumentPipeline.process_file`. One model, NVIDIA Qwen3-VL 4B Instruct AWQ, runs both passes
+Everything goes through `DocumentPipeline.process_file`. One model, NVIDIA Nemotron 3 Nano Omni, runs both passes
 (see [models.md](models.md)).
 
 ## 0. Malware pre-gate
@@ -47,7 +47,9 @@ pointer exactly where the image was. The model transcribes the page verbatim to 
 Completeness is checked against the PDF's own text layer, excluding text under masked figures. A page
 below `PAGE_RECALL_THRESHOLD` is re-transcribed, and the model is told which words it missed. Tags
 the model misreads are corrected, and tags it drops are re-added. If the model fails on a page, the
-text layer is used for that page and the run is marked `fallback`.
+text layer stands in for that page and the run fails (`status: failed`).
+
+All pages are transcribed concurrently, up to `MODEL_CONCURRENCY` calls at once.
 
 ## 4. Pass 2: restructuring into the master schema
 
@@ -77,10 +79,12 @@ Tests check three things:
 - no example phrasing or concrete image tag appears anywhere in the model-facing text.
 
 Prompts start with the transcript, so a prefix-caching server encodes it once per document; the manual
-blocks come after it. With a server backend, each response is constrained to its section's JSON Schema.
-Otherwise responses are validated and repaired with retries. If the output still breaks the schema but
-is usable, it is kept, and only the offending values are nulled and recorded. A section with no usable
-output falls back to the rule-based parser, and the run is marked `fallback`.
+blocks come after it. Each response is constrained to its section's JSON Schema, then validated and
+repaired with retries. If the output still breaks the schema but is usable, it is kept, and only the
+offending values are nulled and recorded. A section with no usable output falls back to the rule-based
+parser, and the run fails (`status: failed`).
+
+The four sections and the findings index run concurrently; once the index is known, all findings do.
 
 ## 5. Completeness check
 
@@ -111,8 +115,8 @@ Recurring `narrative` and `table_data` entries across reports point to gaps in t
 content placed in schema fields is `coverage.placed_in_schema`.
 
 Pages that fell back to the text layer render each table twice, once as a table and once as loose text,
-because the rule-based parser needs both. So their `unmapped_content` is noisier, but those runs are
-already marked `fallback`.
+because the rule-based parser needs both. So their `unmapped_content` is noisier, but those runs have
+already failed.
 
 ## Outputs
 
@@ -120,6 +124,7 @@ already marked `fallback`.
 | --- | --- |
 | `<name>.json` | **Exactly** the structure of `master_schema.json`: every key present, no other keys, every value of the declared type or `null`. |
 | `<name>.meta.json` | The run report: `status`, per-page and per-section reports, gate verdicts, `coverage`, `unmapped_content`, and `dropped_values`. |
+| `<name>.fallback.json` | Written instead of `<name>.json` when the run failed: what the fallback produced, for diagnosis only. |
 
 Before saving, every output is enforced against the master schema:
 - **Kept after harmless normalisation:** `"7.5"` becomes `7.5`, `"high"` becomes `High`, and a full date
@@ -136,7 +141,7 @@ Nothing is guessed into the schema's options, and nothing is lost.
 | --- | --- |
 | `ok` | Both passes ran on the model, and every check passed. |
 | `needs_review` | Model output, but a check failed: low page recall, coverage below `COVERAGE_THRESHOLD`, repaired image tags, or schema issues. Details are in `status_reasons`. |
-| `fallback` | **The model pipeline failed.** The text layer or the rule-based parser produced some or all of the output. The GUI shows this in red. |
+| `failed` | **The model pipeline failed.** The text layer or the rule-based parser had to stand in for some or all of it. No `<name>.json` is written and `ModelPipelineFailed` is raised; the GUI shows the fallback output in red, for diagnosis. |
 
 The run report also records:
 - the model and backend used;
