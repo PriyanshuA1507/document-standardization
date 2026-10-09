@@ -37,7 +37,9 @@ placement large enough to be a figure gets a pointer tag such as `[IMAGE_PAGE_11
 per-document manifest maps each tag to its stored object, page and position.
 
 Placements smaller than `MIN_FIGURE_BOX_PT` (for example, a table header rasterised into thin slices)
-are stored too, but left visible on the page. Masking them would hide text the model has to read.
+are stored too, but left visible on the page. Masking them would hide text the model has to read. So are
+placements that fill the page (`MAX_FIGURE_PAGE_FRACTION`, default 0.8): a scan or background is the page
+itself, and masking it would hide the whole page from the model.
 
 ## 3. Pass 1: vision transcription
 
@@ -85,6 +87,41 @@ offending values are nulled and recorded. A section with no usable output falls 
 parser, and the run fails (`status: failed`).
 
 The four sections and the findings index run concurrently; once the index is known, all findings do.
+
+### Long reports
+
+A transcript that does not fit the model's context is shown to the model in parts. The model still does
+all the reading; the code only chooses which pages a call sees. Short reports are untouched.
+
+- **Context size.** The backend reads `max_model_len` from the server, so a server started with a smaller
+  context than the model's is handled. If a prompt is still rejected, the server's own token count is used
+  to size the next attempt.
+- **Sections.** Front matter, scope and the executive summary are shown the start of a long report, the
+  appendices the end (`SECTION_PROMPT_TOKENS`). A gap is marked `PAGES a-b OMITTED`.
+- **Findings index.** The model first reads an outline of the report (headings and the page each first
+  appears on) and says where the detailed findings begin. The index then reads only those pages, in
+  overlapping page windows that each carry the outline, and the lists are merged.
+- **Page ranges.** The model's page numbers for findings drift on long reports, so each finding's title
+  is checked against the pages claimed for it. If it is not printed there, the range moves to the nearest
+  page where it is.
+- **Long summary tables.** A summary table too long for one answer is read a few pages at a time from the
+  pages before the detailed section, and the rows are merged.
+
+Each of these is noted in the section's `issues` in the run report.
+
+### Grounding check
+
+After pass 2, [`grounding.py`](../report_to_json/grounding.py) checks the values a model is most likely to
+invent against the transcript. A value the document does not support becomes null and is recorded in
+`dropped_values` with a reason that starts `ungrounded:`. The check never writes a value.
+
+- placeholder text and remarks about the document ("not specified", "no exclusions stated");
+- CVSS and EPSS scores, impact and likelihood levels, redaction flags, and finding totals;
+- severity, status and new/repeat: against the finding's own pages, or its own table row;
+- dates, CVE and CWE identifiers, and URLs, e-mail and IP addresses inside any field;
+- words in titles, names, assets and standards, and the wording of long prose (very lenient: only text
+  that shares almost nothing with the document is nulled);
+- page headers and footers copied into reference fields.
 
 ## 5. Completeness check
 
@@ -140,7 +177,7 @@ Nothing is guessed into the schema's options, and nothing is lost.
 | `status` | Meaning |
 | --- | --- |
 | `ok` | Both passes ran on the model, and every check passed. |
-| `needs_review` | Model output, but a check failed: low page recall, coverage below `COVERAGE_THRESHOLD`, repaired image tags, or schema issues. Details are in `status_reasons`. |
+| `needs_review` | Model output, but a check failed: low page recall, pages that could not be checked, coverage below `COVERAGE_THRESHOLD`, repaired image tags, `report_type` and `audit_type` holding the same text, or values nulled (schema or grounding). Details are in `status_reasons`. |
 | `failed` | **The model pipeline failed.** The text layer or the rule-based parser had to stand in for some or all of it. No `<name>.json` is written and `ModelPipelineFailed` is raised; the GUI shows the fallback output in red, for diagnosis. |
 
 The run report also records:

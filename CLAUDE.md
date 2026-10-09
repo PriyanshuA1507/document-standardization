@@ -39,7 +39,12 @@ The local copy had lost the security gate, DOCX conversion and GUI; they were re
 
 - After changing compose or pipeline code, recreate the containers:
   `docker compose up -d --force-recreate vllm ai-pipeline` (from `backend/`).
-- On a synthetic PDF the live model filled `audit_type`/`report_type` with values the document doesn't
-  state — check the no-invention rule on real reports.
-- vLLM uses one GPU; `--data-parallel-size` could use the rest.
+- No-invention rule: the model still guesses `impact_level`, `likelihood_level`, CWEs and dates on real reports;
+  `grounding.py` nulls them and lists them in `dropped_values`. `audit_type`/`report_type` are now mostly right
+  but can still repeat one label in both; the run is flagged `needs_review` when they match.
+- vLLM uses one GPU; `--data-parallel-size` could use the rest. Its KV cache holds ~9M tokens, so context is
+  limited by the model (262,144 tokens), not memory; reports longer than that are read in parts (`vlm.py`).
+- Pass 2 on very long reports (400+ pages) works but is least tested; the 1,193- and 3,163-page samples in
+  `~/report` have not been run. Check the findings index and summary table on them.
+- `grounding.py` thresholds were tuned on seven reports; recheck them on others before trusting the drops.
 - DOCX uploads through `ai-pipeline` need LibreOffice in its Docker image (not installed yet).

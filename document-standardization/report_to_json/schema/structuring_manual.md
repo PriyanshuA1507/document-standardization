@@ -22,16 +22,17 @@ with `[]` marking list items.
 11. Running headers and footers, page numbers, the table of contents and the report's own section headings are not values, except where a field asks for a title or a classification marking.
 12. Content that fits no field is left out. Never place text in an unrelated field to avoid losing it; unplaced text is preserved separately.
 13. Never copy passwords, secrets, tokens, keys or one-time codes into any field, even when the report prints them.
-14. Use only the keys shown in the requested structure. Do not add, rename or nest keys differently.
+14. The words string, number and boolean in the requested structure describe a field's type. They are never values: a field the transcript does not state is null.
+15. Use only the keys shown in the requested structure. Do not add, rename or nest keys differently.
 
 # report_meta
 
 - `report_id`: the identifier the report assigns to itself as its report number or report ID. An identifier given only in the document-control table belongs in document_control.document_id instead.
 - `report_title`: the report's title as printed on its cover or title page.
-- `report_type`: the type of assessment or audit as the report names it, verbatim.
+- `report_type`: what was assessed, from the report's own label for the type of audit or assessment (the kind of system or scope), verbatim. This is not the report's stage or status.
 - `report_release_date`: the date the report states it was released or issued.
 - `report_version`: a version the report labels as the version of the report itself. A version printed only in the document-control table belongs in document_control.document_version, and this field stays null.
-- `audit_type`: the report's statement of whether this is an initial audit or a follow-up or re-audit, verbatim.
+- `audit_type`: the stage or status of this report, from the report's own label for the type of audit report (whether it is an initial audit, a follow-up or re-audit, an interim, final or completion report), verbatim. This is not the kind of system assessed. When the report gives only one of these two labels, the other field is null; the same text is never placed in both.
 - `audit_period.from`: the start of the period the report labels as the audit period.
 - `audit_period.to`: the end of that audit period. Testing dates stated separately belong in audit_timeline.
 - `classification`: the confidentiality or classification marking the report applies to itself, whether stated in its details or printed as a marking on its pages.
@@ -106,8 +107,8 @@ with `[]` marking list items.
 
 # executive_summary
 
-- `total_findings`: the total number of findings the report itself states in its summary. Never count.
-- `severity_count.critical`: the number of critical findings the report states in its summary. Never count.
+- `total_findings`: the total number of findings (vulnerabilities, observations or issues) the report itself states in its summary. Totals of controls, compliance items, assets or checklist rows are not findings. Never count.
+- `severity_count.critical`: the number of critical findings the report states in its summary. Only a statement of findings by severity counts; a figure from a compliance, control or asset table does not. Never count.
 - `severity_count.high`: the number of high findings the report states in its summary.
 - `severity_count.medium`: the number of medium findings the report states in its summary.
 - `severity_count.low`: the number of low findings the report states in its summary. Severity levels without a key here are left out.

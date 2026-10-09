@@ -83,3 +83,17 @@ def test_small_placements_are_layout_not_figures(tmp_path):
     assert len(offload.layout) == 1 and offload.layout[0].tag == ""
     manifest = build_manifest("d", "slices.pdf", offload.all_figures(), offload.layout)
     assert len(manifest["layout_images"]) == 1
+
+
+def test_a_page_filling_image_is_layout_so_the_page_stays_readable(tmp_path):
+    # a scan or background covers the page; masking it would hide the page text from the model
+    pdf = tmp_path / "scan.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_image(page.rect, stream=make_image_bytes((600, 800)))
+    page.insert_text((72, 100), "Report text over the scan")
+    page.insert_image(fitz.Rect(100, 300, 400, 500), stream=make_image_bytes((300, 200), (10, 200, 10)))
+    doc.save(str(pdf))
+    offload = offload_images(str(pdf), LocalDeepStorage(tmp_path / "store"))
+    assert [r.tag for r in offload.all_figures()] == ["[IMAGE_PAGE_1_FIG_1]"]
+    assert len(offload.layout) == 1

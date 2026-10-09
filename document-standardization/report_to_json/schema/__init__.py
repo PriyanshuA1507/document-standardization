@@ -33,6 +33,10 @@ def template() -> Dict[str, Any]:
         return json.load(f)
 
 
+# No report lists more CWEs, CVEs, standards or exclusions for one finding than this.
+MAX_SCALAR_LIST_ITEMS = 64
+
+
 def _leaf_schema(spec: str) -> Dict[str, Any]:
     if spec == "string":
         return {"type": ["string", "null"]}
@@ -58,7 +62,10 @@ def _to_schema(node: Any, strict: bool = False) -> Dict[str, Any]:
             out["additionalProperties"] = False
         return out
     if isinstance(node, list):
-        return {"type": "array", "items": _to_schema(node[0], strict) if node else {}}
+        out = {"type": "array", "items": _to_schema(node[0], strict) if node else {}}
+        if node and not isinstance(node[0], (dict, list)):
+            out["maxItems"] = MAX_SCALAR_LIST_ITEMS  # stops a constrained decoder looping on a list
+        return out
     return _leaf_schema(node)
 
 

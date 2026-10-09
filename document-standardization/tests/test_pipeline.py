@@ -150,11 +150,15 @@ def test_values_the_schema_cannot_hold_are_nulled_and_recorded(report_pdf, tmp_p
 
     obs = json.loads(result.json_path.read_text(encoding="utf-8"))["detailed_observations"][0]
     assert obs["severity"] is None and obs["impact_level"] is None and "exploitability" not in obs
-    assert (obs["status"], obs["cvss_score"], obs["observation_date"]) == ("Closed", 7.5, "2026-02-16")
+    assert obs["status"] == "Closed"
+    # the finding's pages print neither a CVSS score nor a date, so those are ungrounded as well
+    assert obs["cvss_score"] is None and obs["observation_date"] is None
     dropped = {d["path"]: d["value"] for d in result.meta["dropped_values"]}
     assert dropped == {"detailed_observations[0].severity": "Informational",
                        "detailed_observations[0].impact_level": 3,
-                       "detailed_observations[0].exploitability": "Easy"}
+                       "detailed_observations[0].exploitability": "Easy",
+                       "detailed_observations[0].cvss_score": "7.5",
+                       "detailed_observations[0].observation_date": "16.02.2026"}
     assert result.status == "needs_review"
 
 
@@ -328,3 +332,13 @@ def test_model_calls_run_concurrently(report_pdf, tmp_path, monkeypatch):
     assert [p["page"] for p in result.meta["pass1_pages"]] == [1, 2, 3]  # still in page order
     assert [s["name"] for s in result.meta["pass2_sections"]][:5] == [
         "front matter", "scope, team and tools", "executive summary", "appendices", "findings index"]
+
+
+def test_identical_report_type_and_audit_type_are_flagged():
+    from report_to_json.pipeline import _status
+    page = type("P", (), {"page": 1, "source": "model", "recall": 1.0, "issues": []})()
+    same = {"report_meta": {"report_type": "Interim Audit Report", "audit_type": "Interim Audit Report"}}
+    status, reasons = _status(True, [page], [], 1.0, [], [], same)
+    assert status == "needs_review" and any("same text" in r for r in reasons)
+    different = {"report_meta": {"report_type": "Web VAPT", "audit_type": "First Audit Report"}}
+    assert _status(True, [page], [], 1.0, [], [], different) == ("ok", [])

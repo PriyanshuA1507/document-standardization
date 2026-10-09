@@ -3,7 +3,8 @@ Image offloading and page masking.
 
 1. ``offload_images`` stores every embedded image in deep storage. Each placement
    large enough to be a figure gets a tag such as ``[IMAGE_PAGE_3_FIG_1]``.
-   Smaller placements (slices of a rasterised table header, icons, rules) are
+   Smaller placements (slices of a rasterised table header, icons, rules) and
+   placements that fill the whole page (a scan or background) are
    layout, not figures: they are stored and listed in the manifest but left
    visible on the page, because masking them would hide text the model must read.
 2. ``render_masked_page`` renders a page for the vision model with each image
@@ -44,6 +45,14 @@ def min_figure_box_pt() -> float:
         return 40.0
 
 
+def max_figure_page_fraction() -> float:
+    """A placement covering more of the page than this is the page itself (a scan or background)."""
+    try:
+        return float(os.environ.get("MAX_FIGURE_PAGE_FRACTION", 0.8))
+    except ValueError:
+        return 0.8
+
+
 def make_tag(page: int, figure: int) -> str:
     return f"[IMAGE_PAGE_{page}_FIG_{figure}]"
 
@@ -62,9 +71,11 @@ def offload_images(pdf_path: str, storage: DeepStorage) -> Offload:
     figures: Dict[int, List[StoredImage]] = {}
     layout: List[StoredImage] = []
     min_box = min_figure_box_pt()
+    max_fraction = max_figure_page_fraction()
     with fitz.open(pdf_path) as doc:
         for page in doc:
             page_no = page.number + 1
+            page_area = (page.rect.width * page.rect.height) or 1.0
             records: List[StoredImage] = []
             seen_xrefs = set()
             for info in page.get_images(full=True):
@@ -85,7 +96,9 @@ def offload_images(pdf_path: str, storage: DeepStorage) -> Offload:
                             width=base.get("width", 0), height=base.get("height", 0))
                 for rect in rects:  # the same image drawn twice gets two tags
                     bbox = [round(v, 2) for v in rect]
-                    if min(rect.width, rect.height) < min_box:
+                    # Small placements are layout; so is one filling the page, which is the page's own
+                    # scan or background. Masking that would hide the page from the model.
+                    if min(rect.width, rect.height) < min_box or rect.width * rect.height / page_area >= max_fraction:
                         layout.append(StoredImage(tag="", page=page_no, figure=0, bbox=bbox, **meta))
                         continue
                     fig = len(records) + 1

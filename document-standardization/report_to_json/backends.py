@@ -98,6 +98,10 @@ class OpenAICompatBackend:
         self.model_name = config.served_model_name(profile)
         self.timeout = timeout
         self.description = f"server {self.base_url} ({self.model_name})"
+        # How much a call may hold, prompt and answer together. The server's own limit replaces this
+        # once check() has read it: a server started with a smaller context than the model's would
+        # otherwise reject every long prompt.
+        self.context_tokens = profile.context_tokens
         self._api_key = os.environ.get("R2J_API_KEY", "")
 
     def _request(self, path: str, payload: Optional[dict] = None, timeout: Optional[float] = None) -> dict:
@@ -123,7 +127,12 @@ class OpenAICompatBackend:
         return reply
 
     def check(self) -> None:
-        served = [m.get("id") for m in self._request("/models", timeout=10).get("data", [])]
+        listing = self._request("/models", timeout=10).get("data", [])
+        served = [m.get("id") for m in listing]
+        for entry in listing:
+            limit = entry.get("max_model_len") if isinstance(entry, dict) else None
+            if entry.get("id") == self.model_name and isinstance(limit, int) and limit > 0:
+                self.context_tokens = min(limit, self.profile.context_tokens)
         if self.model_name not in served:
             raise BackendError(f"Server {self.base_url} does not serve {self.model_name!r} (serves {served}); "
                                f"set {self.profile.env_prefix}_SERVED_NAME")

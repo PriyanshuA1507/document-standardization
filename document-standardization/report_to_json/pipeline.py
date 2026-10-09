@@ -214,21 +214,25 @@ class DocumentPipeline:
 
             if backend is not None:
                 step(4)
-                data, section_reports = Pass2Structurer(backend).structure(
+                structurer = Pass2Structurer(backend)
+                data, section_reports = structurer.structure(
                     transcript, detail=lambda d: step(4, d), cancel=cancel)
+                ungrounded = structurer.grounding_drops
             else:
                 step(4, "fallback: rule-based parser")
                 data, section_reports = RuleBasedStructurer().structure(transcript), []
+                ungrounded = []
         except Cancelled as exc:
             raise PipelineCancelled() from exc
 
         # 5. Exactly the master schema in the output; everything else in the sidecar.
         step(5)
         data, dropped = schema.enforce(data)
+        dropped += ungrounded
         errors = schema.validate(data)  # always empty after enforce; kept as a guard
         cov = coverage.transcript_coverage(transcript, data)
         unmapped = coverage.unmapped_entries(cov.uncovered)
-        status, reasons = _status(backend is not None, page_reports, section_reports, cov.ratio, errors, dropped)
+        status, reasons = _status(backend is not None, page_reports, section_reports, cov.ratio, errors, dropped, data)
         warnings += reasons
 
         elapsed = (_dt.datetime.now() - started).total_seconds()
@@ -296,7 +300,7 @@ def _gate_summary(gate: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _status(model_ran: bool, pages, sections, coverage_ratio: float, errors: List[str],
-            dropped: Optional[List[Dict[str, Any]]] = None):
+            dropped: Optional[List[Dict[str, Any]]] = None, data: Optional[Dict[str, Any]] = None):
     reasons: List[str] = []
     if not model_ran:
         return "failed", ["model unavailable: the whole document fell back to the rule-based parser"]
@@ -312,6 +316,10 @@ def _status(model_ran: bool, pages, sections, coverage_ratio: float, errors: Lis
     threshold = config.page_recall_threshold()
     low = [p.page for p in pages if p.recall is not None and p.recall < threshold]
     tag_issues = [p.page for p in pages if any("tag" in i for i in p.issues)]
+    unverified = [p.page for p in pages if p.recall is None]
+    if unverified:
+        reasons.append(f"completeness could not be checked on {len(unverified)} page(s) (nothing to compare "
+                       f"the transcript with): {unverified[:20]}")
     if low:
         reasons.append(f"page recall below {threshold} on page(s) {low}")
     if tag_issues:
@@ -321,6 +329,10 @@ def _status(model_ran: bool, pages, sections, coverage_ratio: float, errors: Lis
                        f"(rest kept in unmapped_content)")
     if errors:
         reasons.append(f"{len(errors)} schema validation issue(s)")
+    meta = (data or {}).get("report_meta") or {}
+    if meta.get("report_type") and meta.get("report_type") == meta.get("audit_type"):
+        reasons.append("report_type and audit_type hold the same text; they should be different labels "
+                       "(what was assessed, and the report's stage), so at least one is likely wrong")
     if dropped:
         reasons.append(f"{len(dropped)} value(s) the master schema cannot hold were set to null "
                        f"(originals in dropped_values)")
