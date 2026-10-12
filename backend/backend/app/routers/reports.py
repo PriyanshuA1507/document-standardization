@@ -155,8 +155,13 @@ async def upload_local_file(
     if not os.path.exists(path) or not os.path.isfile(path):
         raise HTTPException(status_code=400, detail="File does not exist on server")
     
-    with open(path, "rb") as f:
-        file_bytes = f.read()
+    import asyncio
+    def _read_file():
+        with open(path, "rb") as f:
+            return f.read()
+    
+    file_bytes = await asyncio.to_thread(_read_file)
+    await asyncio.sleep(0.05) # Yield to allow concurrent requests to interleave
 
     max_size = settings.MAX_FILE_SIZE_MB * 1024 * 1024
     if len(file_bytes) > max_size:

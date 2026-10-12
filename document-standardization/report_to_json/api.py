@@ -47,15 +47,12 @@ def process_report(report_path: PathLike, output_dir: Optional[PathLike] = None,
     ``ModelPipelineFailed`` if the model pipeline failed, and ``PipelineError`` for
     anything else that prevents processing.
     """
-    global _pipeline
     out_dir = None
     if save_to_disk:
         out_dir = Path(output_dir) if output_dir is not None else config.DEFAULT_OUTPUT_DIR
-    with _lock:
-        if _pipeline is None:
-            _pipeline = DocumentPipeline()
-        _pipeline.enable_security_gate = enable_security_gate
-        return _pipeline.process_file(Path(report_path), out_dir)
+    
+    pipeline = DocumentPipeline(enable_security_gate=enable_security_gate)
+    return pipeline.process_file(Path(report_path), out_dir)
 
 
 def standardize_report(report_path: PathLike, output_dir: Optional[PathLike] = None, *,

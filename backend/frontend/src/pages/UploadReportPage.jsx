@@ -33,7 +33,7 @@ function UploadReportPage() {
   // Bulk Upload state
   const [excelFile, setExcelFile] = useState(null);
   const [pdfFiles, setPdfFiles] = useState([]);
-  const [batchMode, setBatchMode] = useState('sequential');
+  const [batchMode, setBatchMode] = useState('batch4');
   
   // Use global context for bulk tracking
   const {
