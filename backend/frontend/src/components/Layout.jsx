@@ -33,6 +33,7 @@ import {
   Business,
   Analytics,
   Assessment,
+  TrendingUp,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -41,6 +42,7 @@ const DRAWER_WIDTH = 260;
 const navItems = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
   { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
+  { text: 'Trend Analysis & Forecasting', icon: <TrendingUp />, path: '/trend-forecasting' },
   { text: 'AI Risk Analytics', icon: <Assessment />, path: '/ml-analytics' },
   { text: 'Upload Report', icon: <CloudUpload />, path: '/upload' },
   { text: 'Reports', icon: <Description />, path: '/reports' },
@@ -49,6 +51,7 @@ const navItems = [
   { text: 'Audit Logs', icon: <Security />, path: '/audit-logs', adminOnly: true },
   { text: 'Profile', icon: <Person />, path: '/profile' },
 ];
+
 
 function Layout() {
   const { user, logout, isAdmin } = useAuth();

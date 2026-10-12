@@ -3,17 +3,20 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Backdrop, CircularProgress, Card, CardContent, Grid, Typography, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Chip, Skeleton, Tooltip, Alert,
-  IconButton, Dialog, DialogTitle, DialogContent
+  IconButton, Dialog, DialogTitle, DialogContent, Tabs, Tab
 } from '@mui/material';
 import {
   Timeline, Assessment, BubbleChart, ReportProblem, ErrorOutline,
-  DragIndicator, OpenInFull, Close
+  DragIndicator, OpenInFull, Close, BugReport, Description, History, Dashboard as DashboardIcon
 } from '@mui/icons-material';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   ScatterChart, Scatter, ZAxis
 } from 'recharts';
 import api from '../api/axios';
+import VulnerabilityClusteringModule from '../components/clustering/VulnerabilityClusteringModule';
+import ReportClusteringModule from '../components/clustering/ReportClusteringModule';
+import ClusteringHistoryModule from '../components/clustering/ClusteringHistoryModule';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -96,6 +99,7 @@ export default function MLAnalyticsDashboardPage() {
   const [error, setError] = useState(null);
 
   const [expandedWidget, setExpandedWidget] = useState(null);
+  const [currentTab, setCurrentTab] = useState(0);
   const initialWidgets = ['forecast', 'clusters', 'prioritize', 'anomalies'];
   const [widgets, setWidgets] = useState(initialWidgets);
 
@@ -321,9 +325,35 @@ export default function MLAnalyticsDashboardPage() {
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-      
-      {/* ═══════ DRAGGABLE WIDGETS ═══════ */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      {/* ═══════ CLUSTERING & ANALYTICS TABS ═══════ */}
+      <Box sx={{ borderBottom: 1, borderColor: 'rgba(255, 255, 255, 0.08)', mb: 3 }}>
+        <Tabs
+          value={currentTab}
+          onChange={(e, val) => setCurrentTab(val)}
+          sx={{
+            '& .MuiTabs-indicator': { backgroundColor: '#00D4FF', height: 3 },
+            '& .MuiTab-root': {
+              color: 'text.secondary',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              textTransform: 'none',
+              minHeight: 48,
+              '&.Mui-selected': { color: '#00D4FF' },
+              '&:hover': { color: '#E2E8F0' },
+            },
+          }}
+        >
+          <Tab icon={<DashboardIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Risk Overview & Analytics" />
+          <Tab icon={<BugReport sx={{ fontSize: 18 }} />} iconPosition="start" label="Vulnerability Clustering" />
+          <Tab icon={<Description sx={{ fontSize: 18 }} />} iconPosition="start" label="Report Clustering" />
+          <Tab icon={<History sx={{ fontSize: 18 }} />} iconPosition="start" label="Clustering History" />
+        </Tabs>
+      </Box>
+
+      {currentTab === 0 && (
+        <>
+          {/* ═══════ DRAGGABLE WIDGETS ═══════ */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={widgets} strategy={rectSortingStrategy}>
           <Grid container spacing={3}>
             {widgets.map(key => (
@@ -432,6 +462,23 @@ export default function MLAnalyticsDashboardPage() {
           )}
         </DialogContent>
       </Dialog>
+        </>
+      )}
+
+      {currentTab === 1 && (
+        <VulnerabilityClusteringModule />
+      )}
+
+      {currentTab === 2 && (
+        <ReportClusteringModule />
+      )}
+
+      {currentTab === 3 && (
+        <ClusteringHistoryModule onSelectRun={(run) => {
+          if (run.clustering_type === 'VULNERABILITY') setCurrentTab(1);
+          else setCurrentTab(2);
+        }} />
+      )}
     </Box>
   );
 }

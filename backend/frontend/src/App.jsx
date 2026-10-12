@@ -21,6 +21,7 @@ const AuditLogsPage = React.lazy(() => import('./pages/AuditLogsPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const AnalyticsDashboardPage = React.lazy(() => import('./pages/AnalyticsDashboardPage'));
 const MLAnalyticsDashboardPage = React.lazy(() => import('./pages/MLAnalyticsDashboardPage'));
+const TrendAnalysisDashboardPage = React.lazy(() => import('./pages/TrendAnalysisDashboardPage'));
 
 const GlobalLoader = () => (
   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0A0E17' }}>
@@ -51,7 +52,9 @@ function App() {
                 <Route path="/reports/:id" element={<ReportDetailPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/analytics" element={<AnalyticsDashboardPage />} />
+                <Route path="/trend-forecasting" element={<TrendAnalysisDashboardPage />} />
                 <Route path="/ml-analytics" element={<MLAnalyticsDashboardPage />} />
+
                 <Route
                   path="/users"
                   element={

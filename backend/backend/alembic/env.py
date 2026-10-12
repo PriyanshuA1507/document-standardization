@@ -12,6 +12,8 @@ from app.database import Base
 from app.models.user import User, Role, UserRole, UserSession
 from app.models.report import Report, ReportMetadata, FileValidation, FileStorage, PartialDuplicate, ReportsData, DetailedObservation
 from app.models.audit import AuditLog, SecurityEvent
+from app.models.agency import Agency
+from app.models.clustering import ClusteringRun, VulnerabilityClusterMember, ReportClusterMember
 from app.config import settings
 
 config = context.config
