@@ -18,7 +18,7 @@ import httpx
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.models.report import ReportsData, DetailedObservation, ObservationSeverity, ObservationStatus, ObservationImpact, ObservationLikelihood, ObservationNewRepeat
+from app.models.report import ReportsData, DetailedObservation, ReportImage, ObservationSeverity, ObservationStatus, ObservationImpact, ObservationLikelihood, ObservationNewRepeat
 from app.services import report_service
 from app.config import settings
 
@@ -87,6 +87,7 @@ async def run_pipeline(
                         response.raise_for_status()
                         
                         final_data = None
+                        final_manifest = None
                         async for line in response.aiter_lines():
                             if not line:
                                 continue
@@ -96,12 +97,16 @@ async def run_pipeline(
                                     item = json.loads(line[6:])
                                     if item.get("type") == "result":
                                         final_data = item.get("data")
+                                        final_manifest = item.get("manifest_data")
+                                    elif item.get("type") == "error":
+                                        if item.get("manifest_data"):
+                                            final_manifest = item.get("manifest_data")
                                 except Exception:
                                     pass
                                     
-                        if final_data:
-                            from app.database import AsyncSessionLocal
-                            async with AsyncSessionLocal() as session:
+                        from app.database import AsyncSessionLocal
+                        async with AsyncSessionLocal() as session:
+                            if final_data:
                                 data = final_data
                                 vulns = data.pop("detailed_observations", data.pop("vulnerabilities", []))
                                 
@@ -184,8 +189,16 @@ async def run_pipeline(
                                         meta_data=v.get("additional meta", {})
                                     )
                                     session.add(obs)
-
                                 await session.commit()
+
+                            # Always ensure ReportImage records are synced from manifest
+                            from app.routers.report_images import sync_report_images_from_dict, sync_report_images_from_seaweedfs
+                            if final_manifest:
+                                await sync_report_images_from_dict(session, report_id, final_manifest)
+                            else:
+                                await sync_report_images_from_seaweedfs(session, report_id)
+
+
             except httpx.HTTPStatusError as e:
                 yield f"data: {json.dumps({'type': 'error', 'message': f'AI Pipeline service returned an error: {e.response.text}'})}\n\n"
             except Exception as e:

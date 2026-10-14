@@ -124,3 +124,30 @@ class UploadResponse(BaseModel):
     duplicate_status: str
     message: str
     decrypted: Optional[bool] = False
+
+
+class ReportImageOut(BaseModel):
+    image_id: UUID
+    report_id: UUID
+    tag: str
+    page: int
+    figure: int
+    sha256: str
+    seaweed_path: str
+    format: str
+    width: int
+    height: int
+    bbox: Optional[List[float]] = None
+    file_size: Optional[int] = None
+    is_figure: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ReportImageListOut(BaseModel):
+    images: List[ReportImageOut]
+    total: int
+    figure_count: int
+    layout_count: int
+

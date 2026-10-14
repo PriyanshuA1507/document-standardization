@@ -97,11 +97,58 @@ async def run_pipeline(
     def worker():
         # Set the report_id for this specific worker thread
         thread_local.report_id = report_id
+        storage = None
         try:
-            result = process_report(tmp_path, save_to_disk=False)
-            log_queue.put({"type": "result", "data": result.data})
+            from report_to_json.storage import SeaweedFSDeepStorage
+            from report_to_json.pipeline import ModelPipelineFailed
+            seaweedfs_url = os.environ.get("SEAWEEDFS_FILER_URL", "http://seaweedfs-filer:8888")
+            storage = SeaweedFSDeepStorage(filer_url=seaweedfs_url, report_id=report_id)
+            result = process_report(tmp_path, save_to_disk=False, storage=storage)
+
+            # Include image manifest in the result so the backend can save
+            # ReportImage rows linked to this report_id
+            manifest_data = None
+            if result.meta.get("image_manifest"):
+                try:
+                    manifest_data = storage.read_manifest(result.meta.get("document_id", ""))
+                except Exception:
+                    pass
+
+            log_queue.put({
+                "type": "result",
+                "data": result.data,
+                "manifest_data": manifest_data,
+            })
+        except ModelPipelineFailed as e:
+            # When model pipeline falls back to text-layer/rule-based parser,
+            # result.data and images are still fully extracted and valid.
+            result = e.result
+            manifest_data = None
+            if storage:
+                try:
+                    manifest_data = storage.read_manifest(result.meta.get("document_id", ""))
+                except Exception:
+                    pass
+            log_queue.put({
+                "type": "result",
+                "data": result.data,
+                "manifest_data": manifest_data,
+                "status": "fallback",
+                "message": str(e),
+            })
         except Exception as e:
-            log_queue.put({"type": "error", "message": str(e)})
+            manifest_data = None
+            if storage:
+                try:
+                    manifest_data = storage.read_manifest("")
+                except Exception:
+                    pass
+            log_queue.put({
+                "type": "error",
+                "message": str(e),
+                "manifest_data": manifest_data,
+            })
+
         finally:
             log_queue.put(None)  # Sentinel to end the stream
             if os.path.exists(tmp_path):

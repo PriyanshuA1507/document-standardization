@@ -80,6 +80,10 @@ class Report(Base):
         "DetailedObservation", back_populates="report", lazy="noload",
         cascade="all, delete-orphan"
     )
+    images = relationship(
+        "ReportImage", back_populates="report", lazy="noload",
+        cascade="all, delete-orphan"
+    )
 
 
 class ReportMetadata(Base):
@@ -288,3 +292,46 @@ class DetailedObservation(Base):
     )
 
     report = relationship("Report", back_populates="detailed_observations")
+
+
+class ReportImage(Base):
+    """An image extracted from a report PDF during the AI pipeline's image offloading step.
+
+    Each row links one image placement (figure or layout element) to the report
+    it came from and records where it is stored in SeaweedFS.
+    """
+    __tablename__ = "report_images"
+
+    image_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("reports.report_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Image identity & tag
+    tag = Column(Text, nullable=False, default="")           # e.g. "[IMAGE_PAGE_3_FIG_1]" or "" for layout
+    page = Column(SmallInteger, nullable=False)               # 1-based page number
+    figure = Column(SmallInteger, nullable=False, default=0)  # 1-based fig index (0 = layout)
+
+    # Storage location
+    sha256 = Column(String(64), nullable=False, index=True)   # content hash (dedup key)
+    seaweed_path = Column(String(500), nullable=False)        # path in SeaweedFS filer
+
+    # Image metadata
+    format = Column(String(10), nullable=False)               # png, jpg, etc.
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+    bbox = Column(JSONB, nullable=True)                       # [x0, y0, x1, y1] in PDF points
+    file_size = Column(Integer, nullable=True)                # bytes
+
+    # Classification
+    is_figure = Column(Boolean, nullable=False, default=True)  # false = layout image
+
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+    # Relationships
+    report = relationship("Report", back_populates="images")

@@ -123,11 +123,15 @@ services:
     environment:
       - R2J_MODEL_ENDPOINT=http://vllm:8000/v1
       - MODEL_CONCURRENCY=64
+      - SEAWEEDFS_FILER_URL=http://seaweedfs-filer:8888
     ports:
       - "8001:8001"
     restart: unless-stopped
     depends_on:
-      - vllm
+      seaweedfs-filer:
+        condition: service_healthy
+      vllm:
+        condition: service_started
 
   vllm:
     image: vllm/vllm-openai:latest

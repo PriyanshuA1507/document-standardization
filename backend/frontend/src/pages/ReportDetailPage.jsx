@@ -8,9 +8,12 @@ import {
   Grid,
   Chip,
   Button,
-  Divider,
   Skeleton,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -23,9 +26,14 @@ import {
   CheckCircle,
   Info,
   Error as ErrorIcon,
+  Image as ImageIcon,
+  Layers,
+  Collections,
+  Close,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import api from '../api/axios';
+import ReportImageThumbnail from '../components/ReportImageThumbnail';
 
 const statusColor = {
   UPLOADED: 'info',
@@ -56,21 +64,27 @@ function ReportDetailPage() {
   const { enqueueSnackbar } = useSnackbar();
   const [report, setReport] = useState(null);
   const [assessments, setAssessments] = useState([]);
+  const [imagesData, setImagesData] = useState({ total: 0, figure_count: 0, layout_count: 0, images: [] });
   const [loading, setLoading] = useState(true);
+  const [figuresDialogOpen, setFiguresDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        const [response, mlResponse] = await Promise.allSettled([
+        const [response, mlResponse, imgResponse] = await Promise.allSettled([
           api.get(`/api/reports/${id}`),
-          api.get(`/api/ml/severity-assessment?report_id=${id}`)
+          api.get(`/api/ml/severity-assessment?report_id=${id}`),
+          api.get(`/api/reports/${id}/images`),
         ]);
-        
+
         if (response.status === 'fulfilled') {
           setReport(response.value.data);
         }
         if (mlResponse.status === 'fulfilled') {
           setAssessments(mlResponse.value.data.data);
+        }
+        if (imgResponse.status === 'fulfilled') {
+          setImagesData(imgResponse.value.data);
         }
       } catch {
         enqueueSnackbar('Failed to load report', { variant: 'error' });
@@ -100,6 +114,25 @@ function ReportDetailPage() {
     }
   };
 
+  const handleDownloadImage = async (img) => {
+    try {
+      const res = await api.get(`/api/reports/${id}/images/${img.image_id}/download`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const cleanTag = (img.tag || '').replace(/[\[\]]/g, '') || img.sha256.substring(0, 8);
+      link.setAttribute('download', `${cleanTag}.${img.format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      enqueueSnackbar('Failed to download image', { variant: 'error' });
+    }
+  };
+
   if (loading) {
     return (
       <Box>
@@ -109,6 +142,8 @@ function ReportDetailPage() {
   }
 
   if (!report) return null;
+
+  const figuresList = (imagesData.images || []).filter((img) => img.is_figure);
 
   return (
     <Box>
@@ -142,11 +177,13 @@ function ReportDetailPage() {
             Partial Duplicate Detected
           </Typography>
           <Typography variant="body2">
-            This file has been flagged as a partial duplicate of an existing report{report.partial_duplicate.original_filename ? ` (${report.partial_duplicate.original_filename})` : ''}.
+            This file has been flagged as a partial duplicate of an existing report
+            {report.partial_duplicate.original_filename ? ` (${report.partial_duplicate.original_filename})` : ''}.
           </Typography>
         </Alert>
       )}
 
+      {/* Header Bar */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Description sx={{ fontSize: 40, color: '#00D4FF' }} />
@@ -154,7 +191,7 @@ function ReportDetailPage() {
             <Typography variant="h5" fontWeight={700}>
               {report.original_filename}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+            <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
               <Chip
                 label={report.upload_status}
                 color={statusColor[report.upload_status] || 'default'}
@@ -178,6 +215,97 @@ function ReportDetailPage() {
         </Button>
       </Box>
 
+      {/* ── Extracted Images & Layout Assets Card (Clean Minimal Summary) ── */}
+      {imagesData.total > 0 && (
+        <Card
+          className="fade-in-up"
+          sx={{
+            mb: 3,
+            borderRadius: 3,
+            border: '1px solid rgba(0, 212, 255, 0.2)',
+            background: 'linear-gradient(145deg, rgba(17, 25, 40, 0.95) 0%, rgba(12, 17, 29, 0.98) 100%)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          }}
+        >
+          <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
+                  sx={{
+                    p: 1.2,
+                    borderRadius: 2,
+                    bgcolor: 'rgba(0, 212, 255, 0.12)',
+                    color: '#00D4FF',
+                    display: 'flex',
+                  }}
+                >
+                  <Collections sx={{ fontSize: 26 }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight={700}>
+                    Extracted Images & Layout Assets
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    High-resolution visual assets stored in SeaweedFS Distributed Storage (<code>images/{id}/</code>)
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Chip
+                  icon={<ImageIcon sx={{ fontSize: 16 }} />}
+                  label={`${imagesData.figure_count || 0} Figures`}
+                  onClick={figuresList.length > 0 ? () => setFiguresDialogOpen(true) : undefined}
+                  sx={{
+                    bgcolor: 'rgba(0, 212, 255, 0.15)',
+                    color: '#00D4FF',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    border: '1px solid rgba(0, 212, 255, 0.3)',
+                    px: 0.5,
+                    cursor: figuresList.length > 0 ? 'pointer' : 'default',
+                    '&:hover': figuresList.length > 0 ? { bgcolor: 'rgba(0, 212, 255, 0.25)' } : {},
+                  }}
+                />
+                <Chip
+                  icon={<Layers sx={{ fontSize: 16 }} />}
+                  label={`${imagesData.layout_count || 0} Layout Elements`}
+                  sx={{
+                    bgcolor: 'rgba(171, 71, 188, 0.15)',
+                    color: '#CE93D8',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    border: '1px solid rgba(171, 71, 188, 0.3)',
+                    px: 0.5,
+                  }}
+                />
+                <Chip
+                  icon={<Storage sx={{ fontSize: 16 }} />}
+                  label={`${imagesData.total || 0} Total in SeaweedFS`}
+                  sx={{
+                    bgcolor: 'rgba(0, 230, 118, 0.15)',
+                    color: '#00E676',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    border: '1px solid rgba(0, 230, 118, 0.3)',
+                    px: 0.5,
+                  }}
+                />
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Grid: File Info & Metadata */}
       <Grid container spacing={3}>
         {/* File Info */}
         <Grid item xs={12} md={6}>
@@ -322,14 +450,14 @@ function ReportDetailPage() {
                         <Chip size="small" label={vuln.current_severity} variant="outlined" />
                       </td>
                       <td style={{ padding: '12px' }}>
-                        <Chip 
-                          size="small" 
-                          label={vuln.suggested_severity} 
+                        <Chip
+                          size="small"
+                          label={vuln.suggested_severity}
                           color={
                             vuln.suggested_severity === 'CRITICAL' ? 'error' :
                             vuln.suggested_severity === 'HIGH' ? 'warning' :
                             vuln.suggested_severity === 'MEDIUM' ? 'info' : 'success'
-                          } 
+                          }
                         />
                       </td>
                       <td style={{ padding: '12px' }}>
@@ -347,6 +475,69 @@ function ReportDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Figures Preview Lightbox Dialog (Optional, on clicking figures chip) */}
+      <Dialog
+        open={figuresDialogOpen}
+        onClose={() => setFiguresDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            bgcolor: 'rgba(15, 23, 42, 0.98)',
+            border: '1px solid rgba(0, 212, 255, 0.2)',
+            backdropFilter: 'blur(20px)',
+            p: 1,
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <ImageIcon sx={{ color: '#00D4FF' }} />
+            <Typography variant="h6" fontWeight={700}>
+              Extracted Figures ({figuresList.length})
+            </Typography>
+          </Box>
+          <IconButton onClick={() => setFiguresDialogOpen(false)} sx={{ color: 'text.secondary' }}>
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Grid container spacing={2}>
+            {figuresList.map((img) => (
+              <Grid item xs={12} sm={6} md={4} key={img.image_id}>
+                <Card sx={{ bgcolor: 'rgba(0, 0, 0, 0.4)', borderRadius: 2, border: '1px solid rgba(255, 255, 255, 0.08)', p: 1.5 }}>
+                  <ReportImageThumbnail
+                    reportId={id}
+                    imageId={img.image_id}
+                    tag={img.tag}
+                    width={img.width}
+                    height={img.height}
+                  />
+                  <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Chip label={img.tag || `Fig #${img.figure}`} size="small" sx={{ bgcolor: 'rgba(0, 212, 255, 0.1)', color: '#00D4FF', fontWeight: 700, fontSize: '0.72rem' }} />
+                    <Chip label={`Page ${img.page}`} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                  </Box>
+                  <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {img.width} × {img.height} px
+                    </Typography>
+                    <Button
+                      size="small"
+                      startIcon={<Download sx={{ fontSize: 14 }} />}
+                      onClick={() => handleDownloadImage(img)}
+                      sx={{ color: '#00D4FF', fontSize: '0.72rem', textTransform: 'none' }}
+                    >
+                      Download
+                    </Button>
+                  </Box>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

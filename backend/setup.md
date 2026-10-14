@@ -83,6 +83,27 @@ SeaweedFS is a distributed file storage system used to store all uploaded audit 
 * All uploaded files are encrypted with Fernet before being stored.
 * Data is persisted in the `seaweedfs_data` Docker volume.
 
+**Extracted Report Images Storage Structure:**
+* During the AI pipeline execution (Step 2: image offloading), embedded PDF images are extracted and saved directly to SeaweedFS under the report's UUID:
+  ```
+  images/
+  └── <report_id>/
+      ├── figures/
+      │   └── <sha256>.<format>       # Figures & diagrams (content-addressed)
+      ├── layout/
+      │   └── <sha256>.<format>       # Layout/icons (content-addressed)
+      └── manifest.json               # Full extraction manifest
+  ```
+* Every image is indexed in PostgreSQL in the `report_images` table, linking its pointer tag (e.g. `[IMAGE_PAGE_3_FIG_1]`), page number, dimensions, and bounding box to the parent `report_id`.
+* Image REST endpoints:
+  * `GET /api/reports/{report_id}/images` — List all extracted images with metadata
+  * `GET /api/reports/{report_id}/images/{image_id}` — Get image metadata
+  * `GET /api/reports/{report_id}/images/{image_id}/download` — View/download image bytes
+  * `GET /api/reports/{report_id}/images/by-tag/{tag}` — Retrieve image metadata by pointer tag
+  * `GET /api/reports/{report_id}/images/by-tag/{tag}/download` — Stream image bytes directly by pointer tag for inline web rendering
+  * `GET /api/reports/{report_id}/images-manifest` — Get complete image manifest
+
+
 ## Troubleshooting
 
 **Viewing Logs:**

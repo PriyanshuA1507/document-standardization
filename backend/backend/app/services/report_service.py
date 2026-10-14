@@ -17,7 +17,7 @@ from app.utils.file_utils import (
     _sanitize_for_json,
     MIME_TYPE_MAP,
 )
-from app.utils.seaweedfs_utils import upload_file, delete_file
+from app.utils.seaweedfs_utils import upload_file, delete_file, delete_dir
 from app.utils.clamav_utils import scan_file_bytes
 from app.utils.simhash_utils import calculate_simhash, is_partial_duplicate
 
@@ -377,6 +377,9 @@ async def delete_report(
     # Delete from storage
     if report.storage and report.storage.encrypted_file_path:
         delete_file(report.storage.encrypted_file_path)
+
+    # Delete extracted images directory from SeaweedFS
+    delete_dir(f"images/{report_id}")
 
     # Delete from database
     await db.delete(report)

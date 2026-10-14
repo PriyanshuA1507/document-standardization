@@ -38,3 +38,16 @@ def delete_file(object_name: str) -> bool:
     except Exception as e:
         print(f"Error deleting object from SeaweedFS: {e}")
         return False
+
+
+def delete_dir(dir_path: str) -> bool:
+    """Deletes a directory recursively from SeaweedFS Filer."""
+    url = f"{_filer_url(dir_path)}?recursive=true&ignoreRecursiveError=true"
+    try:
+        response = httpx.delete(url, timeout=30.0)
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"Error deleting directory from SeaweedFS: {e}")
+        return False
+

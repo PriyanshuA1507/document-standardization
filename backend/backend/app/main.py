@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.routers import auth, users, reports, audit_logs, agencies, pipeline, analytics, ml_analytics, clustering, trend_analysis
+from app.routers import auth, users, reports, audit_logs, agencies, pipeline, analytics, ml_analytics, clustering, trend_analysis, report_images
 from app.services.auth_service import seed_roles_and_admin
 
 # Import all models so Alembic can discover them
@@ -58,6 +58,7 @@ app.include_router(analytics.router)
 app.include_router(ml_analytics.router)
 app.include_router(clustering.router)
 app.include_router(trend_analysis.router)
+app.include_router(report_images.router)
 
 
 
