@@ -859,6 +859,48 @@ async def seed_database():
             session.add(t_run)
             await session.commit()
 
+            # Anomaly Detection Run
+            from app.models.anomaly import AnomalyRun, AnomalyRunStatus
+            from app.services.anomaly_service import execute_anomaly_detection_job, _get_device_metadata
+
+            a_run_id = uuid.uuid4()
+            dev_meta = _get_device_metadata()
+            a_cfg = {
+                "algorithm_mode": "ENSEMBLE",
+                "selected_features": [
+                    "total_findings", "avg_cvss", "max_cvss", "cvss_variance",
+                    "p90_cvss", "critical_ratio", "open_findings", "sla_breach_count",
+                    "page_count", "report_narrative"
+                ],
+                "parameters": {
+                    "contamination": 0.10,
+                    "n_estimators": 100,
+                    "extended_hyperplanes": False,
+                    "k_neighbors": 5,
+                    "weight_iforest": 0.40,
+                    "weight_ecod": 0.35,
+                    "weight_embedding": 0.25
+                }
+            }
+            a_run = AnomalyRun(
+                run_id=a_run_id,
+                status=AnomalyRunStatus.QUEUED.value,
+                current_stage="Queued",
+                progress_percent=0,
+                requested_by=admin_user.user_id,
+                parameters={
+                    "algorithm_mode": a_cfg["algorithm_mode"],
+                    "selected_features": a_cfg["selected_features"],
+                    "parameters": a_cfg["parameters"],
+                    "compute_device": dev_meta["compute_device"],
+                    "gpu_accelerated": dev_meta["gpu_accelerated"],
+                    "gpu_name": dev_meta["gpu_name"]
+                },
+                created_at=now
+            )
+            session.add(a_run)
+            await session.commit()
+
             print("  Running Vulnerability HDBSCAN Clustering...")
             await _run_vulnerability_clustering_job(v_run_id)
 
@@ -867,6 +909,9 @@ async def seed_database():
 
             print("  Running Trend Analysis & Forecasting Engine...")
             await _execute_trend_analysis_job(t_run_id, {"date_basis": "effective", "frequency": "M", "horizon": 6, "severity": "ALL", "status": "ALL"})
+
+            print("  Running Multi-Paradigm Anomaly Detection (Isolation Forest + ECOD + S-BERT)...")
+            await execute_anomaly_detection_job(a_run_id, a_cfg, requested_by=admin_user.user_id)
 
             print("  ML Algorithms completed successfully!")
 

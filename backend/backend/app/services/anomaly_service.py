@@ -812,6 +812,15 @@ async def execute_anomaly_detection_job(run_id: uuid.UUID, config: Dict[str, Any
             await db.commit()
             logger.info(f"Anomaly Detection Job [Run ID: {run_id}] completed successfully: {anomalies_count}/{N} anomalies detected.")
 
+            # Automatically prune older runs for this algorithm to ensure strictly 1 run per algorithm is kept
+            try:
+                async with AsyncSessionLocal() as prune_session:
+                    await prune_older_runs_for_anomaly_algorithm(
+                        prune_session, algorithm_mode, keep_run_id=run_id
+                    )
+            except Exception as prune_err:
+                logger.warning(f"Failed to prune older anomaly runs for algorithm {algorithm_mode}: {prune_err}")
+
         except Exception as err:
             logger.exception(f"Fatal error in Anomaly Detection Job [Run ID: {run_id}]: {err}")
             await db.rollback()
@@ -1113,22 +1122,132 @@ async def get_run_status(db: AsyncSession, run_id: uuid.UUID) -> Optional[Dict[s
     }
 
 
-async def get_latest_completed_run(db: AsyncSession) -> Optional[Dict[str, Any]]:
-    """Fetch the latest completed anomaly detection run or most recent in-progress run."""
+def _normalize_anomaly_algorithm(mode: Optional[str]) -> str:
+    """Normalize algorithm mode string to canonical enum value: ENSEMBLE, IFOREST, ECOD, EMBEDDING."""
+    mode_str = str(mode or "ENSEMBLE").strip().upper()
+    if "IFOREST" in mode_str or "ISOLATION" in mode_str:
+        return "IFOREST"
+    if "ECOD" in mode_str:
+        return "ECOD"
+    if "EMBED" in mode_str or "SBERT" in mode_str:
+        return "EMBEDDING"
+    return "ENSEMBLE"
+
+
+def _extract_algorithm_from_anomaly_run(run: AnomalyRun) -> str:
+    """Extract standard algorithm mode (ENSEMBLE, IFOREST, ECOD, EMBEDDING) from run parameters or summary."""
+    params = run.parameters or {}
+    summary = run.summary or {}
+    mode = params.get("algorithm_mode") or summary.get("algorithm_mode")
+    return _normalize_anomaly_algorithm(mode)
+
+
+async def prune_older_runs_for_anomaly_algorithm(
+    session: AsyncSession,
+    algorithm_mode: str,
+    keep_run_id: uuid.UUID
+) -> int:
+    """
+    Ensure history keeps strictly 1 run per algorithm (maximum 4 history runs total).
+    When a new run completes for an algorithm mode, all older runs for that same
+    algorithm are deleted completely along with cascaded report records to prevent DB bloat.
+    """
+    target_algo = _normalize_anomaly_algorithm(algorithm_mode)
+
+    query = (
+        select(AnomalyRun)
+        .where(
+            AnomalyRun.run_id != keep_run_id
+        )
+    )
+    res = await session.execute(query)
+    other_runs = res.scalars().all()
+
+    deleted_count = 0
+    for r in other_runs:
+        run_algo = _extract_algorithm_from_anomaly_run(r)
+        if run_algo == target_algo:
+            logger.info(f"Pruning older anomaly run {r.run_id} ({run_algo}) to keep only latest run for {target_algo}")
+            await session.delete(r)
+            deleted_count += 1
+
+    if deleted_count > 0:
+        await session.commit()
+        logger.info(f"Pruned {deleted_count} older {target_algo} anomaly runs from database history.")
+
+    return deleted_count
+
+
+async def enforce_max_anomaly_algorithm_history(session: AsyncSession) -> int:
+    """
+    Scans the database and prunes any duplicate historical runs per algorithm mode,
+    guaranteeing strictly the single latest run per algorithm is retained (at most 4 runs total).
+    """
+    query = select(AnomalyRun)
+    res = await session.execute(query)
+    all_runs = res.scalars().all()
+
+    grouped: Dict[str, List[AnomalyRun]] = {}
+    for r in all_runs:
+        algo = _extract_algorithm_from_anomaly_run(r)
+        grouped.setdefault(algo, []).append(r)
+
+    deleted_total = 0
+    for algo, runs in grouped.items():
+        if len(runs) > 1:
+            runs_sorted = sorted(
+                runs,
+                key=lambda x: x.completed_at or x.created_at or datetime.min.replace(tzinfo=timezone.utc),
+                reverse=True
+            )
+            for old_run in runs_sorted[1:]:
+                logger.info(f"Enforce history: Deleting older redundant anomaly run {old_run.run_id} for algorithm {algo}")
+                await session.delete(old_run)
+                deleted_total += 1
+
+    if deleted_total > 0:
+        await session.commit()
+        logger.info(f"Enforce anomaly history cleanup complete: Deleted {deleted_total} redundant historical runs.")
+
+    return deleted_total
+
+
+async def get_latest_completed_run(db: AsyncSession, algorithm_mode: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Fetch the latest completed anomaly detection run (optionally filtered by algorithm_mode).
+    Enforces that only the single latest run per algorithm is retained.
+    """
+    try:
+        await enforce_max_anomaly_algorithm_history(db)
+    except Exception as cleanup_err:
+        logger.warning(f"Error enforcing anomaly algorithm history retention: {cleanup_err}")
+
     stmt = (
         select(AnomalyRun)
-        .order_by(desc(AnomalyRun.created_at))
-        .limit(1)
+        .order_by(desc(AnomalyRun.completed_at), desc(AnomalyRun.created_at))
     )
     result = await db.execute(stmt)
-    latest = result.scalar_one_or_none()
-    if not latest:
+    runs = result.scalars().all()
+    if not runs:
         return None
-    return await get_anomaly_run_detail(latest.run_id, db)
+
+    if algorithm_mode:
+        target_algo = _normalize_anomaly_algorithm(algorithm_mode)
+        for r in runs:
+            if _extract_algorithm_from_anomaly_run(r) == target_algo:
+                return await get_anomaly_run_detail(r.run_id, db)
+
+    # Return the latest run overall
+    return await get_anomaly_run_detail(runs[0].run_id, db)
 
 
 async def list_anomaly_runs(db: AsyncSession, limit: int = 20, offset: int = 0) -> Dict[str, Any]:
-    """Retrieve historical anomaly runs list with pagination."""
+    """Retrieve historical anomaly runs list with pagination (strictly 1 latest run per algorithm)."""
+    try:
+        await enforce_max_anomaly_algorithm_history(db)
+    except Exception as cleanup_err:
+        logger.warning(f"Error enforcing anomaly algorithm history retention: {cleanup_err}")
+
     count_stmt = select(func.count(AnomalyRun.run_id))
     total_count = (await db.execute(count_stmt)).scalar() or 0
 
@@ -1148,6 +1267,7 @@ async def list_anomaly_runs(db: AsyncSession, limit: int = 20, offset: int = 0) 
             "status": r.status,
             "current_stage": r.current_stage,
             "progress_percent": r.progress_percent,
+            "algorithm_mode": _extract_algorithm_from_anomaly_run(r),
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "completed_at": r.completed_at.isoformat() if r.completed_at else None,
             "total_reports_evaluated": r.total_reports_evaluated,

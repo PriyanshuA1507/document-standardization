@@ -42,7 +42,8 @@ import {
   AutoAwesome,
   Psychology,
   Functions,
-  Speed
+  Speed,
+  InfoOutlined
 } from '@mui/icons-material';
 
 import api from '../../api/axios';
@@ -201,6 +202,23 @@ export default function ReportAnomalyDetectionModule() {
     }
   };
 
+  const handleSelectRun = async (runId) => {
+    if (currentRunData?.run?.run_id === runId) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.get(`/api/anomaly/runs/${runId}`);
+      const payload = res.data?.data || res.data;
+      if (payload && payload.run) {
+        setCurrentRunData(payload);
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to load selected anomaly run.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOpenInspect = (reportId) => {
     const record = currentRunData?.records?.find(r => r.report_id === reportId);
     if (record) {
@@ -257,7 +275,7 @@ export default function ReportAnomalyDetectionModule() {
   return (
     <Box>
       {/* Page Title & Actions */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ mb: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box sx={{ p: 1.2, borderRadius: 2, bgcolor: 'rgba(0, 212, 255, 0.1)', display: 'flex' }}>
             <AutoAwesome sx={{ color: '#00D4FF', fontSize: 28 }} />
@@ -303,6 +321,73 @@ export default function ReportAnomalyDetectionModule() {
           </Button>
         </Box>
       </Box>
+
+      {/* Algorithm Run Selector & Retention Notice */}
+      {runsHistory.length > 0 && (
+        <Box
+          sx={{
+            mb: 2.5,
+            p: 1.5,
+            borderRadius: 2,
+            bgcolor: '#0B1120',
+            border: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexWrap: 'wrap' }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: '#94A3B8',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontSize: '0.72rem',
+                mr: 0.5,
+              }}
+            >
+              Stored Algorithm Runs ({runsHistory.length}/4):
+            </Typography>
+            {runsHistory.map((r) => {
+              const mode = r.algorithm_mode || r.parameters?.algorithm_mode || 'ENSEMBLE';
+              const isSelected = currentRunData?.run?.run_id === r.run_id;
+              return (
+                <Chip
+                  key={r.run_id}
+                  label={`${mode} (Latest)`}
+                  size="small"
+                  onClick={() => handleSelectRun(r.run_id)}
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    border: '1px solid',
+                    borderColor: isSelected ? '#00D4FF' : 'rgba(255,255,255,0.12)',
+                    bgcolor: isSelected ? 'rgba(0, 212, 255, 0.15)' : 'rgba(255,255,255,0.02)',
+                    color: isSelected ? '#00D4FF' : '#94A3B8',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: '#00D4FF',
+                      color: '#00D4FF',
+                      bgcolor: 'rgba(0, 212, 255, 0.08)',
+                    },
+                  }}
+                />
+              );
+            })}
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <InfoOutlined sx={{ fontSize: 16, color: '#64748B' }} />
+            <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.73rem' }}>
+              Database retains strictly 1 run per algorithm (latest). New runs replace previous runs.
+            </Typography>
+          </Box>
+        </Box>
+      )}
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 

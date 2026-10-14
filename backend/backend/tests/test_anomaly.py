@@ -2,7 +2,7 @@ import asyncio
 import unittest
 import uuid
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import select, func
 from app.database import AsyncSessionLocal, engine
@@ -140,3 +140,51 @@ class TestAnomalyDetectionIntegration(unittest.IsolatedAsyncioTestCase):
             self.assertIn("comparison_metrics", comp)
             self.assertIn("agreement_rate_percent", comp["comparison_metrics"])
             self.assertIn("top_discordant_reports", comp)
+
+    async def test_05_single_run_per_algorithm_retention(self):
+        """Verify that strictly only the latest run per algorithm is retained in the database."""
+        async with AsyncSessionLocal() as session:
+            # 1. Create two simulated runs for algorithm 'ECOD'
+            old_run_id = uuid.uuid4()
+            new_run_id = uuid.uuid4()
+            now = datetime.now(timezone.utc)
+
+            old_run = AnomalyRun(
+                run_id=old_run_id,
+                status=AnomalyRunStatus.COMPLETED.value,
+                current_stage="Completed",
+                progress_percent=100,
+                parameters={"algorithm_mode": "ECOD"},
+                summary={"algorithm_mode": "ECOD"},
+                created_at=now - timedelta(minutes=10),
+                completed_at=now - timedelta(minutes=9),
+            )
+            new_run = AnomalyRun(
+                run_id=new_run_id,
+                status=AnomalyRunStatus.COMPLETED.value,
+                current_stage="Completed",
+                progress_percent=100,
+                parameters={"algorithm_mode": "ECOD"},
+                summary={"algorithm_mode": "ECOD"},
+                created_at=now,
+                completed_at=now,
+            )
+            session.add(old_run)
+            session.add(new_run)
+            await session.commit()
+
+            # 2. Run pruning keeping new_run_id
+            deleted = await anomaly_service.prune_older_runs_for_anomaly_algorithm(
+                session, "ECOD", keep_run_id=new_run_id
+            )
+            self.assertGreaterEqual(deleted, 1)
+
+            # 3. Verify old_run is deleted and new_run is retained
+            check_old = await session.get(AnomalyRun, old_run_id)
+            check_new = await session.get(AnomalyRun, new_run_id)
+            self.assertIsNone(check_old, "Older ECOD run should have been completely purged from DB.")
+            self.assertIsNotNone(check_new, "Latest ECOD run should be preserved.")
+
+            # 4. Clean up test new_run
+            await session.delete(check_new)
+            await session.commit()

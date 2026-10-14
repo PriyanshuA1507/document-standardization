@@ -80,13 +80,14 @@ async def get_run_status(
 
 @router.get("/latest")
 async def get_latest_anomaly_run(
+    algorithm_mode: Optional[str] = Query(None, description="Optional algorithm filter: ENSEMBLE, IFOREST, ECOD, EMBEDDING"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Retrieve results and telemetry from the most recently executed anomaly run.
+    Retrieve results and telemetry from the most recently executed anomaly run (optionally for a specific algorithm).
     """
-    latest = await anomaly_service.get_latest_completed_run(db)
+    latest = await anomaly_service.get_latest_completed_run(db, algorithm_mode=algorithm_mode)
     if not latest:
         return {"status": "empty", "message": "No anomaly detection runs have been executed yet.", "data": None}
     return {"status": "success", "data": latest}

@@ -103,7 +103,7 @@ export default function AnomalyComparisonModal({ open, onClose, runsHistory = []
               >
                 {runsHistory.map(r => (
                   <MenuItem key={r.run_id} value={r.run_id}>
-                    {r.parameters?.algorithm_mode || 'Run'} &bull; {new Date(r.created_at).toLocaleDateString()} ({r.anomalies_detected} outliers)
+                    {(r.algorithm_mode || r.parameters?.algorithm_mode || 'ENSEMBLE')} (Latest) &bull; {new Date(r.created_at).toLocaleDateString()} ({r.anomalies_detected} outliers)
                   </MenuItem>
                 ))}
               </Select>
@@ -121,7 +121,7 @@ export default function AnomalyComparisonModal({ open, onClose, runsHistory = []
               >
                 {runsHistory.map(r => (
                   <MenuItem key={r.run_id} value={r.run_id}>
-                    {r.parameters?.algorithm_mode || 'Run'} &bull; {new Date(r.created_at).toLocaleDateString()} ({r.anomalies_detected} outliers)
+                    {(r.algorithm_mode || r.parameters?.algorithm_mode || 'ENSEMBLE')} (Latest) &bull; {new Date(r.created_at).toLocaleDateString()} ({r.anomalies_detected} outliers)
                   </MenuItem>
                 ))}
               </Select>
