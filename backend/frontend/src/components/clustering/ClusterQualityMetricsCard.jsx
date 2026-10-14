@@ -82,6 +82,10 @@ export default function ClusterQualityMetricsCard({
   const isGpu = summary?.gpu_accelerated || parameters?.gpu_accelerated || false;
   const gpuName = summary?.gpu_name || parameters?.gpu_name || (isGpu ? 'NVIDIA GPU (CUDA)' : null);
   const vectorizer = summary?.vectorizer || parameters?.vectorizer || (clusteringType === 'VULNERABILITY' ? 'Sentence-BERT (768-dim)' : 'StandardScaler (Risk Profile)');
+  const algo = summary?.algorithm || parameters?.algorithm || (summary?.algorithm_version ? summary.algorithm_version.split('-')[0] : 'HDBSCAN');
+  const selectedFeats = summary?.selected_features || parameters?.selected_features || [];
+  const chScore = metrics?.calinski_harabasz_index;
+  const inertiaScore = metrics?.inertia;
 
   const silScore = metrics?.silhouette_score;
   const dbiScore = metrics?.davies_bouldin_index;
@@ -150,6 +154,31 @@ export default function ClusterQualityMetricsCard({
 
           {/* Hardware & Settings Badges */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<Science sx={{ color: '#00D4FF !important', fontSize: 16 }} />}
+              label={`Algorithm: ${algo}`}
+              sx={{
+                bgcolor: 'rgba(0, 212, 255, 0.12)',
+                color: '#00D4FF',
+                border: '1px solid rgba(0, 212, 255, 0.35)',
+                fontWeight: 800,
+                fontSize: '0.75rem',
+              }}
+            />
+
+            {selectedFeats.length > 0 && (
+              <Chip
+                label={`${selectedFeats.length} Features Active`}
+                sx={{
+                  bgcolor: 'rgba(255, 255, 255, 0.05)',
+                  color: '#CBD5E1',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                }}
+              />
+            )}
+
             {isGpu ? (
               <Chip
                 icon={<Bolt sx={{ color: '#00E676 !important', fontSize: 18 }} />}
@@ -429,6 +458,37 @@ export default function ClusterQualityMetricsCard({
                 {nClusters} Discovered Clusters
               </Typography>
             </Box>
+            {chScore !== null && chScore !== undefined && (
+              <>
+                <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', display: { xs: 'none', sm: 'block' } }} />
+                <Box>
+                  <Tooltip title="Calinski-Harabasz Index (Variance Ratio Criterion): Ratio of between-cluster to within-cluster dispersion. Higher is better.">
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Calinski–Harabasz</Typography>
+                      <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#B388FF' }}>
+                        {formatScore(chScore, 1)}
+                      </Typography>
+                    </Box>
+                  </Tooltip>
+                </Box>
+              </>
+            )}
+
+            {inertiaScore !== null && inertiaScore !== undefined && (
+              <>
+                <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', display: { xs: 'none', sm: 'block' } }} />
+                <Box>
+                  <Tooltip title="Inertia / WCSS: Within-cluster sum-of-squares distances to centroids. Lower indicates tighter clusters (useful for elbow analysis).">
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Inertia (WCSS)</Typography>
+                      <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#38BDF8' }}>
+                        {formatScore(inertiaScore, 1)}
+                      </Typography>
+                    </Box>
+                  </Tooltip>
+                </Box>
+              </>
+            )}
           </Box>
 
           <Box sx={{ minWidth: 240 }}>
@@ -470,12 +530,12 @@ export default function ClusterQualityMetricsCard({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
               <Science sx={{ color: '#B388FF', fontSize: 22 }} />
               <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#E2E8F0' }}>
-                Dataset-Independent Validation Metrics Guide
+                Clustering Validation Metrics & Separation Reference Guide
               </Typography>
             </Box>
 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Unlike dataset-dependent metrics (such as Inertia/WCSS or Calinski-Harabasz, which grow or shift with sample size), these two metrics provide absolute, standardized evaluation criteria:
+              Our multi-metric validation suite assesses partition quality, compactness, and separation across both universal and algorithm-specific indicators:
             </Typography>
 
             <TableContainer component={Paper} sx={{ bgcolor: 'transparent', boxShadow: 'none' }}>
@@ -505,6 +565,22 @@ export default function ClusterQualityMetricsCard({
                     <TableCell>
                       Calculates the similarity between clusters as the ratio of within-cluster spread to centroid distance.
                       Scores &lt; 1.0 indicate compact, well-separated clusters.
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700, color: '#B388FF !important' }}>3. Calinski–Harabasz Index</TableCell>
+                    <TableCell sx={{ fontFamily: 'monospace' }}>0 to ∞</TableCell>
+                    <TableCell sx={{ color: '#00E676 !important', fontWeight: 700 }}>Higher is better</TableCell>
+                    <TableCell>
+                      Variance Ratio Criterion measuring ratio of between-cluster dispersion to within-cluster dispersion. Fast to evaluate and highlights well-defined separation.
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700, color: '#38BDF8 !important' }}>4. Inertia / WCSS (K-Means)</TableCell>
+                    <TableCell sx={{ fontFamily: 'monospace' }}>0 to ∞</TableCell>
+                    <TableCell sx={{ color: '#00E676 !important', fontWeight: 700 }}>Lower is better (fixed k)</TableCell>
+                    <TableCell>
+                      Total sum of squared Euclidean distances of points to their assigned cluster centroid. Evaluates compactness and helps identify the optimal elbow point for k.
                     </TableCell>
                   </TableRow>
                 </TableBody>

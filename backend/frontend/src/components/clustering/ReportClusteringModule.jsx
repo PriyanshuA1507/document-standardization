@@ -33,6 +33,8 @@ import {
 import api from '../../api/axios';
 import ClusterMembersModal from './ClusterMembersModal';
 import ClusterQualityMetricsCard from './ClusterQualityMetricsCard';
+import ClusteringConfigConsole from './ClusteringConfigConsole';
+import ClusterScatterPlot from './ClusterScatterPlot';
 
 function StatCard({ title, value, subtitle, icon, color = '#00E676' }) {
   return (
@@ -125,11 +127,12 @@ export default function ReportClusteringModule() {
     }, 1500);
   };
 
-  const handleTriggerRun = async () => {
+  // On-demand execution with optional user configuration payload
+  const handleTriggerRun = async (configPayload = null) => {
     setTriggering(true);
     setError(null);
     try {
-      const res = await api.post('/api/clustering/reports/run');
+      const res = await api.post('/api/clustering/reports/run', configPayload || undefined);
       if (res.data?.status === 'success') {
         const runId = res.data.run_id;
         setActiveRun({
@@ -155,77 +158,47 @@ export default function ReportClusteringModule() {
 
   return (
     <Box>
-      {/* Action Header Card */}
-      <Card sx={{ bgcolor: '#0D1527', border: '1px solid rgba(0,230,118,0.2)', borderRadius: 3, mb: 3 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-            <Box>
-              <Typography variant="h5" fontWeight={800} sx={{ color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Description sx={{ color: '#00E676' }} />
-                Audit Report Security Clustering
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Semantic & security posture cohort grouping using Sentence-BERT (all-mpnet-base-v2, 768-dim) on GPU over audit domains, finding scopes, and risk profiles.
-              </Typography>
-            </Box>
+      {/* Dynamic Clustering Configuration Console */}
+      <ClusteringConfigConsole
+        clusteringType="REPORT"
+        onTriggerRun={handleTriggerRun}
+        triggering={triggering}
+        activeRun={activeRun}
+      />
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Button
-                variant="contained"
-                size="large"
-                disabled={Boolean(activeRun) || triggering}
-                onClick={handleTriggerRun}
-                startIcon={Boolean(activeRun) || triggering ? <CircularProgress size={20} color="inherit" /> : <PlayArrow />}
-                sx={{
-                  bgcolor: '#00E676',
-                  color: '#0A0E17',
-                  fontWeight: 800,
-                  px: 3,
-                  py: 1.2,
-                  borderRadius: 2,
-                  boxShadow: '0 0 20px rgba(0,230,118,0.3)',
-                  '&:hover': { bgcolor: '#00C853', boxShadow: '0 0 25px rgba(0,230,118,0.5)' },
-                  '&:disabled': { bgcolor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }
-                }}
-              >
-                {Boolean(activeRun) ? 'Clustering In Progress...' : triggering ? 'Submitting Job...' : 'Run Report Clustering'}
-              </Button>
-            </Box>
-          </Box>
-
-          {/* Active Job Progress Banner */}
-          {activeRun && (
-            <Box sx={{ mt: 3, p: 2, bgcolor: 'rgba(0, 230, 118, 0.08)', borderRadius: 2, border: '1px solid rgba(0, 230, 118, 0.2)' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CircularProgress size={16} sx={{ color: '#00E676' }} />
-                  <Typography variant="body2" fontWeight={700} sx={{ color: '#00E676' }}>
-                    Stage: {activeRun.current_stage || 'Executing...'}
-                  </Typography>
-                </Box>
-                <Typography variant="caption" fontWeight={700} sx={{ color: '#00E676' }}>
-                  {activeRun.progress_percent}%
+      {/* Active Job Progress Banner */}
+      {activeRun && (
+        <Card sx={{ bgcolor: '#0D1527', border: '1px solid rgba(0,230,118,0.3)', borderRadius: 3, mb: 3 }}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={18} sx={{ color: '#00E676' }} />
+                <Typography variant="body2" fontWeight={800} sx={{ color: '#00E676' }}>
+                  Stage: {activeRun.current_stage || 'Executing...'}
                 </Typography>
               </Box>
-              <LinearProgress
-                variant="determinate"
-                value={activeRun.progress_percent}
-                sx={{
-                  height: 8,
-                  borderRadius: 4,
-                  bgcolor: 'rgba(255,255,255,0.1)',
-                  '& .MuiLinearProgress-bar': { bgcolor: '#00E676' }
-                }}
-              />
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                Run ID: {activeRun.run_id} &bull; Status: {activeRun.status}
+              <Typography variant="caption" fontWeight={800} sx={{ color: '#00E676' }}>
+                {activeRun.progress_percent}%
               </Typography>
             </Box>
-          )}
+            <LinearProgress
+              variant="determinate"
+              value={activeRun.progress_percent}
+              sx={{
+                height: 8,
+                borderRadius: 4,
+                bgcolor: 'rgba(255,255,255,0.1)',
+                '& .MuiLinearProgress-bar': { bgcolor: '#00E676' }
+              }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              Run ID: {activeRun.run_id} &bull; Status: {activeRun.status}
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
 
-          {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
-        </CardContent>
-      </Card>
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
       {/* Stat Cards */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
@@ -289,6 +262,14 @@ export default function ReportClusteringModule() {
             summary={summary}
             parameters={completedRun?.parameters}
             clusteringType="REPORT"
+          />
+
+          {/* Interactive 2D Visual Cluster Map */}
+          <ClusterScatterPlot
+            runId={completedRun?.run_id}
+            initialData={summary?.projection_2d}
+            clusteringType="REPORT"
+            algorithm={completedRun?.parameters?.algorithm || summary?.algorithm || 'HDBSCAN'}
           />
 
           <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Checkbox,
 } from '@mui/material';
 import {
   History,
@@ -37,9 +38,11 @@ import {
   BugReport,
   Description,
   Close,
+  CompareArrows,
 } from '@mui/icons-material';
 import api from '../../api/axios';
 import ClusterQualityMetricsCard from './ClusterQualityMetricsCard';
+import ClusterComparisonModal from './ClusterComparisonModal';
 
 const STATUS_CHIPS = {
   COMPLETED: { color: 'success', icon: <CheckCircle sx={{ fontSize: 14 }} /> },
@@ -56,6 +59,34 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [error, setError] = useState(null);
   const [detailsModal, setDetailsModal] = useState({ open: false, run: null });
+  const [selectedRunIds, setSelectedRunIds] = useState([]);
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
+
+  // Derive the active clustering_type of the current selection (if any)
+  const selectedRuns = useMemo(() => {
+    return (history.items || []).filter((r) => selectedRunIds.includes(r.run_id));
+  }, [history.items, selectedRunIds]);
+
+  const activeSelectedType = selectedRuns.length > 0 ? selectedRuns[0].clustering_type : null;
+
+  const handleToggleSelectRun = (r) => {
+    const runId = r.run_id;
+    if (selectedRunIds.includes(runId)) {
+      setSelectedRunIds(selectedRunIds.filter((id) => id !== runId));
+    } else {
+      // Strictly enforce same-type comparison:
+      // If user clicks a run of a different type, start a fresh selection with this run
+      if (activeSelectedType && r.clustering_type !== activeSelectedType) {
+        setSelectedRunIds([runId]);
+        return;
+      }
+      if (selectedRunIds.length >= 2) {
+        setSelectedRunIds([selectedRunIds[1], runId]);
+      } else {
+        setSelectedRunIds([...selectedRunIds, runId]);
+      }
+    }
+  };
 
   const fetchHistory = async (type = filterType, pageIdx = page, size = rowsPerPage) => {
     setLoading(true);
@@ -118,8 +149,12 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                 Clustering Execution History & Audit Trail
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Immutable versioned record of all past vulnerability and report clustering jobs.
+                Retaining the latest run for each algorithm (HDBSCAN, K-Means++, Agglomerative). New runs automatically replace previous runs of the same algorithm to keep database storage lean.
               </Typography>
+              <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                <Chip size="small" label="Top 3 History: 1 Per Algorithm" sx={{ bgcolor: 'rgba(0, 212, 255, 0.12)', color: '#00D4FF', fontWeight: 700, fontSize: '0.72rem', border: '1px solid rgba(0, 212, 255, 0.25)' }} />
+                <Chip size="small" label="Auto-Prunes Previous Run" sx={{ bgcolor: 'rgba(0, 230, 118, 0.12)', color: '#00E676', fontWeight: 700, fontSize: '0.72rem', border: '1px solid rgba(0, 230, 118, 0.25)' }} />
+              </Box>
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -150,13 +185,93 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
+      {/* Comparison Action Banner */}
+      {selectedRunIds.length > 0 && (
+        <Box
+          sx={{
+            mb: 2,
+            p: 1.5,
+            px: 2.5,
+            bgcolor: 'rgba(0, 212, 255, 0.1)',
+            border: '1px solid rgba(0, 212, 255, 0.3)',
+            borderRadius: 2,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <CompareArrows sx={{ color: '#00D4FF' }} />
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Typography variant="body2" sx={{ color: '#E2E8F0', fontWeight: 700 }}>
+                  {selectedRunIds.length === 1
+                    ? `1 ${activeSelectedType === 'VULNERABILITY' ? 'Vulnerability' : 'Report'} run selected. Select a 2nd ${activeSelectedType === 'VULNERABILITY' ? 'Vulnerability' : 'Report'} run to compare.`
+                    : `2 ${activeSelectedType === 'VULNERABILITY' ? 'Vulnerability' : 'Report'} runs selected for benchmark matrix.`}
+                </Typography>
+                {activeSelectedType && (
+                  <Chip
+                    size="small"
+                    label={activeSelectedType === 'VULNERABILITY' ? 'Vulnerability Findings' : 'Audit Reports'}
+                    sx={{
+                      bgcolor: activeSelectedType === 'VULNERABILITY' ? 'rgba(0,212,255,0.15)' : 'rgba(0,230,118,0.15)',
+                      color: activeSelectedType === 'VULNERABILITY' ? '#00D4FF' : '#00E676',
+                      fontWeight: 800,
+                      fontSize: '0.68rem',
+                    }}
+                  />
+                )}
+              </Box>
+              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mt: 0.3 }}>
+                *Comparison is strictly isolated by type: Vulnerabilities compare against Vulnerabilities, and Reports against Reports.
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button
+              size="small"
+              variant="text"
+              onClick={() => setSelectedRunIds([])}
+              sx={{ color: '#94A3B8', fontSize: '0.75rem' }}
+            >
+              Clear
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              disabled={selectedRunIds.length !== 2}
+              onClick={() => setCompareModalOpen(true)}
+              startIcon={<CompareArrows />}
+              sx={{
+                bgcolor: '#00D4FF',
+                color: '#0D1527',
+                fontWeight: 800,
+                fontSize: '0.75rem',
+                '&:hover': { bgcolor: '#38BDF8' },
+              }}
+            >
+              Compare Runs ({selectedRunIds.length}/2)
+            </Button>
+          </Box>
+        </Box>
+      )}
+
       <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2.5 }}>
         <TableContainer>
           <Table size="small">
             <TableHead>
               <TableRow>
+                <TableCell sx={{ bgcolor: '#0D1527', width: 44, p: 0.5 }} align="center">
+                  <Tooltip title="Select up to 2 runs to compare">
+                    <CompareArrows sx={{ fontSize: 16, color: '#64748B' }} />
+                  </Tooltip>
+                </TableCell>
                 <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Run ID</TableCell>
                 <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Type</TableCell>
+                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Algorithm</TableCell>
                 <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Status</TableCell>
                 <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Records Analyzed</TableCell>
                 <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Clusters Found</TableCell>
@@ -169,13 +284,13 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: '#00D4FF' }} />
                   </TableCell>
                 </TableRow>
               ) : history.items?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                  <TableCell colSpan={11} align="center" sx={{ py: 5, color: 'text.secondary' }}>
                     No clustering run records found.
                   </TableCell>
                 </TableRow>
@@ -183,8 +298,48 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                 history.items?.map((r) => {
                   const statusConf = STATUS_CHIPS[r.status] || { color: 'default' };
                   const isVuln = r.clustering_type === 'VULNERABILITY';
+                  const algoRaw = r.summary?.algorithm || r.parameters?.algorithm || (r.algorithm_version ? r.algorithm_version.split('-')[0] : 'HDBSCAN');
+                  const algoKey = String(algoRaw).toUpperCase();
+                  let algoLabel = 'HDBSCAN';
+                  let algoColor = '#00D4FF';
+                  let algoBg = 'rgba(0, 212, 255, 0.15)';
+
+                  if (algoKey.includes('KMEANS')) {
+                    algoLabel = 'K-Means++';
+                    algoColor = '#B388FF';
+                    algoBg = 'rgba(124, 77, 255, 0.15)';
+                  } else if (algoKey.includes('AGGLOMERATIVE')) {
+                    algoLabel = 'Agglomerative';
+                    algoColor = '#FF9100';
+                    algoBg = 'rgba(255, 145, 0, 0.15)';
+                  }
+
+                  const isChecked = selectedRunIds.includes(r.run_id);
+
                   return (
-                    <TableRow key={r.run_id} hover sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
+                    <TableRow key={r.run_id} hover sx={{ bgcolor: isChecked ? 'rgba(0,212,255,0.04)' : 'transparent', '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
+                      <TableCell align="center" sx={{ p: 0.5, width: 44 }}>
+                        <Tooltip
+                          title={
+                            activeSelectedType && r.clustering_type !== activeSelectedType
+                              ? `Cannot mix types. Click to start a new ${r.clustering_type === 'VULNERABILITY' ? 'Vulnerability' : 'Report'} comparison.`
+                              : isChecked
+                              ? 'Deselect run'
+                              : 'Select run for comparison'
+                          }
+                        >
+                          <Checkbox
+                            size="small"
+                            checked={isChecked}
+                            onChange={() => handleToggleSelectRun(r)}
+                            sx={{
+                              color: activeSelectedType && r.clustering_type !== activeSelectedType ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.2)',
+                              p: 0.5,
+                              '&.Mui-checked': { color: '#00D4FF' },
+                            }}
+                          />
+                        </Tooltip>
+                      </TableCell>
                       <TableCell>
                         <Tooltip title={r.run_id}>
                           <Typography variant="body2" fontFamily="monospace" fontWeight={700} sx={{ color: '#00D4FF' }}>
@@ -202,6 +357,19 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                             color: isVuln ? '#00D4FF' : '#00E676',
                             fontWeight: 700,
                             fontSize: '0.72rem'
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={algoLabel}
+                          sx={{
+                            bgcolor: algoBg,
+                            color: algoColor,
+                            fontWeight: 800,
+                            fontSize: '0.72rem',
+                            border: `1px solid ${algoColor}33`,
                           }}
                         />
                       </TableCell>
@@ -322,9 +490,9 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography variant="caption" color="text.secondary">Algorithm Version</Typography>
-                  <Typography variant="body2" fontWeight={700}>
-                    {detailsModal.run.algorithm_version}
+                  <Typography variant="caption" color="text.secondary">Algorithm</Typography>
+                  <Typography variant="body2" fontWeight={800} sx={{ color: detailsModal.run.algorithm_version?.includes('KMEANS') ? '#B388FF' : detailsModal.run.algorithm_version?.includes('AGGLOMERATIVE') ? '#FF9100' : '#00D4FF' }}>
+                    {detailsModal.run.summary?.algorithm || detailsModal.run.parameters?.algorithm || detailsModal.run.algorithm_version || 'HDBSCAN'}
                   </Typography>
                 </Box>
                 <Box>
@@ -339,6 +507,30 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                     {detailsModal.run.completed_at ? new Date(detailsModal.run.completed_at).toLocaleString() : '—'}
                   </Typography>
                 </Box>
+
+                {/* Display active selected features if present */}
+                {(detailsModal.run.summary?.selected_features?.length > 0 || detailsModal.run.parameters?.selected_features?.length > 0) && (
+                  <Box sx={{ gridColumn: '1 / -1', pt: 1, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 700 }}>
+                      Active Features Used for Clustering ({((detailsModal.run.summary?.selected_features || detailsModal.run.parameters?.selected_features) || []).length}):
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                      {((detailsModal.run.summary?.selected_features || detailsModal.run.parameters?.selected_features) || []).map((feat) => (
+                        <Chip
+                          key={feat}
+                          size="small"
+                          label={feat}
+                          sx={{
+                            bgcolor: 'rgba(0, 212, 255, 0.1)',
+                            color: '#00D4FF',
+                            fontSize: '0.72rem',
+                            border: '1px solid rgba(0, 212, 255, 0.25)',
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
               </Box>
 
               {detailsModal.run.error_message && (
@@ -365,6 +557,14 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Cross-Run Comparison Modal */}
+      <ClusterComparisonModal
+        open={compareModalOpen}
+        onClose={() => setCompareModalOpen(false)}
+        runId1={selectedRunIds[0]}
+        runId2={selectedRunIds[1]}
+      />
     </Box>
   );
 }

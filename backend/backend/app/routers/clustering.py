@@ -1,7 +1,8 @@
 import uuid
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -13,51 +14,93 @@ from app.services import clustering_service
 router = APIRouter(prefix="/api/clustering", tags=["Clustering"])
 
 
+class DynamicClusteringRunRequest(BaseModel):
+    algorithm: Optional[str] = Field("HDBSCAN", description="Clustering algorithm: HDBSCAN, KMEANS, or AGGLOMERATIVE")
+    selected_features: Optional[List[str]] = Field(None, description="List of feature keys to incorporate")
+    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Algorithm-specific hyperparameters")
+    include_numeric_features: Optional[bool] = Field(False, description="Whether to append numeric dimensions to vector space")
+
+
+class OptimizeKRequest(BaseModel):
+    clustering_type: Optional[str] = Field("VULNERABILITY", description="VULNERABILITY or REPORT")
+    algorithm: Optional[str] = Field("KMEANS", description="KMEANS or AGGLOMERATIVE")
+    selected_features: Optional[List[str]] = Field(None, description="Feature keys to test")
+    include_numeric_features: Optional[bool] = Field(False, description="Whether to include numeric features")
+    k_min: Optional[int] = Field(2, ge=2, le=15)
+    k_max: Optional[int] = Field(12, ge=3, le=20)
+
+
+@router.get("/config-options")
+async def get_clustering_config_options(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Discovery endpoint returning all available algorithms, parameters schemas,
+    feature toggles, and preset profiles for dynamic user configuration.
+    """
+    options = clustering_service.get_clustering_config_options()
+    return {"status": "success", "data": options}
+
+
 @router.post("/vulnerabilities/run", status_code=status.HTTP_202_ACCEPTED)
 async def run_vulnerability_clustering(
+    payload: Optional[DynamicClusteringRunRequest] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    On-Demand Trigger: Execute Vulnerability Findings Clustering.
-    Only runs when an authorized user explicitly clicks the trigger button.
+    On-Demand Trigger: Execute Vulnerability Findings Clustering with user-defined algorithm,
+    features, and parameters.
     """
+    cfg = None
+    if payload:
+        cfg = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+
     run = await clustering_service.trigger_vulnerability_clustering(
-        db, user_id=current_user.user_id
+        db, user_id=current_user.user_id, config=cfg
     )
     return {
         "status": "success",
-        "message": "Vulnerability clustering job has been queued.",
+        "message": f"{run.algorithm_version} clustering job has been queued.",
         "run_id": str(run.run_id),
         "clustering_type": run.clustering_type,
+        "algorithm_version": run.algorithm_version,
         "job_status": run.status,
         "current_stage": run.current_stage,
         "progress_percent": run.progress_percent,
         "created_at": run.created_at.isoformat(),
+        "parameters": run.parameters,
     }
 
 
 @router.post("/reports/run", status_code=status.HTTP_202_ACCEPTED)
 async def run_report_clustering(
+    payload: Optional[DynamicClusteringRunRequest] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    On-Demand Trigger: Execute Audit Report Clustering.
-    Only runs when an authorized user explicitly clicks the trigger button.
+    On-Demand Trigger: Execute Audit Report Clustering with user-defined algorithm,
+    features, and parameters.
     """
+    cfg = None
+    if payload:
+        cfg = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+
     run = await clustering_service.trigger_report_clustering(
-        db, user_id=current_user.user_id
+        db, user_id=current_user.user_id, config=cfg
     )
     return {
         "status": "success",
-        "message": "Report clustering job has been queued.",
+        "message": f"{run.algorithm_version} report clustering job has been queued.",
         "run_id": str(run.run_id),
         "clustering_type": run.clustering_type,
+        "algorithm_version": run.algorithm_version,
         "job_status": run.status,
         "current_stage": run.current_stage,
         "progress_percent": run.progress_percent,
         "created_at": run.created_at.isoformat(),
+        "parameters": run.parameters,
     }
 
 
@@ -154,4 +197,57 @@ async def get_clustering_history(
         db, clustering_type=norm_type, limit=limit, offset=offset
     )
     return {"status": "success", "data": result}
+
+
+@router.get("/runs/{run_id}/projection")
+async def get_run_projection(
+    run_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retrieve 2D PCA projection coordinates for interactive cluster scatter plot.
+    """
+    coords = await clustering_service.get_run_projection_2d(db, run_id)
+    return {"status": "success", "data": coords}
+
+
+@router.post("/optimize-k")
+async def optimize_k(
+    payload: OptimizeKRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Auto-Optimizer: Executes multi-k parameter sweep (Inertia & Silhouette)
+    to discover mathematically optimal k.
+    """
+    result = await clustering_service.compute_optimal_k_sweep(
+        db,
+        clustering_type=payload.clustering_type or "VULNERABILITY",
+        selected_features=payload.selected_features,
+        include_numeric_features=payload.include_numeric_features or False,
+        k_min=payload.k_min or 2,
+        k_max=payload.k_max or 12,
+        algorithm=payload.algorithm or "KMEANS",
+    )
+    return {"status": "success", "data": result}
+
+
+@router.get("/compare")
+async def compare_runs(
+    run_id_1: uuid.UUID = Query(..., description="First run UUID for comparison"),
+    run_id_2: uuid.UUID = Query(..., description="Second run UUID for comparison"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Cross-Run Comparison & Benchmark Matrix:
+    Evaluates two historical or active runs side-by-side with delta metrics.
+    """
+    comparison = await clustering_service.compare_clustering_runs(
+        db, run_id_1=run_id_1, run_id_2=run_id_2
+    )
+    return {"status": "success", "data": comparison}
+
 
