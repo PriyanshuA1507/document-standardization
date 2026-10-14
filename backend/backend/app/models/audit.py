@@ -40,7 +40,7 @@ class SecurityEvent(Base):
     severity = Column(String(20), nullable=False, index=True)
     event_type = Column(String(100), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    event_metadata = Column(JSONB, nullable=True)
+    event_metadata = Column("metadata", JSONB, nullable=True)
     created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )

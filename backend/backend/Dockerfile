@@ -10,7 +10,7 @@ RUN apt-get update && \
 # Install Python dependencies
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+    pip install --prefer-binary --no-compile -r requirements.txt
 
 
 # Copy application code

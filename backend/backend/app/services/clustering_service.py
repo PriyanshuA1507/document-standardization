@@ -4,13 +4,81 @@ import uuid
 from collections import Counter
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
+import re
 
 import numpy as np
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.decomposition import TruncatedSVD
+import torch
+from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score, davies_bouldin_score
 import hdbscan
+
+# Lazy-loaded global SBERT model (loaded once, reused across runs)
+_sbert_model: SentenceTransformer | None = None
+_sbert_model_lock = asyncio.Lock()
+
+SBERT_MODEL_NAME = "all-mpnet-base-v2"  # 768-dim, highest quality sentence embeddings
+
+
+def _get_torch_device() -> str:
+    """Return 'cuda' if GPU is available and initialized, else 'cpu'."""
+    try:
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception as e:
+        logger.warning(f"Error checking torch.cuda availability: {e}")
+    return "cpu"
+
+
+def _get_device_metadata() -> Dict[str, Any]:
+    """Retrieve structured compute device metadata for logging and client summaries."""
+    device = _get_torch_device()
+    is_gpu = (device == "cuda")
+    gpu_name = None
+    gpu_count = 0
+    if is_gpu:
+        try:
+            gpu_name = torch.cuda.get_device_name(0)
+            gpu_count = torch.cuda.device_count()
+        except Exception:
+            gpu_name = "NVIDIA CUDA GPU"
+            gpu_count = 1
+    return {
+        "compute_device": device,
+        "gpu_accelerated": is_gpu,
+        "gpu_name": gpu_name,
+        "gpu_count": gpu_count,
+    }
+
+
+async def _get_sbert_model() -> SentenceTransformer:
+    """Lazily load and cache the Sentence-BERT model (thread-safe, GPU-accelerated)."""
+    global _sbert_model
+    if _sbert_model is None:
+        async with _sbert_model_lock:
+            if _sbert_model is None:  # double-check after acquiring lock
+                target_device = _get_torch_device()
+                meta = _get_device_metadata()
+                logger.info(
+                    f"Loading Sentence-BERT model: {SBERT_MODEL_NAME} onto {target_device} "
+                    f"(GPU: {meta.get('gpu_name') or 'N/A'}, count: {meta.get('gpu_count')})..."
+                )
+
+                def _load():
+                    model = SentenceTransformer(SBERT_MODEL_NAME, device=target_device)
+                    if target_device == "cuda":
+                        try:
+                            model = model.to("cuda")
+                        except Exception as err:
+                            logger.warning(f"Could not explicitly move SBERT model to cuda: {err}")
+                    return model
+
+                _sbert_model = await asyncio.to_thread(_load)
+                logger.info(
+                    f"Sentence-BERT model loaded successfully. Active device: {getattr(_sbert_model, 'device', target_device)}"
+                )
+    return _sbert_model
 
 from sqlalchemy import select, func, case, and_, desc, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +100,56 @@ logger = logging.getLogger(__name__)
 # Concurrency locks to prevent duplicate simultaneous executions
 _active_jobs_lock = asyncio.Lock()
 _active_jobs: set = set()
+
+
+def _compute_quality_metrics(X: np.ndarray, labels: np.ndarray) -> Dict[str, Any]:
+    """
+    Compute clustering quality metrics on non-noise points.
+    
+    Metrics computed:
+      - Silhouette Score:        Range [-1, +1], higher is better.
+      - Davies-Bouldin Index:    Range [0, ∞), lower is better.
+      - Calinski-Harabasz Index: Range (0, ∞), higher is better.
+      - Inertia (WCSS):          Sum of squared distances to cluster centroids, lower is better.
+    
+    Noise points (label == -1) are excluded from all metric calculations
+    since they have no cluster assignment.
+    """
+    # Filter out noise points (HDBSCAN labels noise as -1)
+    non_noise_mask = labels != -1
+    X_filtered = X[non_noise_mask]
+    labels_filtered = labels[non_noise_mask]
+
+    unique_clusters = set(labels_filtered)
+    n_clusters = len(unique_clusters)
+    n_clustered = len(labels_filtered)
+    n_noise = int(np.sum(~non_noise_mask))
+
+    metrics: Dict[str, Any] = {
+        "n_clusters": n_clusters,
+        "n_clustered_points": n_clustered,
+        "n_noise_points": n_noise,
+        "noise_ratio": round(n_noise / len(labels), 4) if len(labels) > 0 else 0,
+    }
+
+    # Need at least 2 clusters and 2 points to compute meaningful metrics
+    if n_clusters < 2 or n_clustered < 2:
+        metrics["silhouette_score"] = None
+        metrics["davies_bouldin_index"] = None
+        metrics["note"] = "Insufficient clusters (need ≥ 2) to compute quality metrics."
+        return metrics
+
+    try:
+        metrics["silhouette_score"] = round(float(silhouette_score(X_filtered, labels_filtered)), 4)
+    except Exception:
+        metrics["silhouette_score"] = None
+
+    try:
+        metrics["davies_bouldin_index"] = round(float(davies_bouldin_score(X_filtered, labels_filtered)), 4)
+    except Exception:
+        metrics["davies_bouldin_index"] = None
+
+    return metrics
 
 
 async def is_clustering_in_progress(db: AsyncSession, clustering_type: str) -> Optional[ClusteringRun]:
@@ -70,7 +188,7 @@ async def trigger_vulnerability_clustering(db: AsyncSession, user_id: Optional[u
                 detail=f"A Vulnerability Clustering run is already active in the database (Run ID: {active_db_run.run_id})."
             )
 
-        # Create new queued run record
+        dev_meta = _get_device_metadata()
         new_run = ClusteringRun(
             run_id=uuid.uuid4(),
             clustering_type=ClusteringType.VULNERABILITY.value,
@@ -78,12 +196,15 @@ async def trigger_vulnerability_clustering(db: AsyncSession, user_id: Optional[u
             current_stage="Queued",
             progress_percent=0,
             requested_by=user_id,
-            algorithm_version="HDBSCAN-TFIDF-v1.0",
+            algorithm_version="HDBSCAN-SBERT-v2.0",
             parameters={
                 "min_cluster_size": 5,
                 "min_samples": 3,
-                "vectorizer": "TF-IDF + TruncatedSVD(30)",
-                "metric": "euclidean"
+                "vectorizer": f"Sentence-BERT ({SBERT_MODEL_NAME}, 768-dim)",
+                "metric": "euclidean",
+                "compute_device": dev_meta["compute_device"],
+                "gpu_accelerated": dev_meta["gpu_accelerated"],
+                "gpu_name": dev_meta["gpu_name"],
             }
         )
         db.add(new_run)
@@ -117,6 +238,7 @@ async def trigger_report_clustering(db: AsyncSession, user_id: Optional[uuid.UUI
                 detail=f"A Report Clustering run is already active in the database (Run ID: {active_db_run.run_id})."
             )
 
+        dev_meta = _get_device_metadata()
         new_run = ClusteringRun(
             run_id=uuid.uuid4(),
             clustering_type=ClusteringType.REPORT.value,
@@ -124,12 +246,15 @@ async def trigger_report_clustering(db: AsyncSession, user_id: Optional[uuid.UUI
             current_stage="Queued",
             progress_percent=0,
             requested_by=user_id,
-            algorithm_version="HDBSCAN-RiskProfile-v1.0",
+            algorithm_version="HDBSCAN-SBERT-ReportCohorts-v2.0",
             parameters={
-                "min_cluster_size": 4,
+                "min_cluster_size": 3,
                 "min_samples": 2,
-                "scaler": "StandardScaler",
-                "metric": "euclidean"
+                "vectorizer": f"Sentence-BERT ({SBERT_MODEL_NAME}, 768-dim)",
+                "metric": "euclidean",
+                "compute_device": dev_meta["compute_device"],
+                "gpu_accelerated": dev_meta["gpu_accelerated"],
+                "gpu_name": dev_meta["gpu_name"],
             }
         )
         db.add(new_run)
@@ -245,26 +370,44 @@ async def _run_vulnerability_clustering_job(run_id: uuid.UUID):
                 "cve_id": cves if isinstance(cves, list) else [cves],
             })
 
-        # Feature Extraction: TF-IDF + TruncatedSVD
+        # Feature Extraction: Sentence-BERT semantic embeddings
+        sbert_model = await _get_sbert_model()
+
+        target_device = _get_torch_device()
+
         def _compute_clustering_in_thread():
-            vec = TfidfVectorizer(max_features=1000, stop_words="english", ngram_range=(1, 2))
-            X_tfidf = vec.fit_transform(texts)
-            n_components = min(30, max(2, X_tfidf.shape[1] - 1))
-            svd = TruncatedSVD(n_components=n_components, random_state=42)
-            X_reduced = svd.fit_transform(X_tfidf)
+            # Ensure model is on target device (e.g. cuda if available)
+            if target_device == "cuda":
+                try:
+                    sbert_model.to("cuda")
+                except Exception as e:
+                    logger.warning(f"Could not transfer sbert_model to cuda: {e}")
+
+            # Encode all vulnerability texts into 768-dim semantic vectors on GPU
+            embeddings = sbert_model.encode(
+                texts,
+                show_progress_bar=False,
+                batch_size=64,
+                normalize_embeddings=True,  # L2-normalize for cosine-like behavior with euclidean
+                device=target_device,
+                convert_to_numpy=True,
+            )
 
             min_size = min(5, max(2, len(texts) // 100))
             clusterer = hdbscan.HDBSCAN(min_cluster_size=min_size, min_samples=3, metric="euclidean")
-            labels = clusterer.fit_predict(X_reduced)
+            labels = clusterer.fit_predict(embeddings)
             probs = getattr(clusterer, "probabilities_", None)
             if probs is None:
                 probs = np.ones(len(labels))
-            return labels, probs
+            return labels, probs, embeddings
 
-        await _update_run_progress(run_id, "Running HDBSCAN density clustering", 60)
-        labels, probs = await asyncio.to_thread(_compute_clustering_in_thread)
+        await _update_run_progress(run_id, "Encoding with Sentence-BERT & running HDBSCAN", 60)
+        labels, probs, embeddings = await asyncio.to_thread(_compute_clustering_in_thread)
 
-        await _update_run_progress(run_id, "Analyzing clusters & persisting results", 80)
+        await _update_run_progress(run_id, "Computing quality metrics & persisting results", 80)
+
+        # Compute clustering quality metrics on non-noise points
+        quality_metrics = _compute_quality_metrics(embeddings, labels)
 
         # Organize into clusters
         clusters_map: Dict[int, List[Dict[str, Any]]] = {}
@@ -384,13 +527,19 @@ async def _run_vulnerability_clustering_job(run_id: uuid.UUID):
                 run.input_record_count = len(data_records)
                 run.discovered_cluster_count = len(discovered_cluster_ids)
                 run.noise_record_count = len(noise_findings)
+                dev_meta = _get_device_metadata()
                 run.summary = {
                     "clusters": cluster_summaries,
                     "discovered_cluster_count": len(discovered_cluster_ids),
                     "noise_count": len(noise_findings),
                     "total_findings": len(data_records),
                     "severity_distribution": dict(overall_severities),
-                    "algorithm": "HDBSCAN-TFIDF-v1.0"
+                    "algorithm": "HDBSCAN-SBERT-v2.0",
+                    "compute_device": dev_meta["compute_device"],
+                    "gpu_accelerated": dev_meta["gpu_accelerated"],
+                    "gpu_name": dev_meta["gpu_name"],
+                    "vectorizer": f"Sentence-BERT ({SBERT_MODEL_NAME}, 768-dim)",
+                    "quality_metrics": quality_metrics
                 }
             await session.commit()
 
@@ -435,7 +584,8 @@ async def _run_report_clustering_job(run_id: uuid.UUID):
                     SUM(CASE WHEN d.status = 'Closed' THEN 1 ELSE 0 END) AS closed_count,
                     SUM(CASE WHEN d.new_or_repeat = 'Repeat' THEN 1 ELSE 0 END) AS repeat_count,
                     rd.data->'report_meta'->>'audit_type' AS audit_type,
-                    rd.data->'report_meta'->>'report_title' AS report_title
+                    rd.data->'report_meta'->>'report_title' AS report_title,
+                    string_agg(DISTINCT d.title, '; ') AS sample_titles
                 FROM reports r
                 LEFT JOIN detailed_observations d ON r.report_id = d.report_id
                 LEFT JOIN reports_data rd ON r.report_id = rd.report_id
@@ -463,67 +613,79 @@ async def _run_report_clustering_job(run_id: uuid.UUID):
                     await session.commit()
             return
 
-        await _update_run_progress(run_id, "Constructing risk profile feature vectors", 35)
+        await _update_run_progress(run_id, "Constructing semantic report profiles", 35)
 
         data_records = []
-        feature_matrix = []
+        texts = []
         for r in rows:
             tot = max(1, r["total_vulns"])
             crit_ratio = float(r["crit_count"]) / tot
-            high_ratio = float(r["high_count"]) / tot
-            med_ratio = float(r["med_count"]) / tot
-            low_ratio = float(r["low_count"]) / tot
             open_ratio = float(r["open_count"]) / tot
-            repeat_ratio = float(r["repeat_count"]) / tot
             avg_cvss = float(r["avg_cvss"])
-            max_cvss = float(r["max_cvss"])
-            total_vulns = float(r["total_vulns"])
 
-            feature_vec = [
-                total_vulns,
-                avg_cvss,
-                max_cvss,
-                crit_ratio,
-                high_ratio,
-                med_ratio,
-                low_ratio,
-                open_ratio,
-                repeat_ratio,
-            ]
-            feature_matrix.append(feature_vec)
+            raw_name = (r["report_title"] or r["original_filename"] or "").replace("_", " ").replace(".pdf", "").replace(".docx", "").replace(".txt", "")
+            clean_name = re.sub(r'(\b[vV]\d+(\.\d+)*\b|\.\w+$)', '', raw_name).strip()
+            audit_type = r["audit_type"] or "Security Audit"
+            vulns = int(r["total_vulns"])
+            crit = int(r["crit_count"])
+            high = int(r["high_count"])
+            sample_findings = (r["sample_titles"] or "")[:150].replace(";", ",")
+
+            text_desc = f"{clean_name} ({audit_type}). Scope: {vulns} vulnerabilities (Critical: {crit}, High: {high}). Findings profile: {sample_findings}."
+            texts.append(text_desc)
 
             data_records.append({
                 "report_id": r["report_id"],
                 "original_filename": r["original_filename"],
-                "audit_type": r["audit_type"] or "General Audit",
+                "audit_type": audit_type,
                 "report_title": r["report_title"] or r["original_filename"],
-                "total_vulns": int(r["total_vulns"]),
+                "clean_name": clean_name,
+                "total_vulns": vulns,
                 "avg_cvss": round(avg_cvss, 1),
-                "crit_count": int(r["crit_count"]),
-                "high_count": int(r["high_count"]),
+                "crit_count": crit,
+                "high_count": high,
                 "open_count": int(r["open_count"]),
                 "repeat_count": int(r["repeat_count"]),
                 "crit_ratio": round(crit_ratio, 2),
                 "open_ratio": round(open_ratio, 2),
             })
 
-        def _compute_report_clustering_in_thread():
-            X = np.array(feature_matrix)
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
+        # Feature Extraction: Sentence-BERT semantic embeddings on GPU
+        sbert_model = await _get_sbert_model()
+        target_device = _get_torch_device()
+        dev_meta = _get_device_metadata()
 
-            min_size = min(4, max(2, len(rows) // 30))
+        def _compute_report_clustering_in_thread():
+            if target_device == "cuda":
+                try:
+                    sbert_model.to("cuda")
+                except Exception as e:
+                    logger.warning(f"Could not transfer sbert_model to cuda: {e}")
+
+            embeddings = sbert_model.encode(
+                texts,
+                show_progress_bar=False,
+                batch_size=64,
+                normalize_embeddings=True,
+                device=target_device,
+                convert_to_numpy=True,
+            )
+
+            min_size = min(4, max(3, len(rows) // 40))
             clusterer = hdbscan.HDBSCAN(min_cluster_size=min_size, min_samples=2, metric="euclidean")
-            labels = clusterer.fit_predict(X_scaled)
+            labels = clusterer.fit_predict(embeddings)
             probs = getattr(clusterer, "probabilities_", None)
             if probs is None:
                 probs = np.ones(len(labels))
-            return labels, probs
+            return labels, probs, embeddings
 
-        await _update_run_progress(run_id, "Executing HDBSCAN density clustering", 60)
-        labels, probs = await asyncio.to_thread(_compute_report_clustering_in_thread)
+        await _update_run_progress(run_id, "Encoding with Sentence-BERT & running HDBSCAN", 60)
+        labels, probs, embeddings = await asyncio.to_thread(_compute_report_clustering_in_thread)
 
-        await _update_run_progress(run_id, "Analyzing profiles & saving results", 80)
+        await _update_run_progress(run_id, "Computing quality metrics & saving results", 80)
+
+        # Compute clustering quality metrics on non-noise points
+        quality_metrics = _compute_quality_metrics(embeddings, labels)
 
         clusters_map: Dict[int, List[Dict[str, Any]]] = {}
         for rec, label, prob in zip(data_records, labels, probs):
@@ -544,21 +706,13 @@ async def _run_report_clustering_job(run_id: uuid.UUID):
             avg_crit_ratio = round(sum(m["crit_ratio"] for m in members) / len(members), 2)
             avg_open_ratio = round(sum(m["open_ratio"] for m in members) / len(members), 2)
 
-            # Profile classification
-            if avg_crit_ratio > 0.25 or avg_c_cvss >= 7.0:
-                profile_type = "High Risk / Critical Vulnerabilities"
-            elif avg_c_vulns > 30:
-                profile_type = "Large Scope / Broad Surface"
-            elif avg_open_ratio < 0.3:
-                profile_type = "Remediated / Low Residual Risk"
-            elif avg_c_cvss < 4.0:
-                profile_type = "Low Risk / Informational Focus"
-            else:
-                profile_type = "Moderate Operational Risk"
+            rep_reports = sorted(members, key=lambda x: x["strength"], reverse=True)
+            lead_report = rep_reports[0]
+            lead_title = lead_report.get("clean_name") or lead_report["report_title"]
+            clean_lead = re.sub(r'(\b[vV]\d+(\.\d+)*\b|\.\w+$)', '', lead_title.replace('_', ' ')).strip()
 
-            cluster_label = f"Cluster #{c_id}: {profile_type} ({len(members)} Reports)"
-
-            rep_reports = sorted(members, key=lambda x: x["strength"], reverse=True)[:4]
+            profile_type = f"{clean_lead} Cohort"
+            cluster_label = f"Cluster #{c_id}: {clean_lead} ({len(members)} Reports)"
 
             cluster_summaries.append({
                 "cluster_id": c_id,
@@ -579,7 +733,7 @@ async def _run_report_clustering_job(run_id: uuid.UUID):
                         "crit_count": rr["crit_count"],
                         "membership_strength": rr["strength"]
                     }
-                    for rr in rep_reports
+                    for rr in rep_reports[:4]
                 ]
             })
 
@@ -644,7 +798,12 @@ async def _run_report_clustering_job(run_id: uuid.UUID):
                     "discovered_cluster_count": len(discovered_cluster_ids),
                     "noise_count": len(noise_reports),
                     "total_reports": len(data_records),
-                    "algorithm": "HDBSCAN-RiskProfile-v1.0"
+                    "algorithm": "HDBSCAN-SBERT-ReportCohorts-v2.0",
+                    "compute_device": dev_meta["compute_device"],
+                    "gpu_accelerated": dev_meta["gpu_accelerated"],
+                    "gpu_name": dev_meta["gpu_name"],
+                    "vectorizer": f"Sentence-BERT ({SBERT_MODEL_NAME}, 768-dim)",
+                    "quality_metrics": quality_metrics
                 }
             await session.commit()
 

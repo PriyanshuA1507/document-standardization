@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material';
 import api from '../../api/axios';
 import ClusterMembersModal from './ClusterMembersModal';
+import ClusterQualityMetricsCard from './ClusterQualityMetricsCard';
 
 function StatCard({ title, value, subtitle, icon, color = '#00E676' }) {
   return (
@@ -164,7 +165,7 @@ export default function ReportClusteringModule() {
                 Audit Report Security Clustering
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Multi-dimensional risk grouping over total findings, CVSS distribution, critical severity ratios, and remediation status.
+                Semantic & security posture cohort grouping using Sentence-BERT (all-mpnet-base-v2, 768-dim) on GPU over audit domains, finding scopes, and risk profiles.
               </Typography>
             </Box>
 
@@ -258,7 +259,7 @@ export default function ReportClusteringModule() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Algorithm Version"
-            value={completedRun?.algorithm_version || 'HDBSCAN-RiskProfile'}
+            value={completedRun?.algorithm_version || 'HDBSCAN-SBERT-ReportCohorts-v2.0'}
             subtitle={completedRun?.completed_at ? `Run at ${new Date(completedRun.completed_at).toLocaleTimeString()}` : 'No run yet'}
             icon={<Schedule />}
             color="#7C4DFF"
@@ -283,6 +284,13 @@ export default function ReportClusteringModule() {
         </Card>
       ) : (
         <Box>
+          {/* Clustering Quality & Validation Metrics */}
+          <ClusterQualityMetricsCard
+            summary={summary}
+            parameters={completedRun?.parameters}
+            clusteringType="REPORT"
+          />
+
           <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <BubbleChart sx={{ color: '#00E676', fontSize: 22 }} />
             Discovered Audit Report Cohorts ({clusters.length})

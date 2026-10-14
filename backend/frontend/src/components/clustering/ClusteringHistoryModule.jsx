@@ -39,6 +39,7 @@ import {
   Close,
 } from '@mui/icons-material';
 import api from '../../api/axios';
+import ClusterQualityMetricsCard from './ClusterQualityMetricsCard';
 
 const STATUS_CHIPS = {
   COMPLETED: { color: 'success', icon: <CheckCircle sx={{ fontSize: 14 }} /> },
@@ -279,7 +280,7 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
       <Dialog
         open={detailsModal.open}
         onClose={() => setDetailsModal({ open: false, run: null })}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
         PaperProps={{
           sx: {
@@ -291,7 +292,7 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', p: 2 }}>
           <Typography variant="h6" fontWeight={700}>
-            Clustering Run Details
+            Clustering Run Details & Validation Metrics
           </Typography>
           <IconButton onClick={() => setDetailsModal({ open: false, run: null })} sx={{ color: 'text.secondary' }}>
             <Close />
@@ -300,8 +301,8 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
 
         <DialogContent sx={{ p: 3 }}>
           {detailsModal.run && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.06)' }}>
                 <Box>
                   <Typography variant="caption" color="text.secondary">Run ID</Typography>
                   <Typography variant="body2" fontFamily="monospace" fontWeight={700} color="#00D4FF">
@@ -341,9 +342,18 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
               </Box>
 
               {detailsModal.run.error_message && (
-                <Alert severity="error" sx={{ mt: 1 }}>
+                <Alert severity="error">
                   <strong>Execution Failure:</strong> {detailsModal.run.error_message}
                 </Alert>
+              )}
+
+              {/* Cluster Quality & Separation Metrics */}
+              {detailsModal.run.summary && (
+                <ClusterQualityMetricsCard
+                  summary={detailsModal.run.summary}
+                  parameters={detailsModal.run.parameters}
+                  clusteringType={detailsModal.run.clustering_type}
+                />
               )}
             </Box>
           )}

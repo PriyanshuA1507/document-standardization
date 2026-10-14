@@ -6,13 +6,9 @@ import {
   IconButton, Dialog, DialogTitle, DialogContent, Tabs, Tab
 } from '@mui/material';
 import {
-  Timeline, Assessment, BubbleChart, ReportProblem, ErrorOutline,
+  Assessment, ReportProblem, ErrorOutline,
   DragIndicator, OpenInFull, Close, BugReport, Description, History, Dashboard as DashboardIcon
 } from '@mui/icons-material';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  ScatterChart, Scatter, ZAxis
-} from 'recharts';
 import api from '../api/axios';
 import VulnerabilityClusteringModule from '../components/clustering/VulnerabilityClusteringModule';
 import ReportClusteringModule from '../components/clustering/ReportClusteringModule';
@@ -64,35 +60,7 @@ function SortableWidget({ id, children, md }) {
   );
 }
 
-
-const GlassTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <Box sx={{
-        background: 'rgba(10, 14, 23, 0.8)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(0, 212, 255, 0.2)',
-        borderRadius: 2, p: 2,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-      }}>
-        <Typography variant="subtitle2" sx={{ color: '#E2E8F0', mb: 1, fontWeight: 700 }}>{label}</Typography>
-        {payload.map((entry, index) => (
-          <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: entry.color }} />
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {entry.name}: <span style={{ color: '#fff', fontWeight: 600 }}>{entry.value}</span>
-            </Typography>
-          </Box>
-        ))}
-      </Box>
-    );
-  }
-  return null;
-};
-
 export default function MLAnalyticsDashboardPage() {
-  const [forecast, setForecast] = useState(null);
-  const [clusters, setClusters] = useState(null);
   const [anomalies, setAnomalies] = useState(null);
   const [prioritize, setPrioritize] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -100,10 +68,10 @@ export default function MLAnalyticsDashboardPage() {
 
   const [expandedWidget, setExpandedWidget] = useState(null);
   const [currentTab, setCurrentTab] = useState(0);
-  const initialWidgets = ['forecast', 'clusters', 'prioritize', 'anomalies'];
+  const initialWidgets = ['prioritize', 'anomalies'];
   const [widgets, setWidgets] = useState(initialWidgets);
 
-  const widgetWidths = { forecast: 6, clusters: 6, prioritize: 7, anomalies: 5 };
+  const widgetWidths = { prioritize: 6, anomalies: 6 };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -121,18 +89,14 @@ export default function MLAnalyticsDashboardPage() {
     }
   };
 
-    const { data, isFetching } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: ['mlAnalyticsData'],
     queryFn: async () => {
-      const [fRes, cRes, aRes, pRes] = await Promise.allSettled([
-        api.get('/api/ml/forecast?months=6'),
-        api.get('/api/ml/clusters'),
+      const [aRes, pRes] = await Promise.allSettled([
         api.get('/api/ml/anomalies'),
         api.get('/api/ml/prioritize')
       ]);
       return {
-        forecast: fRes.status === 'fulfilled' ? fRes.value.data : null,
-        clusters: cRes.status === 'fulfilled' ? cRes.value.data : null,
         anomalies: aRes.status === 'fulfilled' ? aRes.value.data : null,
         prioritize: pRes.status === 'fulfilled' ? pRes.value.data : null
       };
@@ -142,8 +106,6 @@ export default function MLAnalyticsDashboardPage() {
 
   useEffect(() => {
     if (data) {
-      if (data.forecast) setForecast(data.forecast);
-      if (data.clusters) setClusters(data.clusters);
       if (data.anomalies) setAnomalies(data.anomalies);
       if (data.prioritize) setPrioritize(data.prioritize);
       setLoading(false);
@@ -155,80 +117,15 @@ export default function MLAnalyticsDashboardPage() {
       <Box>
         <Typography variant="h4" fontWeight={800} sx={{ mb: 4 , background: '-webkit-linear-gradient(45deg, #00D4FF, #00E676)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>AI Risk Analytics</Typography>
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}><Skeleton variant="rounded" height={300} sx={{ borderRadius: 3 }} /></Grid>
-          <Grid item xs={12} md={6}><Skeleton variant="rounded" height={300} sx={{ borderRadius: 3 }} /></Grid>
-          <Grid item xs={12}><Skeleton variant="rounded" height={400} sx={{ borderRadius: 3 }} /></Grid>
+          <Grid item xs={12} md={6}><Skeleton variant="rounded" height={380} sx={{ borderRadius: 3 }} /></Grid>
+          <Grid item xs={12} md={6}><Skeleton variant="rounded" height={380} sx={{ borderRadius: 3 }} /></Grid>
         </Grid>
       </Box>
     );
   }
 
-  // Formatting Forecast Data
-  let forecastData = [];
-  if (forecast?.status === 'success') {
-    const hist = forecast.historical.map(d => ({ date: d.date, actual: d.count }));
-    const pred = forecast.forecast.map(d => ({ date: d.date, predicted: d.count }));
-    const allDates = [...new Set([...hist.map(h=>h.date), ...pred.map(p=>p.date)])].sort();
-    forecastData = allDates.map(date => {
-      const h = hist.find(x => x.date === date);
-      const p = pred.find(x => x.date === date);
-      return { date, actual: h?.actual, predicted: p?.predicted };
-    });
-  }
-
-  // Formatting Cluster Data
-  let clusterData = [];
-  if (clusters?.status === 'success') {
-    clusterData = clusters.agencies.map(a => ({
-      name: a.agency_name,
-      cluster: a.cluster,
-      x: a.metrics.total_reports,
-      y: a.metrics.avg_cvss,
-      z: a.metrics.severity_density
-    }));
-  }
-
-  
   const renderWidget = (key) => {
     switch(key) {
-    case 'forecast':
-      return (
-        <ChartCard title="6-Month Vulnerability Forecast" icon={<Timeline />} delay={100} onExpand={() => setExpandedWidget('forecast')}>
-            {forecast?.status === 'insufficient_data' ? (
-              <Alert severity="info">{forecast.message}</Alert>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={forecastData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" />
-                  <YAxis stroke="rgba(255,255,255,0.5)" />
-                  <RechartsTooltip content={<GlassTooltip />} />
-                  <Line type="monotone" dataKey="actual" name="Historical" stroke="#00E676" strokeWidth={3} dot={{r: 4}} />
-                  <Line type="monotone" dataKey="predicted" name="Forecast (Prophet)" stroke="#7C4DFF" strokeWidth={3} strokeDasharray="5 5" dot={{r: 4}} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </ChartCard>
-      );
-    case 'clusters':
-      return (
-        <ChartCard title="Agency Risk Clustering (HDBSCAN)" icon={<BubbleChart />} delay={200} onExpand={() => setExpandedWidget('clusters')}>
-            {clusters?.status === 'insufficient_data' ? (
-              <Alert severity="info">{clusters.message}</Alert>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="x" type="number" name="Total Reports" stroke="rgba(255,255,255,0.5)" />
-                  <YAxis dataKey="y" type="number" name="Avg CVSS" stroke="rgba(255,255,255,0.5)" />
-                  <ZAxis dataKey="z" type="number" range={[50, 400]} name="Severity Density" />
-                  <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} />
-                  <Scatter name="Agencies" data={clusterData} fill="#00D4FF" />
-                </ScatterChart>
-              </ResponsiveContainer>
-            )}
-          </ChartCard>
-      );
     case 'prioritize':
       return (
         <ChartCard title="Prioritized Action Queue (TOPSIS)" icon={<ReportProblem />} delay={300} onExpand={() => setExpandedWidget('prioritize')}>
@@ -390,30 +287,6 @@ export default function MLAnalyticsDashboardPage() {
           </IconButton>
         </DialogTitle>
         <DialogContent sx={{ p: 3, flex: 1, minHeight: 0 }}>
-          {expandedWidget === 'forecast' && (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={forecastData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" />
-                <YAxis stroke="rgba(255,255,255,0.5)" />
-                <RechartsTooltip content={<GlassTooltip />} />
-                <Line type="monotone" dataKey="actual" name="Historical" stroke="#00E676" strokeWidth={3} dot={{r: 4}} />
-                <Line type="monotone" dataKey="predicted" name="Forecast" stroke="#7C4DFF" strokeWidth={3} strokeDasharray="5 5" dot={{r: 4}} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-          {expandedWidget === 'clusters' && (
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="x" type="number" name="Total Reports" stroke="rgba(255,255,255,0.5)" />
-                <YAxis dataKey="y" type="number" name="Avg CVSS" stroke="rgba(255,255,255,0.5)" />
-                <ZAxis dataKey="z" type="number" range={[100, 1000]} name="Severity Density" />
-                <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} />
-                <Scatter name="Agencies" data={clusterData} fill="#00D4FF" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          )}
           {expandedWidget === 'prioritize' && (
             <TableContainer sx={{ height: '100%' }}>
               <Table>

@@ -8,20 +8,17 @@ from typing import Optional, List, Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, Float, case
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.models.report import Report, ReportsData, DetailedObservation, ObservationSeverity, ObservationStatus
+from app.models.report import Report, DetailedObservation, ObservationStatus
 from app.models.agency import Agency
 
 # Deep Learning / Advanced ML Libraries
 from transformers import pipeline
-from prophet import Prophet
-import hdbscan
-from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import IsolationForest
 import torch
 
@@ -52,54 +49,6 @@ def get_nlp_pipeline():
         except Exception as e:
             raise RuntimeError(f"Failed to load/quantize NLP model: {e}")
     return _nlp_pipeline
-
-
-@router.get("/forecast")
-async def forecast_trends(
-    months: int = Query(6, ge=1, le=12),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Task 1: Trend Analysis (Time Series Forecasting)
-    Upgraded to Facebook Prophet for robust feature engineering (seasonality, trend shifts).
-    """
-    query = select(ReportsData.report_date, func.count(DetailedObservation.finding_id).label("count")).select_from(ReportsData).join(DetailedObservation, ReportsData.report_id == DetailedObservation.report_id).group_by(ReportsData.report_date).order_by(ReportsData.report_date)
-    result = await db.execute(query)
-    rows = result.all()
-    
-    if not rows or len(rows) < 5:
-        return {"status": "insufficient_data", "message": "Need at least 5 distinct dates to forecast."}
-        
-    df = pd.DataFrame([{"ds": pd.to_datetime(r.report_date), "y": r.count} for r in rows])
-    
-    # Aggregate monthly
-    df = df.set_index('ds').resample('ME').sum().fillna(0).reset_index()
-    
-    if len(df) < 3:
-        return {"status": "insufficient_data", "message": "Need data spanning at least 3 months to forecast trends."}
-        
-    try:
-        # Fit Prophet
-        m = Prophet(yearly_seasonality=False, weekly_seasonality=False, daily_seasonality=False)
-        m.fit(df)
-        future = m.make_future_dataframe(periods=months, freq='ME')
-        forecast = m.predict(future)
-        
-        # Format response
-        historical = [{"date": row['ds'].strftime('%Y-%m'), "count": row['y']} for _, row in df.iterrows()]
-        
-        # Filter forecast to only future dates
-        future_forecast = forecast[forecast['ds'] > df['ds'].max()]
-        predicted = [{"date": row['ds'].strftime('%Y-%m'), "count": max(0, round(row['yhat']))} for _, row in future_forecast.iterrows()]
-        
-        return {
-            "status": "success",
-            "historical": historical,
-            "forecast": predicted
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prophet Forecasting error: {str(e)}")
 
 
 @router.get("/severity-assessment")
@@ -170,77 +119,6 @@ async def severity_assessment(
         })
         
     return {"status": "success", "total_assessed": len(assessed_vulns), "data": assessed_vulns}
-
-
-@router.get("/clusters")
-async def regional_clusters(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Task 3: Clustering of Regional and National Patterns
-    Upgraded to HDBSCAN with severity-density feature engineering.
-    """
-    query = select(
-        Agency.agency_id,
-        Agency.agency_name,
-        func.count(Report.report_id).label("total_reports"),
-        func.avg(DetailedObservation.cvss_score).label("avg_cvss"),
-        func.count(DetailedObservation.finding_id).label("total_vulns"),
-        func.sum(
-            case(
-                (DetailedObservation.severity == ObservationSeverity.CRITICAL, 1.0),
-                else_=0.0
-            )
-        ).label("critical_vulns")
-    ).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(DetailedObservation, Report.report_id == DetailedObservation.report_id).group_by(Agency.agency_id, Agency.agency_name)
-    
-    result = await db.execute(query)
-    rows = result.all()
-    
-    if len(rows) < 4:
-        return {"status": "insufficient_data", "message": "Need at least 4 agencies to perform HDBSCAN clustering."}
-        
-    data = []
-    for r in rows:
-        total_v = float(r.total_vulns)
-        crit_v = float(r.critical_vulns or 0)
-        # Feature Engineering: Severity Density
-        severity_density = (crit_v / total_v) if total_v > 0 else 0.0
-        
-        data.append({
-            "agency_id": str(r.agency_id),
-            "agency_name": r.agency_name,
-            "total_reports": float(r.total_reports),
-            "avg_cvss": float(r.avg_cvss or 0.0),
-            "severity_density": float(severity_density),
-            "total_vulns": total_v
-        })
-        
-    df = pd.DataFrame(data)
-    features = ['total_reports', 'avg_cvss', 'severity_density']
-    X = df[features].values
-    
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    
-    # HDBSCAN Clustering
-    clusterer = hdbscan.HDBSCAN(min_cluster_size=2)
-    df['cluster'] = clusterer.fit_predict(X_scaled)
-    
-    clusters_out = []
-    for _, row in df.iterrows():
-        clusters_out.append({
-            "agency_id": row['agency_id'],
-            "agency_name": row['agency_name'],
-            "cluster": int(row['cluster']), # -1 indicates NOISE in HDBSCAN
-            "metrics": {f: row[f] for f in features}
-        })
-        
-    return {
-        "status": "success",
-        "agencies": clusters_out
-    }
 
 
 @router.get("/anomalies")

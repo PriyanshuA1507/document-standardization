@@ -17,7 +17,16 @@ def download_models():
         # Instantiating the pipeline will download the model weights and cache them
         pipe = pipeline("zero-shot-classification", model=model_name)
         
-        print("Download complete. Models are cached locally.")
+        print(f"  {model_name} loaded successfully.")
+        
+        # Sentence-BERT model for semantic clustering
+        sbert_model_name = "sentence-transformers/all-mpnet-base-v2"
+        print(f"Loading {sbert_model_name}...")
+        from sentence_transformers import SentenceTransformer
+        SentenceTransformer("all-mpnet-base-v2")
+        print(f"  {sbert_model_name} loaded successfully.")
+        
+        print("Download complete. All models are cached locally.")
         
     except Exception as e:
         print(f"Error downloading models: {e}")
