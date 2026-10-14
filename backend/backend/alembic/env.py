@@ -14,6 +14,7 @@ from app.models.report import Report, ReportMetadata, FileValidation, FileStorag
 from app.models.audit import AuditLog, SecurityEvent
 from app.models.agency import Agency
 from app.models.clustering import ClusteringRun, VulnerabilityClusterMember, ReportClusterMember
+from app.models.anomaly import AnomalyRun, AnomalyReportRecord
 from app.config import settings
 
 config = context.config

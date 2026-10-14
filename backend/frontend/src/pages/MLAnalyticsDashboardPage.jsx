@@ -8,7 +8,7 @@ import {
 import {
   Assessment, ReportProblem, ErrorOutline,
   DragIndicator, OpenInFull, Close, BugReport, Description, History, Dashboard as DashboardIcon,
-  ArrowForward, Shield, Speed, BubbleChart, Tune
+  ArrowForward, Shield, Speed, BubbleChart, Tune, AutoAwesome
 } from '@mui/icons-material';
 import api from '../api/axios';
 import VulnerabilityPrioritizationModule from '../components/clustering/VulnerabilityPrioritizationModule';
@@ -175,8 +175,8 @@ export default function MLAnalyticsDashboardPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {prioritize?.data?.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} align="center">No open tasks</TableCell></TableRow>
+                  {(!prioritize?.data || prioritize.data.length === 0) ? (
+                    <TableRow><TableCell colSpan={4} align="center" sx={{ color: 'text.secondary', py: 3 }}>No open tasks in queue</TableCell></TableRow>
                   ) : (
                     prioritize?.data?.slice(0, 10).map((task) => (
                       <TableRow key={task.finding_id} hover sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
@@ -282,7 +282,10 @@ export default function MLAnalyticsDashboardPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {anomalies?.data?.slice(0, 10).map((report) => (
+                      {(!anomalies?.data || anomalies.data.length === 0) ? (
+                        <TableRow><TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 3 }}>No report records evaluated</TableCell></TableRow>
+                      ) : (
+                        anomalies.data.slice(0, 10).map((report) => (
                         <TableRow key={report.report_id} hover sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
                           <TableCell sx={{ maxWidth: 200 }}>
                             <Typography noWrap variant="body2" fontWeight={700} color="#F1F5F9" title={report.report_title}>
@@ -318,7 +321,8 @@ export default function MLAnalyticsDashboardPage() {
                             </Typography>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ))
+                    )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -383,7 +387,7 @@ export default function MLAnalyticsDashboardPage() {
         >
           <Tab icon={<DashboardIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Risk Overview & Analytics" />
           <Tab icon={<ReportProblem sx={{ fontSize: 18 }} />} iconPosition="start" label="Action Prioritization (TOPSIS)" />
-          <Tab icon={<ErrorOutline sx={{ fontSize: 18 }} />} iconPosition="start" label="Report Anomaly Detection (Isolation Forest)" />
+          <Tab icon={<AutoAwesome sx={{ fontSize: 18 }} />} iconPosition="start" label="Report Anomaly Detection (Tri-Model)" />
           <Tab icon={<BugReport sx={{ fontSize: 18 }} />} iconPosition="start" label="Vulnerability Clustering" />
           <Tab icon={<Description sx={{ fontSize: 18 }} />} iconPosition="start" label="Report Clustering" />
           <Tab icon={<History sx={{ fontSize: 18 }} />} iconPosition="start" label="Clustering History" />
@@ -401,16 +405,18 @@ export default function MLAnalyticsDashboardPage() {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary" fontWeight={700}>TOP ACTION SCORE</Typography>
-                      <Typography variant="h5" fontWeight={900} sx={{ color: '#FF1744', my: 0.3 }}>
-                        {topTask?.priority_score ?? '96.26'}
+                      <Typography variant="h5" fontWeight={900} sx={{ color: topTask ? '#FF1744' : 'text.secondary', my: 0.3 }}>
+                        {topTask?.priority_score !== undefined ? topTask.priority_score : '0.00'}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">P1 Immediate Triage</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {topTask ? (topTask.sla_status === 'BREACHED' ? 'SLA Breached' : 'P1 Immediate Triage') : 'No actions pending'}
+                      </Typography>
                     </Box>
                     <Button
                       size="small"
                       variant="outlined"
                       onClick={() => setCurrentTab(1)}
-                      sx={{ borderColor: 'rgba(255,23,68,0.3)', color: '#FF1744', fontSize: '0.7rem', fontWeight: 700 }}
+                      sx={{ borderColor: topTask ? 'rgba(255,23,68,0.3)' : 'rgba(255,255,255,0.1)', color: topTask ? '#FF1744' : 'text.secondary', fontSize: '0.7rem', fontWeight: 700 }}
                     >
                       View Queue
                     </Button>
@@ -425,16 +431,18 @@ export default function MLAnalyticsDashboardPage() {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary" fontWeight={700}>CRITICAL QUEUE</Typography>
-                      <Typography variant="h5" fontWeight={900} sx={{ color: '#FF9100', my: 0.3 }}>
-                        {prioritize?.summary?.p1_count ?? 4} Urgent
+                      <Typography variant="h5" fontWeight={900} sx={{ color: (prioritize?.summary?.p1_count ?? 0) > 0 ? '#FF9100' : 'text.secondary', my: 0.3 }}>
+                        {prioritize?.summary?.p1_count ?? 0} Urgent
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">SLA breach risk</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {(prioritize?.summary?.p1_count ?? 0) > 0 ? 'SLA breach risk' : 'No SLA breach risk'}
+                      </Typography>
                     </Box>
                     <Button
                       size="small"
                       variant="outlined"
                       onClick={() => setCurrentTab(1)}
-                      sx={{ borderColor: 'rgba(255,145,0,0.3)', color: '#FF9100', fontSize: '0.7rem', fontWeight: 700 }}
+                      sx={{ borderColor: (prioritize?.summary?.p1_count ?? 0) > 0 ? 'rgba(255,145,0,0.3)' : 'rgba(255,255,255,0.1)', color: (prioritize?.summary?.p1_count ?? 0) > 0 ? '#FF9100' : 'text.secondary', fontSize: '0.7rem', fontWeight: 700 }}
                     >
                       Configure
                     </Button>
@@ -543,16 +551,20 @@ export default function MLAnalyticsDashboardPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {prioritize?.data?.map((task) => (
-                        <TableRow key={task.finding_id}>
-                          <TableCell>{task.title}</TableCell>
-                          <TableCell>{task.agency_name || 'Unassigned'}</TableCell>
-                          <TableCell>{task.cvss}</TableCell>
-                          <TableCell>{task.days_open}</TableCell>
-                          <TableCell>{task.priority_score}</TableCell>
-                          <TableCell>{task.sla_status || 'COMPLIANT'}</TableCell>
-                        </TableRow>
-                      ))}
+                      {(!prioritize?.data || prioritize.data.length === 0) ? (
+                        <TableRow><TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>No prioritized tasks found</TableCell></TableRow>
+                      ) : (
+                        prioritize.data.map((task) => (
+                          <TableRow key={task.finding_id}>
+                            <TableCell>{task.title}</TableCell>
+                            <TableCell>{task.agency_name || 'Unassigned'}</TableCell>
+                            <TableCell>{task.cvss}</TableCell>
+                            <TableCell>{task.days_open}</TableCell>
+                            <TableCell>{task.priority_score}</TableCell>
+                            <TableCell>{task.sla_status || 'COMPLIANT'}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -572,17 +584,21 @@ export default function MLAnalyticsDashboardPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {anomalies?.data?.map((report) => (
-                        <TableRow key={report.report_id}>
-                          <TableCell>{report.report_title}</TableCell>
-                          <TableCell>{report.agency_name} {report.cert_in_empanelled ? '(CERT-In)' : ''}</TableCell>
-                          <TableCell>{report.is_anomaly ? 'Outlier' : 'Normal'}</TableCell>
-                          <TableCell>{report.anomaly_score.toFixed(2)}</TableCell>
-                          <TableCell>{report.total_findings}</TableCell>
-                          <TableCell>{report.avg_cvss.toFixed(2)}</TableCell>
-                          <TableCell>{report.primary_drivers?.[0] || 'Conforms to baseline'}</TableCell>
-                        </TableRow>
-                      ))}
+                      {(!anomalies?.data || anomalies.data.length === 0) ? (
+                        <TableRow><TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>No reports found</TableCell></TableRow>
+                      ) : (
+                        anomalies.data.map((report) => (
+                          <TableRow key={report.report_id}>
+                            <TableCell>{report.report_title}</TableCell>
+                            <TableCell>{report.agency_name} {report.cert_in_empanelled ? '(CERT-In)' : ''}</TableCell>
+                            <TableCell>{report.is_anomaly ? 'Outlier' : 'Normal'}</TableCell>
+                            <TableCell>{report.anomaly_score.toFixed(2)}</TableCell>
+                            <TableCell>{report.total_findings}</TableCell>
+                            <TableCell>{report.avg_cvss.toFixed(2)}</TableCell>
+                            <TableCell>{report.primary_drivers?.[0] || 'Conforms to baseline'}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>

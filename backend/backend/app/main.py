@@ -7,11 +7,11 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.routers import auth, users, reports, audit_logs, agencies, pipeline, analytics, ml_analytics, clustering, trend_analysis, report_images
+from app.routers import auth, users, reports, audit_logs, agencies, pipeline, analytics, ml_analytics, clustering, trend_analysis, report_images, anomaly
 from app.services.auth_service import seed_roles_and_admin
 
 # Import all models so Alembic can discover them
-from app.models import user, report, audit, trend_analysis as trend_analysis_model  # noqa: F401
+from app.models import user, report, audit, trend_analysis as trend_analysis_model, anomaly as anomaly_model  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -59,6 +59,7 @@ app.include_router(ml_analytics.router)
 app.include_router(clustering.router)
 app.include_router(trend_analysis.router)
 app.include_router(report_images.router)
+app.include_router(anomaly.router)
 
 
 

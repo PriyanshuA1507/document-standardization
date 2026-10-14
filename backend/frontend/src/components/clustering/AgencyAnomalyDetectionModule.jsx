@@ -344,8 +344,8 @@ export default function AgencyAnomalyDetectionModule() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Fleet Median CVSS"
-            value={fleetBenchmarks?.fleet_median_cvss ?? '7.09'}
-            subtitle={`Avg ${fleetBenchmarks?.fleet_avg_findings ?? 74} findings/agency`}
+            value={fleetBenchmarks?.fleet_median_cvss !== undefined ? fleetBenchmarks.fleet_median_cvss : '0.0'}
+            subtitle={`Avg ${fleetBenchmarks?.fleet_avg_findings ?? 0} findings/agency`}
             icon={<Security />}
             color="#00E676"
           />
@@ -353,7 +353,7 @@ export default function AgencyAnomalyDetectionModule() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Fleet SLA Breach Rate"
-            value={`${fleetBenchmarks?.fleet_sla_breach_rate ?? 36.1}%`}
+            value={`${fleetBenchmarks?.fleet_sla_breach_rate ?? 0}%`}
             subtitle="Vulnerabilities overdue fleet-wide"
             icon={<Speed />}
             color="#7C4DFF"
@@ -454,7 +454,7 @@ export default function AgencyAnomalyDetectionModule() {
                   />
                   <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '8px' }} />
                   <Bar dataKey="avg_cvss" name="Agency Mean CVSS" fill="#FF1744" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="fleet_median" name="Fleet Benchmark (7.09)" fill="#00E676" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="fleet_median" name={`Fleet Benchmark (${fleetBenchmarks?.fleet_median_cvss !== undefined ? fleetBenchmarks.fleet_median_cvss : '0.0'})`} fill="#00E676" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </Box>

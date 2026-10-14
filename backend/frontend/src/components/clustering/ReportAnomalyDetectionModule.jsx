@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Box,
   Grid,
@@ -22,958 +22,588 @@ import {
   Select,
   FormControl,
   InputLabel,
-  Slider,
-  Tooltip,
   Paper,
   Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   IconButton,
-  Collapse
+  Tooltip,
+  LinearProgress
 } from '@mui/material';
 import {
   ErrorOutline,
-  Tune,
   Refresh,
   Search,
   CheckCircle,
   Warning,
   Security,
-  Business,
-  Speed,
+  CompareArrows,
+  Visibility,
+  History,
+  Tune,
+  AutoAwesome,
+  Psychology,
   Functions,
-  ExpandMore,
-  ExpandLess,
-  Shield,
-  Close,
-  BubbleChart,
-  Assessment,
-  OpenInNew,
-  Description,
-  InsertDriveFile
+  Speed
 } from '@mui/icons-material';
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  ZAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  Cell,
-  BarChart,
-  Bar,
-  Legend
-} from 'recharts';
-import api from '../../api/axios';
 
-const ANOMALY_TIER_COLORS = {
+import api from '../../api/axios';
+import AnomalyConfigConsole from '../anomaly/AnomalyConfigConsole';
+import AnomalyKpiStrip from '../anomaly/AnomalyKpiStrip';
+import AnomalyScatterPlot from '../anomaly/AnomalyScatterPlot';
+import AnomalyAttributionChart from '../anomaly/AnomalyAttributionChart';
+import AnomalyInspectionDrawer from '../anomaly/AnomalyInspectionDrawer';
+import AnomalyComparisonModal from '../anomaly/AnomalyComparisonModal';
+
+const TIER_COLORS = {
   CRITICAL_OUTLIER: '#FF1744',
   ELEVATED_OUTLIER: '#FF9100',
-  TYPICAL_NORMAL: '#00E676',
-  EXEMPLARY_COMPLIANT: '#00D4FF',
+  SEMANTIC_ANOMALY: '#D500F9',
+  METRIC_ANOMALY: '#FFD600',
+  NOMINAL_COMPLIANT: '#00E676',
 };
-
-function StatCard({ title, value, subtitle, icon, color = '#00D4FF' }) {
-  return (
-    <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2 }}>
-      <CardContent sx={{ p: 2.5 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              {title}
-            </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color, my: 0.5 }}>
-              {value}
-            </Typography>
-            {subtitle && (
-              <Typography variant="caption" color="text.secondary">
-                {subtitle}
-              </Typography>
-            )}
-          </Box>
-          <Box sx={{ p: 1.2, borderRadius: 2, bgcolor: `${color}15`, display: 'flex' }}>
-            {React.cloneElement(icon, { sx: { fontSize: 26, color } })}
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function ReportAnomalyDetectionModule() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState([]);
-  const [fleetBenchmarks, setFleetBenchmarks] = useState(null);
   const [error, setError] = useState(null);
 
-  // Parameter Tuning
-  const [contamination, setContamination] = useState(0.10);
-  const [nEstimators, setNEstimators] = useState(100);
-  const [showConfig, setShowConfig] = useState(false);
+  // Configuration options & active run
+  const [configOptions, setConfigOptions] = useState(null);
+  const [currentRunData, setCurrentRunData] = useState(null);
+  const [runsHistory, setRunsHistory] = useState([]);
 
-  // Filters & Pagination
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  // Active Execution state
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executingRunId, setExecutingRunId] = useState(null);
+  const [currentStage, setCurrentStage] = useState('');
+  const [progressPercent, setProgressPercent] = useState(0);
+
+  // Filters & Table state
+  const [tierFilter, setTierFilter] = useState('ALL');
   const [empanelledFilter, setEmpanelledFilter] = useState('ALL');
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
 
-  // Inspection Modal
-  const [inspectReport, setInspectReport] = useState(null);
-  const [inspectLoading, setInspectLoading] = useState(false);
+  // Inspection Drawer & Comparison Modal
+  const [inspectRecord, setInspectRecord] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
 
-  const fetchAnomalies = async () => {
+  const pollIntervalRef = useRef(null);
+
+  // Load config options, latest run, and history on mount
+  const loadInitialData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.get('/api/ml/anomalies', {
-        params: {
-          contamination,
-          n_estimators: nEstimators,
-          filter_status: 'ALL'
+
+      const [configRes, latestRes, historyRes] = await Promise.allSettled([
+        api.get('/api/anomaly/config-options'),
+        api.get('/api/anomaly/latest'),
+        api.get('/api/anomaly/runs?limit=20')
+      ]);
+
+      if (configRes.status === 'fulfilled' && configRes.value.data?.status === 'success') {
+        setConfigOptions(configRes.value.data.data);
+      }
+
+      if (historyRes.status === 'fulfilled' && historyRes.value.data?.status === 'success') {
+        setRunsHistory(historyRes.value.data.data.runs || []);
+      }
+
+      if (latestRes.status === 'fulfilled' && latestRes.value.data?.status === 'success') {
+        const latestData = latestRes.value.data.data;
+        if (latestData && latestData.run) {
+          setCurrentRunData(latestData);
+          if (latestData.run.status === 'RUNNING' || latestData.run.status === 'QUEUED') {
+            startPolling(latestData.run.run_id);
+          }
+        } else {
+          // If no run has ever been executed, automatically trigger a default balanced ensemble run
+          handleTriggerDetection();
         }
-      });
-      if (res.data?.status === 'success') {
-        setData(res.data.data || []);
-        setFleetBenchmarks(res.data.fleet_benchmarks || null);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to execute Isolation Forest anomaly detection.');
+      setError(err.response?.data?.detail || 'Failed to initialize Anomaly Detection module.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAnomalies();
+    loadInitialData();
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
   }, []);
 
-  const filteredData = useMemo(() => {
-    return data.filter(report => {
-      if (statusFilter === 'OUTLIER' && !report.is_anomaly) return false;
-      if (statusFilter === 'NORMAL' && report.is_anomaly) return false;
-      if (empanelledFilter === 'EMPANELLED' && !report.cert_in_empanelled) return false;
-      if (empanelledFilter === 'NON_EMPANELLED' && report.cert_in_empanelled) return false;
-      if (search) {
-        const s = search.toLowerCase();
-        const matchTitle = (report.report_title || '').toLowerCase().includes(s);
-        const matchAgency = (report.agency_name || '').toLowerCase().includes(s);
-        const matchCode = (report.agency_code || '').toLowerCase().includes(s);
-        if (!matchTitle && !matchAgency && !matchCode) return false;
-      }
-      return true;
-    });
-  }, [data, statusFilter, empanelledFilter, search]);
+  const startPolling = (runId) => {
+    setIsExecuting(true);
+    setExecutingRunId(runId);
 
-  const handleOpenInspect = async (reportId) => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const res = await api.get(`/api/anomaly/status/${runId}`);
+        if (res.data?.status === 'success') {
+          const st = res.data.data;
+          setCurrentStage(st.current_stage || 'Processing...');
+          setProgressPercent(st.progress_percent || 0);
+
+          if (st.status === 'COMPLETED' || st.status === 'FAILED') {
+            clearInterval(pollIntervalRef.current);
+            setIsExecuting(false);
+            setExecutingRunId(null);
+
+            // Fetch completed run details
+            const detailRes = await api.get(`/api/anomaly/runs/${runId}`);
+            if (detailRes.data?.status === 'success') {
+              setCurrentRunData(detailRes.data);
+            }
+
+            // Refresh historical runs
+            const histRes = await api.get('/api/anomaly/runs?limit=20');
+            if (histRes.data?.status === 'success') {
+              setRunsHistory(histRes.data.data.runs || []);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error polling anomaly run status:', err);
+      }
+    }, 1500);
+  };
+
+  const handleTriggerDetection = async (customPayload) => {
     try {
-      setInspectLoading(true);
-      const res = await api.get(`/api/ml/anomalies/report/${reportId}`);
+      setError(null);
+      const payload = customPayload || {
+        algorithm_mode: 'ENSEMBLE',
+        parameters: {
+          contamination: 0.10,
+          n_estimators: 100,
+          extended_hyperplanes: false,
+          k_neighbors: 5,
+          weight_iforest: 0.40,
+          weight_ecod: 0.35,
+          weight_embedding: 0.25
+        }
+      };
+
+      const res = await api.post('/api/anomaly/run', payload);
       if (res.data?.status === 'success') {
-        const parentMeta = data.find(d => d.report_id === reportId) || {};
-        setInspectReport({ ...res.data, parentMeta });
+        const runId = res.data.run_id;
+        startPolling(runId);
       }
     } catch (err) {
-      console.error('Failed to load report audit telemetry', err);
-    } finally {
-      setInspectLoading(false);
+      setError(err.response?.data?.detail || 'Failed to trigger anomaly detection.');
+      setIsExecuting(false);
     }
   };
 
+  const handleOpenInspect = (reportId) => {
+    const record = currentRunData?.records?.find(r => r.report_id === reportId);
+    if (record) {
+      setInspectRecord(record);
+      setDrawerOpen(true);
+    }
+  };
 
-  // Scatter plot data (Findings Density vs Avg CVSS)
-  const scatterData = useMemo(() => {
-    return data.map(item => ({
-      x: item.total_findings,
-      y: item.avg_cvss,
-      z: Math.max(item.critical_count || 1, 1),
-      name: item.report_title,
-      agency: item.agency_name,
-      is_anomaly: item.is_anomaly,
-      score: item.anomaly_score,
-      sla_breaches: item.sla_breach_count,
-      color: item.is_anomaly ? '#FF1744' : '#00E676'
-    }));
-  }, [data]);
+  // Filter table data
+  const filteredRecords = useMemo(() => {
+    if (!currentRunData?.records) return [];
 
-  // Outlier comparison bar chart data
-  const outlierComparisonData = useMemo(() => {
-    const outliers = data.filter(d => d.is_anomaly).slice(0, 6);
-    if (!outliers.length) return [];
-    return outliers.map(o => ({
-      name: (o.report_title || 'Report').length > 20 ? (o.report_title || '').slice(0, 20) + '...' : o.report_title,
-      avg_cvss: o.avg_cvss,
-      fleet_median: fleetBenchmarks?.median_cvss || 7.0,
-      p90_cvss: o.p90_cvss
-    }));
-  }, [data, fleetBenchmarks]);
+    return currentRunData.records.filter((rec) => {
+      const meta = rec.metadata || {};
 
-  const outlierCount = data.filter(d => d.is_anomaly).length;
+      // Tier filter
+      if (tierFilter !== 'ALL' && rec.anomaly_tier !== tierFilter) {
+        return false;
+      }
+
+      // Empanelled filter
+      if (empanelledFilter === 'EMPANELLED' && !meta.cert_in_empanelled) return false;
+      if (empanelledFilter === 'NON_EMPANELLED' && meta.cert_in_empanelled) return false;
+
+      // Text search
+      if (search) {
+        const s = search.toLowerCase();
+        const matchTitle = (meta.report_title || '').toLowerCase().includes(s);
+        const matchAgency = (meta.agency_name || '').toLowerCase().includes(s);
+        const matchCode = (meta.agency_code || '').toLowerCase().includes(s);
+        if (!matchTitle && !matchAgency && !matchCode) return false;
+      }
+
+      return true;
+    });
+  }, [currentRunData, tierFilter, empanelledFilter, search]);
+
+  if (loading && !currentRunData) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <CircularProgress size={48} sx={{ color: '#00D4FF', mb: 2 }} />
+        <Typography variant="body1" color="text.secondary">
+          Initializing Multi-Detector Anomaly Engine & Audit Telemetry...
+        </Typography>
+      </Box>
+    );
+  }
+
+  const runInfo = currentRunData?.run || {};
+  const runSummary = runInfo.summary || {};
+  const fleetBenchmarks = runInfo.fleet_benchmarks || {};
+  const scatterPoints = currentRunData?.scatter_points || [];
 
   return (
     <Box>
-      {/* ════════════ HEADER ACTION CARD ════════════ */}
-      <Card sx={{ bgcolor: '#0D1527', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 3, mb: 3 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-            <Box>
-              <Typography variant="h5" fontWeight={800} sx={{ color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <ErrorOutline sx={{ color: '#00D4FF' }} />
-                Report Audit Anomaly Detection (Isolation Forest)
+      {/* Page Title & Actions */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ p: 1.2, borderRadius: 2, bgcolor: 'rgba(0, 212, 255, 0.1)', display: 'flex' }}>
+            <AutoAwesome sx={{ color: '#00D4FF', fontSize: 28 }} />
+          </Box>
+          <Box>
+            <Typography variant="h5" fontWeight={800} color="#F1F5F9">
+              Report Anomaly Detection Suite
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Tri-Model Consensus: Isolation Forest, ECOD (Empirical Cumulative Tail), and Local Sentence-BERT Vectors
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setCompareModalOpen(true)}
+            startIcon={<CompareArrows />}
+            sx={{
+              borderColor: 'rgba(255,255,255,0.15)',
+              color: '#F1F5F9',
+              fontWeight: 700,
+              borderRadius: 2,
+              '&:hover': { borderColor: '#00D4FF', color: '#00D4FF' }
+            }}
+          >
+            Compare Runs
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={loadInitialData}
+            startIcon={<Refresh />}
+            sx={{
+              borderColor: 'rgba(255,255,255,0.15)',
+              color: '#F1F5F9',
+              fontWeight: 700,
+              borderRadius: 2,
+              '&:hover': { borderColor: '#00D4FF', color: '#00D4FF' }
+            }}
+          >
+            Refresh
+          </Button>
+        </Box>
+      </Box>
+
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+
+      {/* 1. Interactive Anomaly Configuration Console */}
+      <AnomalyConfigConsole
+        configOptions={configOptions}
+        currentParams={runInfo}
+        onRunDetection={handleTriggerDetection}
+        isExecuting={isExecuting}
+        currentStage={currentStage}
+        progressPercent={progressPercent}
+      />
+
+      {/* 2. Surface KPI Strip */}
+      <AnomalyKpiStrip
+        runSummary={runSummary}
+        fleetBenchmarks={fleetBenchmarks}
+        totalEvaluated={runInfo.total_reports_evaluated}
+        anomaliesDetected={runInfo.anomalies_detected}
+      />
+
+      {/* 3. Visual Analytics: Scatter Projection & ECOD Attribution Bar */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} lg={7}>
+          <AnomalyScatterPlot
+            scatterPoints={scatterPoints}
+            onSelectPoint={handleOpenInspect}
+            pcaVariance={runSummary.pca_explained_variance_ratio}
+          />
+        </Grid>
+        <Grid item xs={12} lg={5}>
+          <AnomalyAttributionChart
+            records={currentRunData?.records || []}
+            summary={runSummary}
+          />
+        </Grid>
+      </Grid>
+
+      {/* 4. Filterable Anomaly Reports Table */}
+      <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2 }}>
+        <CardContent sx={{ p: 2.5, pb: 1.5 }}>
+          {/* Table Toolbar */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography variant="h6" fontWeight={800} color="#F1F5F9" sx={{ fontSize: '1rem' }}>
+                Monitored Audit Reports ({filteredRecords.length})
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Unsupervised ensemble anomaly detector isolating anomalous audit/VAPT reports across finding volume, severity distributions, and SLA backlog metrics.
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
-                <Chip size="small" label="Model: Isolation Forest (iForest)" sx={{ bgcolor: 'rgba(0, 212, 255, 0.1)', color: '#00D4FF', fontWeight: 700 }} />
-                <Chip size="small" label="Scope: Report-Level Telemetry" sx={{ bgcolor: 'rgba(0, 230, 118, 0.1)', color: '#00E676', fontWeight: 700 }} />
-                <Chip size="small" label="Space: 8 Telemetry Dimensions" sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: '#94A3B8' }} />
-                <Chip size="small" label={`Sensitivity: ${Math.round(contamination * 100)}% Contamination`} sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: '#94A3B8' }} />
-                <Chip size="small" label={`Trees: ${nEstimators}`} sx={{ bgcolor: 'rgba(255, 255, 255, 0.05)', color: '#94A3B8' }} />
-              </Box>
+              <Chip
+                size="small"
+                label={`Algorithm: ${runSummary.algorithm_mode || 'ENSEMBLE'}`}
+                sx={{ bgcolor: 'rgba(0, 212, 255, 0.1)', color: '#00D4FF', fontWeight: 700, fontSize: '0.72rem' }}
+              />
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-              <Button
-                variant="outlined"
-                startIcon={<Tune />}
-                onClick={() => setShowConfig(!showConfig)}
-                endIcon={showConfig ? <ExpandLess /> : <ExpandMore />}
-                sx={{
-                  borderColor: showConfig ? '#00D4FF' : 'rgba(255,255,255,0.2)',
-                  color: showConfig ? '#00D4FF' : '#E2E8F0',
-                  fontWeight: 700,
-                  bgcolor: showConfig ? 'rgba(0,212,255,0.1)' : 'transparent',
-                  '&:hover': { borderColor: '#00D4FF', bgcolor: 'rgba(0,212,255,0.15)' }
+              <TextField
+                size="small"
+                placeholder="Search report, agency, code..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search sx={{ color: 'text.secondary', fontSize: 18 }} />
+                    </InputAdornment>
+                  ),
                 }}
-              >
-                Tuning & Sensitivity
-              </Button>
-
-
-              <Button
-                variant="contained"
-                disabled={loading}
-                onClick={fetchAnomalies}
-                startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <Refresh />}
                 sx={{
-                  bgcolor: '#00D4FF',
-                  color: '#0A0E17',
-                  fontWeight: 800,
-                  px: 2.5,
-                  borderRadius: 2,
-                  boxShadow: '0 0 20px rgba(0,212,255,0.3)',
-                  '&:hover': { bgcolor: '#00B8E6', boxShadow: '0 0 25px rgba(0,212,255,0.5)' },
-                  '&:disabled': { bgcolor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }
+                  width: { xs: 180, sm: 240 },
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: '#0F172A',
+                    color: '#F1F5F9',
+                    fontSize: '0.85rem',
+                    borderRadius: 1.5
+                  }
                 }}
-              >
-                {loading ? 'Evaluating...' : 'Re-run Anomaly Detector'}
-              </Button>
+              />
+
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel sx={{ color: 'text.secondary' }}>Tier Filter</InputLabel>
+                <Select
+                  value={tierFilter}
+                  label="Tier Filter"
+                  onChange={(e) => { setTierFilter(e.target.value); setPage(0); }}
+                  sx={{ bgcolor: '#0F172A', color: '#F1F5F9', fontSize: '0.85rem' }}
+                >
+                  <MenuItem value="ALL">All Tiers</MenuItem>
+                  <MenuItem value="CRITICAL_OUTLIER">Critical Outliers</MenuItem>
+                  <MenuItem value="ELEVATED_OUTLIER">Elevated Outliers</MenuItem>
+                  <MenuItem value="SEMANTIC_ANOMALY">Semantic Anomalies</MenuItem>
+                  <MenuItem value="METRIC_ANOMALY">Metric Anomalies</MenuItem>
+                  <MenuItem value="NOMINAL_COMPLIANT">Nominal Compliant</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel sx={{ color: 'text.secondary' }}>Agency Status</InputLabel>
+                <Select
+                  value={empanelledFilter}
+                  label="Agency Status"
+                  onChange={(e) => { setEmpanelledFilter(e.target.value); setPage(0); }}
+                  sx={{ bgcolor: '#0F172A', color: '#F1F5F9', fontSize: '0.85rem' }}
+                >
+                  <MenuItem value="ALL">All Agencies</MenuItem>
+                  <MenuItem value="EMPANELLED">CERT-In Empanelled</MenuItem>
+                  <MenuItem value="NON_EMPANELLED">Standard Agencies</MenuItem>
+                </Select>
+              </FormControl>
             </Box>
           </Box>
 
-          {/* ════════════ TUNING CONTROLS PANEL ════════════ */}
-          <Collapse in={showConfig}>
-            <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-              <Grid container spacing={3} alignItems="center">
-                <Grid item xs={12} sm={6}>
-                  <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', p: 2, borderRadius: 2, border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                      Expected Outlier Contamination Rate: <strong>{Math.round(contamination * 100)}%</strong>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontSize: '0.7rem' }}>
-                      Lower = strict (only extreme report anomalies). Higher = permissive (flags more borderline variances).
-                    </Typography>
-                    <Slider
-                      value={contamination}
-                      min={0.02}
-                      max={0.30}
-                      step={0.02}
-                      onChange={(e, val) => setContamination(val)}
-                      sx={{ color: '#00D4FF' }}
-                    />
-                  </Box>
-                </Grid>
+          {/* Table */}
+          <TableContainer component={Paper} sx={{ bgcolor: 'transparent', boxShadow: 'none' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Audit Report Document</TableCell>
+                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Auditing Agency</TableCell>
+                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Anomaly Tier</TableCell>
+                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Consensus Score</TableCell>
+                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Detector Breakdown</TableCell>
+                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Primary Root Cause</TableCell>
+                  <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 800 }}>Action</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredRecords.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                      No audit reports match the active filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRecords
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((rec) => {
+                      const meta = rec.metadata || {};
+                      const color = TIER_COLORS[rec.anomaly_tier] || '#00D4FF';
 
-                <Grid item xs={12} sm={6}>
-                  <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', p: 2, borderRadius: 2, border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                      Ensemble Tree Estimators: <strong>{nEstimators} Trees</strong>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontSize: '0.7rem' }}>
-                      Controls forest depth and stability of average path length convergence.
-                    </Typography>
-                    <Slider
-                      value={nEstimators}
-                      min={50}
-                      max={250}
-                      step={25}
-                      onChange={(e, val) => setNEstimators(val)}
-                      sx={{ color: '#00E676' }}
-                    />
-                  </Box>
-                </Grid>
-              </Grid>
-            </Box>
-          </Collapse>
+                      return (
+                        <TableRow
+                          key={rec.record_id}
+                          hover
+                          sx={{
+                            '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' },
+                            borderBottom: '1px solid rgba(255,255,255,0.04)'
+                          }}
+                        >
+                          {/* Report title */}
+                          <TableCell sx={{ maxWidth: 220 }}>
+                            <Typography noWrap variant="body2" fontWeight={700} color="#F1F5F9" title={meta.report_title}>
+                              {meta.report_title}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {meta.total_findings} findings &bull; Mean {meta.avg_cvss?.toFixed(1)} &bull; {meta.page_count} pages
+                            </Typography>
+                          </TableCell>
 
-          {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+                          {/* Agency */}
+                          <TableCell sx={{ maxWidth: 160 }}>
+                            <Typography noWrap variant="body2" color="#E2E8F0" title={meta.agency_name}>
+                              {meta.agency_name}
+                            </Typography>
+                            <Typography variant="caption" color={meta.cert_in_empanelled ? '#00D4FF' : 'text.secondary'}>
+                              {meta.agency_code} {meta.cert_in_empanelled ? '(CERT-In)' : ''}
+                            </Typography>
+                          </TableCell>
+
+                          {/* Tier Chip */}
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={rec.anomaly_tier.replace('_', ' ')}
+                              sx={{
+                                bgcolor: `${color}18`,
+                                color,
+                                fontWeight: 800,
+                                fontSize: '0.68rem',
+                                height: 22,
+                                border: `1px solid ${color}40`
+                              }}
+                            />
+                          </TableCell>
+
+                          {/* Consensus Score with mini-bar */}
+                          <TableCell sx={{ minWidth: 120 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ width: 60, height: 6, bgcolor: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                                <Box
+                                  sx={{
+                                    width: `${Math.min(rec.ensemble_score * 100, 100)}%`,
+                                    height: '100%',
+                                    bgcolor: color,
+                                    borderRadius: 3
+                                  }}
+                                />
+                              </Box>
+                              <Typography variant="caption" fontWeight={800} sx={{ color }}>
+                                {(rec.ensemble_score * 100).toFixed(0)}%
+                              </Typography>
+                            </Box>
+                          </TableCell>
+
+                          {/* Detector Badges */}
+                          <TableCell sx={{ minWidth: 140 }}>
+                            <Box sx={{ display: 'flex', gap: 0.6 }}>
+                              <Tooltip title={`Isolation Forest Rank: ${Math.round((rec.iforest_score || 0)*100)}%`}>
+                                <Chip
+                                  size="small"
+                                  label={`IF: ${Math.round((rec.iforest_score || 0)*100)}%`}
+                                  sx={{ bgcolor: 'rgba(0, 230, 118, 0.1)', color: '#00E676', fontSize: '0.65rem', height: 18 }}
+                                />
+                              </Tooltip>
+                              <Tooltip title={`ECOD Tail Rank: ${Math.round((rec.ecod_score || 0)*100)}%`}>
+                                <Chip
+                                  size="small"
+                                  label={`EC: ${Math.round((rec.ecod_score || 0)*100)}%`}
+                                  sx={{ bgcolor: 'rgba(255, 214, 0, 0.1)', color: '#FFD600', fontSize: '0.65rem', height: 18 }}
+                                />
+                              </Tooltip>
+                              <Tooltip title={`SBERT Vector Rank: ${Math.round((rec.embedding_score || 0)*100)}%`}>
+                                <Chip
+                                  size="small"
+                                  label={`EM: ${Math.round((rec.embedding_score || 0)*100)}%`}
+                                  sx={{ bgcolor: 'rgba(213, 0, 249, 0.1)', color: '#D500F9', fontSize: '0.65rem', height: 18 }}
+                                />
+                              </Tooltip>
+                            </Box>
+                          </TableCell>
+
+                          {/* Primary Driver */}
+                          <TableCell sx={{ maxWidth: 220 }}>
+                            <Typography noWrap variant="caption" color="#CBD5E1" title={rec.primary_drivers?.[0] || 'Conforms to fleet baseline'}>
+                              {rec.primary_drivers?.[0] || 'Conforms to fleet baseline'}
+                            </Typography>
+                          </TableCell>
+
+                          {/* Action Button */}
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                setInspectRecord(rec);
+                                setDrawerOpen(true);
+                              }}
+                              startIcon={<Visibility sx={{ fontSize: 14 }} />}
+                              sx={{
+                                color: '#00D4FF',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                textTransform: 'none',
+                                bgcolor: 'rgba(0, 212, 255, 0.08)',
+                                px: 1.2,
+                                py: 0.3,
+                                borderRadius: 1.5,
+                                '&:hover': { bgcolor: '#00D4FF', color: '#0B1120' }
+                              }}
+                            >
+                              Inspect
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <TablePagination
+            component="div"
+            count={filteredRecords.length}
+            page={page}
+            onPageChange={(e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[10, 15, 25, 50]}
+            sx={{
+              color: 'text.secondary',
+              borderTop: '1px solid rgba(255,255,255,0.06)'
+            }}
+          />
         </CardContent>
       </Card>
 
-      {/* ════════════ STAT KPI CARDS ════════════ */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Evaluated Audit Reports"
-            value={data.length}
-            subtitle="Full fleet coverage across all agencies"
-            icon={<Description />}
-            color="#00D4FF"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Detected Outliers"
-            value={outlierCount}
-            subtitle={`${Math.round((outlierCount / Math.max(data.length, 1)) * 100)}% anomalous report rate`}
-            icon={<ErrorOutline />}
-            color="#FF1744"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Fleet Median CVSS"
-            value={fleetBenchmarks?.median_cvss ?? '7.1'}
-            subtitle={`Median benchmark across ${data.length} reports`}
-            icon={<Security />}
-            color="#00E676"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Fleet Benchmark Density"
-            value={`${fleetBenchmarks?.median_findings ?? 5} findings`}
-            subtitle="Median findings per report"
-            icon={<Speed />}
-            color="#7C4DFF"
-          />
-        </Grid>
-      </Grid>
+      {/* 5. Deep Inspection Drawer */}
+      <AnomalyInspectionDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        record={inspectRecord}
+      />
 
-      {/* ════════════ MULTIDIMENSIONAL ANOMALY VISUALIZATIONS ════════════ */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        {/* Scatter Plot: Total Findings vs Mean CVSS */}
-        <Grid item xs={12} md={7}>
-          <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2.5, p: 2.5, height: '100%' }}>
-            <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <BubbleChart sx={{ color: '#00D4FF', fontSize: 20 }} />
-              Report Anomaly Map (Findings Density vs Mean CVSS)
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-              Red markers represent isolated anomalous audit reports separated by short path lengths in the isolation forest
-            </Typography>
-            <Box sx={{ height: 250 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis
-                    type="number"
-                    dataKey="x"
-                    name="Total Findings"
-                    stroke="#64748B"
-                    fontSize={12}
-                    label={{ value: 'Total Report Findings', position: 'insideBottom', offset: -10, fill: '#64748B', fontSize: 11 }}
-                  />
-                  <YAxis
-                    type="number"
-                    dataKey="y"
-                    name="Avg CVSS"
-                    domain={[4, 10]}
-                    stroke="#64748B"
-                    fontSize={12}
-                    label={{ value: 'Mean CVSS Severity', angle: -90, position: 'insideLeft', fill: '#64748B', fontSize: 11 }}
-                  />
-                  <ZAxis type="number" dataKey="z" range={[40, 250]} name="Critical Findings" />
-                  <RechartsTooltip
-                    cursor={{ strokeDasharray: '3 3' }}
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const d = payload[0].payload;
-                        return (
-                          <Box sx={{ bgcolor: '#0D1527', border: '1px solid rgba(255,255,255,0.1)', p: 1.5, borderRadius: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.5)', maxWidth: 300 }}>
-                            <Typography variant="subtitle2" fontWeight={800} sx={{ color: d.is_anomaly ? '#FF1744' : '#00E676' }} noWrap>
-                              {d.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                              Agency: {d.agency || 'Unassigned'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                              Status: <strong>{d.is_anomaly ? 'Outlier Anomaly' : 'Conforming'}</strong> (Score: {d.score.toFixed(3)})
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                              Findings: {d.x} &bull; Mean CVSS: {d.y.toFixed(2)} &bull; SLA Breaches: {d.sla_breaches}
-                            </Typography>
-                          </Box>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Scatter data={scatterData}>
-                    {scatterData.map((entry, index) => (
-                      <Cell
-                        key={`scatter-cell-${index}`}
-                        fill={entry.color}
-                        stroke={entry.is_anomaly ? '#FF1744' : '#00E676'}
-                        strokeWidth={entry.is_anomaly ? 2 : 1}
-                      />
-                    ))}
-                  </Scatter>
-                </ScatterChart>
-              </ResponsiveContainer>
-            </Box>
-          </Card>
-        </Grid>
-
-        {/* Outlier Benchmark Deviation Comparison */}
-        <Grid item xs={12} md={5}>
-          <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2.5, p: 2.5, height: '100%' }}>
-            <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Assessment sx={{ color: '#FF1744', fontSize: 20 }} />
-              Top Outlier Reports vs Fleet Benchmark
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-              Comparison of anomalous reports' Mean CVSS against fleet median
-            </Typography>
-            <Box sx={{ height: 250 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={outlierComparisonData} margin={{ top: 10, right: 10, left: -20, bottom: 35 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="name" stroke="#64748B" fontSize={10} angle={-25} textAnchor="end" />
-                  <YAxis stroke="#64748B" fontSize={11} domain={[0, 10]} />
-                  <RechartsTooltip
-                    contentStyle={{ backgroundColor: '#0D1527', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 8, color: '#FFF' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '4px' }} />
-                  <Bar dataKey="avg_cvss" name="Report Mean CVSS" fill="#FF1744" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="fleet_median" name="Fleet Benchmark (7.1)" fill="#00E676" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* ════════════ SEARCH & FILTER TOOLBAR ════════════ */}
-      <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2.5, p: 2.5, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={5}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Search report filename, agency name, organization code..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search sx={{ color: 'text.secondary', fontSize: 20 }} />
-                  </InputAdornment>
-                ),
-                sx: { bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }
-              }}
-            />
-          </Grid>
-
-          <Grid item xs={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel sx={{ color: 'text.secondary' }}>Anomaly Status</InputLabel>
-              <Select
-                value={statusFilter}
-                label="Anomaly Status"
-                onChange={(e) => setStatusFilter(e.target.value)}
-                sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}
-              >
-                <MenuItem value="ALL">All Reports ({data.length})</MenuItem>
-                <MenuItem value="OUTLIER">Outliers Only ({outlierCount})</MenuItem>
-                <MenuItem value="NORMAL">Normal Reports ({data.length - outlierCount})</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={6} md={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel sx={{ color: 'text.secondary' }}>Auditing Agency Certification</InputLabel>
-              <Select
-                value={empanelledFilter}
-                label="Auditing Agency Certification"
-                onChange={(e) => setEmpanelledFilter(e.target.value)}
-                sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}
-              >
-                <MenuItem value="ALL">All Auditing Agencies</MenuItem>
-                <MenuItem value="EMPANELLED">CERT-In Empanelled Only</MenuItem>
-                <MenuItem value="NON_EMPANELLED">Non-Empanelled / Private Assessors</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-        </Grid>
-      </Card>
-
-      {/* ════════════ MAIN DATA TABLE ════════════ */}
-      <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2.5, overflow: 'hidden' }}>
-        <TableContainer>
-          <Table size="small">
-            <TableHead sx={{ bgcolor: 'rgba(255,255,255,0.02)' }}>
-              <TableRow>
-                <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Audit Report Document</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Assigned Agency</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Status</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontWeight: 800, width: 140 }}>iForest Score</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Findings Density</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Severity Profile</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Primary Drivers</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontWeight: 800, textAlign: 'right' }}>Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
-                    <CircularProgress sx={{ color: '#00D4FF' }} />
-                  </TableCell>
-                </TableRow>
-              ) : filteredData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      No reports match the selected filters.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((report) => {
-                  const isOutlier = report.is_anomaly;
-                  const tierColor = ANOMALY_TIER_COLORS[report.anomaly_tier] || '#00D4FF';
-                  return (
-                    <TableRow
-                      key={report.report_id}
-                      hover
-                      sx={{
-                        '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' },
-                        borderBottom: '1px solid rgba(255,255,255,0.04)'
-                      }}
-                    >
-                      {/* Report Document */}
-                      <TableCell sx={{ maxWidth: 240 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <InsertDriveFile sx={{ color: isOutlier ? '#FF1744' : '#00D4FF', fontSize: 20 }} />
-                          <Box sx={{ overflow: 'hidden' }}>
-                            <Typography variant="body2" fontWeight={700} sx={{ color: '#F1F5F9' }} noWrap title={report.report_title}>
-                              {report.report_title}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              ID: {report.report_id.slice(0, 8)}... &bull; {report.created_at ? new Date(report.created_at).toLocaleDateString() : 'Audited'}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-
-                      {/* Agency */}
-                      <TableCell sx={{ maxWidth: 190 }}>
-                        <Typography variant="body2" fontWeight={600} sx={{ color: '#E2E8F0' }} noWrap>
-                          {report.agency_name}
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 0.5, mt: 0.2 }}>
-                          {report.cert_in_empanelled ? (
-                            <Chip
-                              size="small"
-                              icon={<Shield sx={{ fontSize: '13px !important' }} />}
-                              label="CERT-In"
-                              sx={{ height: 18, bgcolor: 'rgba(0, 212, 255, 0.15)', color: '#00D4FF', fontWeight: 700, fontSize: '0.62rem' }}
-                            />
-                          ) : (
-                            <Typography variant="caption" color="text.secondary">
-                              {report.agency_code || 'Standard'}
-                            </Typography>
-                          )}
-                        </Box>
-                      </TableCell>
-
-                      {/* Status */}
-                      <TableCell>
-                        <Chip
-                          size="small"
-                          label={report.is_anomaly ? 'Outlier' : 'Normal'}
-                          sx={{
-                            bgcolor: isOutlier ? 'rgba(255, 23, 68, 0.15)' : 'rgba(0, 230, 118, 0.15)',
-                            color: isOutlier ? '#FF1744' : '#00E676',
-                            fontWeight: 800,
-                            fontSize: '0.75rem'
-                          }}
-                        />
-                      </TableCell>
-
-                      {/* iForest Score */}
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2" fontWeight={800} sx={{ color: isOutlier ? '#FF1744' : '#00E676', minWidth: 42 }}>
-                            {report.anomaly_score.toFixed(2)}
-                          </Typography>
-                          <Box sx={{ flex: 1, height: 6, bgcolor: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
-                            <Box
-                              sx={{
-                                width: `${Math.min(Math.max((report.anomaly_score + 0.3) / 0.6 * 100, 10), 100)}%`,
-                                height: '100%',
-                                bgcolor: tierColor,
-                                borderRadius: 3
-                              }}
-                            />
-                          </Box>
-                        </Box>
-                      </TableCell>
-
-                      {/* Findings Density */}
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={700} color="#E2E8F0">
-                          {report.total_findings} findings
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {report.critical_count} Crit &bull; {report.high_count} High
-                        </Typography>
-                      </TableCell>
-
-                      {/* Severity Profile */}
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={800} sx={{ color: report.avg_cvss >= 8.0 ? '#FF1744' : report.avg_cvss >= 6.5 ? '#FF9100' : '#00E676' }}>
-                          Mean {report.avg_cvss.toFixed(2)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Max: {report.max_cvss.toFixed(1)} &bull; p90: {report.p90_cvss.toFixed(1)}
-                        </Typography>
-                      </TableCell>
-
-                      {/* Primary Drivers */}
-                      <TableCell sx={{ maxWidth: 280 }}>
-                        {report.primary_drivers && report.primary_drivers.length > 0 ? (
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            {report.primary_drivers.slice(0, 2).map((d, i) => (
-                              <Tooltip key={i} title={d}>
-                                <Chip
-                                  size="small"
-                                  label={d}
-                                  sx={{
-                                    height: 18,
-                                    fontSize: '0.65rem',
-                                    bgcolor: isOutlier ? 'rgba(255, 23, 68, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                                    color: isOutlier ? '#FF8A80' : '#94A3B8',
-                                    fontWeight: 700,
-                                    maxWidth: 260,
-                                    textOverflow: 'ellipsis'
-                                  }}
-                                />
-                              </Tooltip>
-                            ))}
-                          </Box>
-                        ) : (
-                          <Typography variant="caption" color="text.secondary">
-                            Conforming to fleet baseline
-                          </Typography>
-                        )}
-                      </TableCell>
-
-                      {/* Action */}
-                      <TableCell align="right">
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => handleOpenInspect(report.report_id)}
-                          sx={{
-                            borderColor: 'rgba(0,212,255,0.3)',
-                            color: '#00D4FF',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            py: 0.2,
-                            px: 1,
-                            borderRadius: 1.5,
-                            '&:hover': { borderColor: '#00D4FF', bgcolor: 'rgba(0,212,255,0.1)' }
-                          }}
-                        >
-                          Inspect
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          rowsPerPageOptions={[10, 15, 25, 50]}
-          component="div"
-          count={filteredData.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={(e, newP) => setPage(newP)}
-          onRowsPerPageChange={(e) => {
-            setRowsPerPage(parseInt(e.target.value, 10));
-            setPage(0);
-          }}
-          sx={{
-            color: 'text.secondary',
-            borderTop: '1px solid rgba(255,255,255,0.05)',
-            '& .MuiTablePagination-selectIcon': { color: 'text.secondary' }
-          }}
-        />
-      </Card>
-
-      {/* ════════════ MATHEMATICAL METHODOLOGY CARD ════════════ */}
-      <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2.5, p: 3, mt: 3 }}>
-        <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#00D4FF', display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <Functions sx={{ fontSize: 20 }} />
-          Report-Level Isolation Forest (iForest) Mathematical Foundations & Anomaly Scoring
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Isolation Forest isolates individual report profiles across 8 multidimensional axes (CVSS distributions, critical density, SLA breaches, variance) without assuming normal distributions. Anomalies require significantly fewer partitions to isolate.
-        </Typography>
-
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <Typography variant="caption" color="#00D4FF" fontWeight={800}>1. Recursive Partitioning</Typography>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#E2E8F0', my: 0.5 }}>
-                h(x) = Tree Path Depth
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Number of splittings required to isolate audit report instance x.
-              </Typography>
-            </Box>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <Typography variant="caption" color="#FF9100" fontWeight={800}>2. Expected Path Length</Typography>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#E2E8F0', my: 0.5 }}>
-                c(n) = 2ln(n-1) + 0.577 - 2(n-1)/n
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Average path length of unsuccessful search across n evaluated reports.
-              </Typography>
-            </Box>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <Typography variant="caption" color="#00E676" fontWeight={800}>3. Anomaly Score Formula</Typography>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#E2E8F0', my: 0.5 }}>
-                s(x, n) = 2^(-E(h(x)) / c(n))
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                When E(h(x)) &rarr; 0, score &rarr; 1 (Severe Outlier Report).
-              </Typography>
-            </Box>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <Typography variant="caption" color="#FF1744" fontWeight={800}>4. Decision Threshold</Typography>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#E2E8F0', my: 0.5 }}>
-                Score &lt; 0 &rArr; Anomalous Outlier
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Calculated via decision function with contamination offset.
-              </Typography>
-            </Box>
-          </Grid>
-        </Grid>
-      </Card>
-
-      {/* ════════════ INSPECTION DETAIL MODAL ════════════ */}
-      <Dialog
-        open={Boolean(inspectReport)}
-        onClose={() => setInspectReport(null)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            bgcolor: '#0B1120',
-            border: '1px solid rgba(0, 212, 255, 0.3)',
-            borderRadius: 3,
-            backgroundImage: 'none'
-          }
-        }}
-      >
-        <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Description sx={{ color: '#00D4FF' }} />
-            <Box>
-              <Typography variant="h6" fontWeight={800} color="#F1F5F9">
-                Report Audit Telemetry & Root Cause Analysis
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Report ID: {inspectReport?.report?.report_id}
-              </Typography>
-            </Box>
-          </Box>
-          <IconButton onClick={() => setInspectReport(null)} sx={{ color: 'text.secondary' }}>
-            <Close />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent sx={{ p: 3 }}>
-          {inspectReport && (
-            <Box>
-              {/* Header Info */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-                <Box>
-                  <Typography variant="h5" fontWeight={800} color="#00D4FF">
-                    {inspectReport.report?.original_filename}
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Agency: <strong>{inspectReport.report?.agency?.agency_name}</strong> ({inspectReport.report?.agency?.agency_code})
-                    </Typography>
-                    {inspectReport.report?.agency?.cert_in_empanelled && (
-                      <Chip size="small" label="CERT-In Empanelled" sx={{ height: 20, bgcolor: 'rgba(0, 212, 255, 0.15)', color: '#00D4FF', fontWeight: 700, fontSize: '0.65rem' }} />
-                    )}
-                  </Box>
-                </Box>
-
-                <Box sx={{ textAlign: 'right' }}>
-                  <Chip
-                    label={inspectReport.parentMeta?.is_anomaly ? 'CRITICAL OUTLIER' : 'FLEET CONFORMING'}
-                    sx={{
-                      bgcolor: inspectReport.parentMeta?.is_anomaly ? 'rgba(255, 23, 68, 0.2)' : 'rgba(0, 230, 118, 0.2)',
-                      color: inspectReport.parentMeta?.is_anomaly ? '#FF1744' : '#00E676',
-                      fontWeight: 800,
-                      mb: 0.5
-                    }}
-                  />
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                    iForest Score: <strong>{inspectReport.parentMeta?.anomaly_score?.toFixed(3)}</strong>
-                  </Typography>
-                </Box>
-              </Box>
-
-              {/* Anomaly Drivers Banner if Outlier */}
-              {inspectReport.parentMeta?.is_anomaly && inspectReport.parentMeta?.primary_drivers?.length > 0 && (
-                <Alert severity="warning" sx={{ mb: 3, bgcolor: 'rgba(255, 145, 0, 0.1)', color: '#FFB74D', border: '1px solid rgba(255, 145, 0, 0.3)' }}>
-                  <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.5 }}>
-                    Primary Statistical Drivers Triggering Isolation:
-                  </Typography>
-                  <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-                    {inspectReport.parentMeta.primary_drivers.map((drv, i) => (
-                      <li key={i}>
-                        <Typography variant="body2">{drv}</Typography>
-                      </li>
-                    ))}
-                  </Box>
-                </Alert>
-              )}
-
-              {/* Stats Summary Strip */}
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', p: 1.5, borderRadius: 2, textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <Typography variant="caption" color="text.secondary">Total Findings</Typography>
-                    <Typography variant="h6" fontWeight={800} color="#00D4FF">{inspectReport.stats?.total_findings}</Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', p: 1.5, borderRadius: 2, textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <Typography variant="caption" color="text.secondary">Critical Findings</Typography>
-                    <Typography variant="h6" fontWeight={800} color="#FF1744">{inspectReport.stats?.critical_count}</Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', p: 1.5, borderRadius: 2, textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <Typography variant="caption" color="text.secondary">Mean CVSS</Typography>
-                    <Typography variant="h6" fontWeight={800} color="#FF9100">{inspectReport.stats?.avg_cvss}</Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', p: 1.5, borderRadius: 2, textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <Typography variant="caption" color="text.secondary">Open Backlog</Typography>
-                    <Typography variant="h6" fontWeight={800} color="#00E676">{inspectReport.stats?.open_findings}</Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-
-              {/* Findings Breakdown Table */}
-              <Typography variant="subtitle2" fontWeight={800} color="#F1F5F9" sx={{ mb: 1 }}>
-                Report Observations & Findings ({inspectReport.findings?.length || 0})
-              </Typography>
-              <TableContainer sx={{ maxHeight: 280, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-                <Table size="small" stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ bgcolor: '#0D1527', color: 'text.secondary', fontWeight: 800 }}>Vulnerability</TableCell>
-                      <TableCell sx={{ bgcolor: '#0D1527', color: 'text.secondary', fontWeight: 800 }}>Severity</TableCell>
-                      <TableCell sx={{ bgcolor: '#0D1527', color: 'text.secondary', fontWeight: 800 }}>CVSS</TableCell>
-                      <TableCell sx={{ bgcolor: '#0D1527', color: 'text.secondary', fontWeight: 800 }}>Status</TableCell>
-                      <TableCell sx={{ bgcolor: '#0D1527', color: 'text.secondary', fontWeight: 800 }}>Days Open</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {(!inspectReport.findings || inspectReport.findings.length === 0) ? (
-                      <TableRow><TableCell colSpan={5} align="center">No detailed observations recorded.</TableCell></TableRow>
-                    ) : (
-                      inspectReport.findings.map((f) => (
-                        <TableRow key={f.finding_id}>
-                          <TableCell sx={{ maxWidth: 260 }}>
-                            <Typography variant="body2" fontWeight={600} color="#F1F5F9" noWrap title={f.title}>
-                              {f.title}
-                            </Typography>
-                            {f.cve_id && f.cve_id.length > 0 && (
-                              <Typography variant="caption" color="text.secondary">
-                                {f.cve_id.slice(0, 2).join(', ')}
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              size="small"
-                              label={f.severity}
-                              sx={{
-                                height: 18,
-                                fontSize: '0.65rem',
-                                fontWeight: 800,
-                                bgcolor: f.severity === 'Critical' ? 'rgba(255,23,68,0.2)' : f.severity === 'High' ? 'rgba(255,145,0,0.2)' : 'rgba(0,212,255,0.2)',
-                                color: f.severity === 'Critical' ? '#FF1744' : f.severity === 'High' ? '#FF9100' : '#00D4FF'
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={800}>{f.cvss_score}</Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip size="small" label={f.status} sx={{ height: 18, fontSize: '0.65rem' }} />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="caption" color="text.secondary">{f.days_open}d</Typography>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-        </DialogContent>
-
-        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <Button onClick={() => setInspectReport(null)} sx={{ color: 'text.secondary', fontWeight: 700 }}>
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* 6. Comparison Modal */}
+      <AnomalyComparisonModal
+        open={compareModalOpen}
+        onClose={() => setCompareModalOpen(false)}
+        runsHistory={runsHistory}
+      />
     </Box>
   );
 }

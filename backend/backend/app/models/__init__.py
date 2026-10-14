@@ -1,5 +1,5 @@
 # models package
-from app.models import user, report, audit, agency, clustering, trend_analysis
+from app.models import user, report, audit, agency, clustering, trend_analysis, anomaly
 
 from app.models.clustering import (
     ClusteringRun,
@@ -12,4 +12,11 @@ from app.models.trend_analysis import (
     TrendAnalysisRun,
     TrendRunStatus,
 )
+from app.models.anomaly import (
+    AnomalyRun,
+    AnomalyReportRecord,
+    AnomalyRunStatus,
+    AnomalyTier,
+)
+
 
