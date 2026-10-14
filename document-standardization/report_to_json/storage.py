@@ -79,6 +79,96 @@ class LocalDeepStorage:
         return json.loads((self.root / "manifests" / f"{document_id}.json").read_text(encoding="utf-8"))
 
 
+class SeaweedFSDeepStorage:
+    """Store images in SeaweedFS via the Filer HTTP API, grouped per report.
+
+    Path layout inside SeaweedFS::
+
+        images/<report_id>/figures/<sha256>.<ext>
+        images/<report_id>/layout/<sha256>.<ext>
+        images/<report_id>/manifest.json
+
+    ``report_id`` is typically the backend ``report_id`` (UUID) so that all
+    images for a report can be retrieved or deleted as a group.
+    """
+
+    def __init__(self, filer_url: str, report_id: str):
+        self.filer_url = filer_url.rstrip("/")
+        self.report_id = str(report_id)
+        self._seen: Dict[str, str] = {}  # sha256 -> seaweed_path (dedup within a run)
+
+    def _upload(self, path: str, data: bytes, filename: str) -> None:
+        import httpx
+        url = f"{self.filer_url}/{path}"
+        resp = httpx.post(url, files={"file": (filename, data)}, timeout=60.0)
+        resp.raise_for_status()
+
+    def put(self, data: bytes, ext: str) -> tuple[str, str]:
+        """Store image bytes; return (sha256, seaweed_path). Idempotent."""
+        sha256 = hashlib.sha256(data).hexdigest()
+        ext = ext.lower().lstrip(".") or "bin"
+        if sha256 in self._seen:
+            return sha256, self._seen[sha256]
+        path = f"images/{self.report_id}/figures/{sha256}.{ext}"
+        self._upload(path, data, f"{sha256}.{ext}")
+        self._seen[sha256] = path
+        return sha256, path
+
+    def put_layout(self, data: bytes, ext: str) -> tuple[str, str]:
+        """Store a layout image (icon, rule, background) under layout/."""
+        sha256 = hashlib.sha256(data).hexdigest()
+        ext = ext.lower().lstrip(".") or "bin"
+        if sha256 in self._seen:
+            return sha256, self._seen[sha256]
+        path = f"images/{self.report_id}/layout/{sha256}.{ext}"
+        self._upload(path, data, f"{sha256}.{ext}")
+        self._seen[sha256] = path
+        return sha256, path
+
+    def get(self, sha256: str) -> bytes:
+        """Retrieve an image by its SHA-256 from SeaweedFS."""
+        import httpx
+        if sha256 in self._seen:
+            url = f"{self.filer_url}/{self._seen[sha256]}"
+            resp = httpx.get(url, timeout=60.0)
+            if resp.status_code == 200:
+                return resp.content
+        # Try figures/ then layout/
+        for subdir in ("figures", "layout"):
+            # We don't know the extension, so list the directory
+            base = f"images/{self.report_id}/{subdir}"
+            url = f"{self.filer_url}/{base}/?prefix={sha256}"
+            resp = httpx.get(url, timeout=30.0)
+            if resp.status_code == 200:
+                # Try direct fetch with common extensions
+                for ext in ("png", "jpg", "jpeg", "gif", "bmp", "tiff", "bin"):
+                    fetch = httpx.get(f"{self.filer_url}/{base}/{sha256}.{ext}", timeout=30.0)
+                    if fetch.status_code == 200:
+                        return fetch.content
+        raise KeyError(f"Image {sha256} not found in SeaweedFS for report {self.report_id}")
+
+    def write_manifest(self, document_id: str, manifest: dict) -> str:
+        """Write the image manifest to SeaweedFS; return the seaweed path."""
+        path = f"images/{self.report_id}/manifest.json"
+        data = json.dumps(manifest, indent=2).encode("utf-8")
+        self._upload(path, data, "manifest.json")
+        return path
+
+    def read_manifest(self, document_id: str) -> dict:
+        """Read the image manifest from SeaweedFS."""
+        import httpx
+        path = f"images/{self.report_id}/manifest.json"
+        resp = httpx.get(f"{self.filer_url}/{path}", timeout=30.0)
+        if resp.status_code == 404:
+            raise KeyError(f"Manifest not found for report {self.report_id}")
+        resp.raise_for_status()
+        return resp.json()
+
+    def stored_images(self) -> list:
+        """Return all StoredImage-like dicts that were put() during this run."""
+        return list(self._seen.items())
+
+
 def build_manifest(document_id: str, source_name: str, figures: List[StoredImage],
                    layout: Optional[List[StoredImage]] = None) -> Dict:
     """``images`` maps each tag to its object; ``layout_images`` lists stored images left

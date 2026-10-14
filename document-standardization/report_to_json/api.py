@@ -35,13 +35,20 @@ _pipeline: Optional[DocumentPipeline] = None
 
 
 def process_report(report_path: PathLike, output_dir: Optional[PathLike] = None, *,
-                   enable_security_gate: bool = True, save_to_disk: bool = True) -> PipelineResult:
+                   enable_security_gate: bool = True, save_to_disk: bool = True,
+                   storage=None) -> PipelineResult:
     """Run the full pipeline on one report and return the complete result.
 
     ``result.data`` is the master-schema JSON as a dict, ``result.status`` is "ok"
     or "needs_review", ``result.meta`` is the run report, and
     ``result.json_path`` / ``result.meta_path`` are the files written. With
     ``save_to_disk=False`` no output files are written and those paths are ``None``.
+
+    Parameters
+    ----------
+    storage : optional DeepStorage implementation. When supplied, image offloading
+        uses this backend (e.g. ``SeaweedFSDeepStorage``) instead of the default
+        ``LocalDeepStorage``.
 
     Raises ``DocumentBlocked`` if the malware pre-gate blocks the file,
     ``ModelPipelineFailed`` if the model pipeline failed, and ``PipelineError`` for
@@ -51,7 +58,7 @@ def process_report(report_path: PathLike, output_dir: Optional[PathLike] = None,
     if save_to_disk:
         out_dir = Path(output_dir) if output_dir is not None else config.DEFAULT_OUTPUT_DIR
     
-    pipeline = DocumentPipeline(enable_security_gate=enable_security_gate)
+    pipeline = DocumentPipeline(enable_security_gate=enable_security_gate, storage=storage)
     return pipeline.process_file(Path(report_path), out_dir)
 
 
