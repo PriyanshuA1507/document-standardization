@@ -17,10 +17,56 @@ export default function RunControlBar({
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  const isWeekly = params.frequency === 'W';
+  const defaultHorizon = isWeekly ? 12 : 6;
+  const currentHorizon = Number(params.horizon) || defaultHorizon;
+
+  const baseHorizonOptions = isWeekly
+    ? [
+        { value: 4, label: '4 Weeks' },
+        { value: 8, label: '8 Weeks' },
+        { value: 12, label: '12 Weeks' },
+        { value: 26, label: '26 Weeks (6 Mos)' },
+      ]
+    : [
+        { value: 3, label: '3 Months' },
+        { value: 6, label: '6 Months' },
+        { value: 9, label: '9 Months' },
+        { value: 12, label: '12 Months (1 Year)' },
+      ];
+
+  const hasMatch = baseHorizonOptions.some(opt => opt.value === currentHorizon);
+  const horizonOptions = hasMatch
+    ? baseHorizonOptions
+    : [...baseHorizonOptions, { value: currentHorizon, label: `${currentHorizon} ${isWeekly ? 'Weeks' : 'Months'}` }].sort((a, b) => a.value - b.value);
+
+  const selectMenuProps = {
+    PaperProps: {
+      sx: {
+        bgcolor: '#0F172A',
+        border: '1px solid rgba(0, 212, 255, 0.3)',
+        color: '#F1F5F9',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        '& .MuiMenuItem-root': {
+          fontSize: '0.85rem',
+          py: 1,
+        },
+        '& .MuiMenuItem-root:hover': {
+          bgcolor: 'rgba(0, 212, 255, 0.12)',
+        },
+        '& .MuiMenuItem-root.Mui-selected': {
+          bgcolor: 'rgba(0, 230, 118, 0.2)',
+          color: '#00E676',
+          fontWeight: 700,
+        },
+      },
+    },
+  };
+
   const handleFrequencyChange = (e) => {
     const freq = e.target.value;
-    const defaultHorizon = freq === 'W' ? 12 : 6;
-    onChangeParams({ ...params, frequency: freq, horizon: defaultHorizon });
+    const newDefault = freq === 'W' ? 12 : 6;
+    onChangeParams({ ...params, frequency: freq, horizon: newDefault });
   };
 
   return (
@@ -38,6 +84,7 @@ export default function RunControlBar({
                 label="Observation Date Basis"
                 onChange={(e) => onChangeParams({ ...params, date_basis: e.target.value })}
                 disabled={isRunning}
+                MenuProps={selectMenuProps}
               >
                 <MenuItem value="effective">
                   Audit Assessment Date (Recommended: 90% coverage)
@@ -59,6 +106,7 @@ export default function RunControlBar({
                 label="Aggregation"
                 onChange={handleFrequencyChange}
                 disabled={isRunning}
+                MenuProps={selectMenuProps}
               >
                 <MenuItem value="M">Monthly Buckets</MenuItem>
                 <MenuItem value="W">Weekly Buckets</MenuItem>
@@ -72,26 +120,17 @@ export default function RunControlBar({
               <InputLabel id="horizon-label">Forecast Horizon</InputLabel>
               <Select
                 labelId="horizon-label"
-                value={params.horizon || 6}
+                value={currentHorizon}
                 label="Forecast Horizon"
                 onChange={(e) => onChangeParams({ ...params, horizon: Number(e.target.value) })}
                 disabled={isRunning}
+                MenuProps={selectMenuProps}
               >
-                {params.frequency === 'W' ? (
-                  <>
-                    <MenuItem value={4}>4 Weeks</MenuItem>
-                    <MenuItem value={8}>8 Weeks</MenuItem>
-                    <MenuItem value={12}>12 Weeks</MenuItem>
-                    <MenuItem value={26}>26 Weeks (6 Mos)</MenuItem>
-                  </>
-                ) : (
-                  <>
-                    <MenuItem value={3}>3 Months</MenuItem>
-                    <MenuItem value={6}>6 Months</MenuItem>
-                    <MenuItem value={9}>9 Months</MenuItem>
-                    <MenuItem value={12}>12 Months (1 Year)</MenuItem>
-                  </>
-                )}
+                {horizonOptions.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
@@ -134,7 +173,7 @@ export default function RunControlBar({
                 },
               }}
             >
-              {isRunning ? 'Analyzing...' : 'Run Trend Analysis & Forecast'}
+              {isRunning ? 'Forecasting with TimesFM-3...' : 'Run TimesFM-3 Multivariate Forecast'}
             </Button>
           </Grid>
         </Grid>
@@ -154,6 +193,7 @@ export default function RunControlBar({
                     value={params.severity || 'ALL'}
                     label="Severity Level"
                     onChange={(e) => onChangeParams({ ...params, severity: e.target.value })}
+                    MenuProps={selectMenuProps}
                   >
                     <MenuItem value="ALL">All Severities</MenuItem>
                     <MenuItem value="Critical">Critical Only</MenuItem>
@@ -172,6 +212,7 @@ export default function RunControlBar({
                     value={params.status || 'ALL'}
                     label="Remediation Status"
                     onChange={(e) => onChangeParams({ ...params, status: e.target.value })}
+                    MenuProps={selectMenuProps}
                   >
                     <MenuItem value="ALL">All Statuses</MenuItem>
                     <MenuItem value="Open">Open Findings</MenuItem>

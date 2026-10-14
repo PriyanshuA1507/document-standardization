@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import {
   CheckCircle, Cancel, HelpOutline, ExpandMore, ExpandLess,
-  Storage, DateRange, Security, Assessment, VerifiedUser, InfoOutlined
+  Storage, DateRange, Security, Assessment, InfoOutlined
 } from '@mui/icons-material';
 
 export default function DataReadinessPanel({ readiness }) {
@@ -65,7 +65,7 @@ export default function DataReadinessPanel({ readiness }) {
 
         <Grid container spacing={2}>
           {/* Usable Dates */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <Typography variant="caption" sx={{ color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <DateRange sx={{ fontSize: 14, color: '#00D4FF' }} /> Observation Dates
@@ -85,7 +85,7 @@ export default function DataReadinessPanel({ readiness }) {
           </Grid>
 
           {/* Time Buckets */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <Typography variant="caption" sx={{ color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Storage sx={{ fontSize: 14, color: '#00E676' }} /> Populated Buckets
@@ -105,7 +105,7 @@ export default function DataReadinessPanel({ readiness }) {
           </Grid>
 
           {/* CVSS Coverage */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <Typography variant="caption" sx={{ color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Security sx={{ fontSize: 14, color: '#FF9100' }} /> CVSS Score Coverage
@@ -120,26 +120,6 @@ export default function DataReadinessPanel({ readiness }) {
                 variant="determinate"
                 value={cvss_coverage_pct}
                 sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: '#FF9100' } }}
-              />
-            </Box>
-          </Grid>
-
-          {/* Retest Closures */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <VerifiedUser sx={{ fontSize: 14, color: '#7C4DFF' }} /> Verified Retest Evidence
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#7C4DFF', mt: 0.5 }}>
-                {total_retest_closures_count.toLocaleString()} Closures
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-                Across {retest_closure_reports_count} retested audit reports
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={Math.min(100, (retest_closure_reports_count / 150) * 100)}
-                sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: '#7C4DFF' } }}
               />
             </Box>
           </Grid>

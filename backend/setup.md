@@ -107,7 +107,21 @@ If you want to start completely fresh and wipe the database and uploaded files:
 ```bash
 docker compose down -v
 ```
-**To Downlaod Models:**
+**To Download Models:**
 ```bash
 docker exec -it cyber-audit-backend python download_models.py
 ```
+
+## 6. Pre-Downloading Heavy Dependencies (Offline / Fast Build Mode)
+
+For a complete inventory of all large packages, AI model weights (Nemotron, Qwen, BART, TimesFM), and Docker images, see the [Heavy Dependencies & Offline Guide](../HEAVY_DEPENDENCIES_AND_OFFLINE_GUIDE.md).
+
+**To check current cached dependencies status:**
+```bash
+python ../scripts/download_all_dependencies.py --status
+```
+
+**To pre-download Hugging Face models manually on the host machine:**
+```bash
+python ../scripts/download_all_dependencies.py --hf-models
+```

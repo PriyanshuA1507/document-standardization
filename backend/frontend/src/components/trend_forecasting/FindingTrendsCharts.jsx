@@ -7,25 +7,34 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend
 } from 'recharts';
 import {
-  Timeline, TrendingUp, BugReport, Security, Speed,
-  Devices, Warning, AssignmentTurnedIn, Layers, Category
+  Timeline, BugReport, Warning, AssignmentTurnedIn, Category
 } from '@mui/icons-material';
 
 const GlassTooltip = ({ active, payload, label, unit = '' }) => {
   if (active && payload && payload.length) {
+    const isForecast = payload[0]?.payload?.isForecast;
     return (
       <Box sx={{
-        background: 'rgba(10, 14, 23, 0.92)',
+        background: 'rgba(10, 14, 23, 0.94)',
         backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(0, 212, 255, 0.25)',
+        border: `1px solid ${isForecast ? 'rgba(0, 230, 118, 0.4)' : 'rgba(0, 212, 255, 0.25)'}`,
         borderRadius: 2,
         p: 1.5,
         boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-        minWidth: 160,
+        minWidth: 170,
       }}>
-        <Typography variant="caption" sx={{ color: '#00D4FF', fontWeight: 700, display: 'block', mb: 0.8 }}>
-          Period: {label}
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.8, gap: 1 }}>
+          <Typography variant="caption" sx={{ color: isForecast ? '#00E676' : '#00D4FF', fontWeight: 700 }}>
+            Period: {label}
+          </Typography>
+          {isForecast && (
+            <Chip
+              label="TimesFM-3 Projected"
+              size="small"
+              sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(0, 230, 118, 0.2)', color: '#00E676', fontWeight: 700 }}
+            />
+          )}
+        </Box>
         {payload.map((entry, idx) => (
           <Box key={idx} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 0.3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
@@ -38,7 +47,7 @@ const GlassTooltip = ({ active, payload, label, unit = '' }) => {
           </Box>
         ))}
         <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.65rem', display: 'block', mt: 0.8, fontStyle: 'italic' }}>
-          Click point to drill down into findings
+          Click point to drill down into underlying audit findings
         </Typography>
       </Box>
     );
@@ -46,72 +55,156 @@ const GlassTooltip = ({ active, payload, label, unit = '' }) => {
   return null;
 };
 
-function ChartWrapper({ title, icon, modelInfo, children, onDrilldownPeriod }) {
+function ChartWrapper({ title, icon, modelInfo, horizonBadge, helpText, children }) {
   return (
     <Card sx={{
       height: '100%',
-      minHeight: 380,
-      background: 'rgba(10, 14, 23, 0.8)',
+      minHeight: 400,
+      background: 'rgba(10, 14, 23, 0.85)',
       border: '1px solid rgba(255, 255, 255, 0.08)',
       display: 'flex',
       flexDirection: 'column',
     }}>
-      <CardContent sx={{ p: 2, pb: 1, borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {icon && React.cloneElement(icon, { sx: { color: '#00D4FF', fontSize: 20 } })}
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0' }}>
-            {title}
-          </Typography>
+      <CardContent sx={{ p: 2, pb: 1, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: helpText ? 0.6 : 0, flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {icon && React.cloneElement(icon, { sx: { color: '#00D4FF', fontSize: 20 } })}
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0' }}>
+              {title}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+            {horizonBadge && (
+              <Chip
+                label={horizonBadge}
+                size="small"
+                sx={{
+                  height: 22,
+                  fontSize: '0.65rem',
+                  fontWeight: 600,
+                  bgcolor: 'rgba(0, 212, 255, 0.08)',
+                  color: '#00D4FF',
+                  border: '1px solid rgba(0, 212, 255, 0.25)',
+                }}
+              />
+            )}
+            {modelInfo && (
+              <MuiTooltip title={`Forecasting Engine: ${modelInfo.model_name || 'N/A'} | Version: ${modelInfo.model_version || 'TimesFM-3'} | Backtested WAPE: ${modelInfo.backtest_metrics?.wape ?? 'N/A'}`}>
+                <Chip
+                  label={modelInfo.model_name?.includes('TimesFM') ? `TimesFM-3 (WAPE: ${modelInfo.backtest_metrics?.wape})` : modelInfo.model_name ? `${modelInfo.model_name.split(' ')[0]} (WAPE: ${modelInfo.backtest_metrics?.wape})` : 'Baseline'}
+                  size="small"
+                  sx={{
+                    height: 22,
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    bgcolor: modelInfo.model_name?.includes('TimesFM') ? 'rgba(0, 230, 118, 0.15)' : 'rgba(0, 212, 255, 0.1)',
+                    color: modelInfo.model_name?.includes('TimesFM') ? '#00E676' : '#00D4FF',
+                    border: `1px solid ${modelInfo.model_name?.includes('TimesFM') ? 'rgba(0, 230, 118, 0.4)' : 'rgba(0, 212, 255, 0.25)'}`,
+                  }}
+                />
+              </MuiTooltip>
+            )}
+          </Box>
         </Box>
-        {modelInfo && (
-          <MuiTooltip title={`Model: ${modelInfo.model_name || 'N/A'} (WAPE: ${modelInfo.backtest_metrics?.wape || 'N/A'})`}>
-            <Chip
-              label={modelInfo.model_name ? `${modelInfo.model_name.split(' ')[0]} (WAPE: ${modelInfo.backtest_metrics?.wape})` : 'Baseline'}
-              size="small"
-              sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(0, 212, 255, 0.1)', color: '#00D4FF', border: '1px solid rgba(0, 212, 255, 0.25)' }}
-            />
-          </MuiTooltip>
+        {helpText && (
+          <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.73rem', display: 'block', mt: 0.3 }}>
+            💡 <strong style={{ color: '#CBD5E1' }}>Plain English:</strong> {helpText}
+          </Typography>
         )}
       </CardContent>
-      <Box sx={{ p: 2, flex: 1, width: '100%', minHeight: 290 }}>
+      <Box sx={{ p: 2, flex: 1, width: '100%', minHeight: 300 }}>
         {children}
       </Box>
     </Card>
   );
 }
 
-export default function FindingTrendsCharts({ metrics, forecastResults, onDrilldown }) {
+export default function FindingTrendsCharts({ metrics, forecastResults, onDrilldown, horizon = 6 }) {
   if (!metrics) return null;
 
   const {
     total_findings = [],
     new_vs_closed = [],
     severity_over_time = [],
-    backlog_status_over_time = [],
-    new_vs_repeat = [],
-    mean_cvss = [],
-    mean_epss = [],
     top_cwes = [],
-    audit_type = [],
-    critical_assets = [],
-    impact_likelihood = [],
-    findings_per_100_assets = [],
   } = metrics;
 
   const targets = forecastResults?.targets || {};
+  const activeHorizon = Math.max(1, Number(horizon) || 6);
+  const horizonBadgeLabel = `Horizon: +${activeHorizon} Mo`;
 
-  // Build combined Total Findings series (actuals + forecast + intervals)
-  const totalFindingsForecast = targets.total_findings?.forecast_points || [];
+  // 1. CHART 1: Total Findings + TimesFM-3 Forecast (Seamless bridge, no gap)
+  const totalFindingsForecast = (targets.total_findings?.forecast_points || []).slice(0, activeHorizon);
   const combinedTotalData = [
-    ...total_findings.map(d => ({ period: d.period, actual: d.count, forecast: null, lower_80: null, upper_80: null })),
-    ...totalFindingsForecast.map(f => ({ period: f.period, actual: null, forecast: f.predicted, lower_80: f.lower_80, upper_80: f.upper_80 }))
+    ...total_findings.map((d, idx) => {
+      const isLast = idx === total_findings.length - 1;
+      return {
+        period: d.period,
+        actual: d.count,
+        // Seamlessly bridge the forecast line from the last historical point
+        forecast: isLast && totalFindingsForecast.length > 0 ? d.count : null,
+        lower_80: isLast && totalFindingsForecast.length > 0 ? d.count : null,
+        upper_80: isLast && totalFindingsForecast.length > 0 ? d.count : null,
+        isForecast: false,
+      };
+    }),
+    ...totalFindingsForecast.map(f => ({
+      period: f.period,
+      actual: null,
+      forecast: f.predicted,
+      lower_80: f.lower_80,
+      upper_80: f.upper_80,
+      isForecast: true,
+    }))
   ];
 
-  // Build combined Findings per 100 Assets series
-  const assetsForecast = targets.findings_per_100_assets?.forecast_points || [];
-  const combinedAssetsData = [
-    ...findings_per_100_assets.map(d => ({ period: d.period, actual: d.findings_per_100_assets, forecast: null, lower_80: null, upper_80: null })),
-    ...assetsForecast.map(f => ({ period: f.period, actual: null, forecast: f.predicted, lower_80: f.lower_80, upper_80: f.upper_80 }))
+  // 2. CHART 2: Threat Severity Breakdown (Critical to Low) with Forecast Horizon
+  const critForecast = (targets.severity_critical?.forecast_points || []).slice(0, activeHorizon);
+  const highForecast = (targets.severity_high?.forecast_points || []).slice(0, activeHorizon);
+  const medForecast = (targets.severity_medium?.forecast_points || []).slice(0, activeHorizon);
+  const lowForecast = (targets.severity_low?.forecast_points || []).slice(0, activeHorizon);
+
+  const combinedSeverityData = [
+    ...severity_over_time.map(d => ({ ...d, isForecast: false })),
+    ...critForecast.map((cf, idx) => ({
+      period: cf.period,
+      critical: cf.predicted,
+      high: highForecast[idx]?.predicted ?? 0,
+      medium: medForecast[idx]?.predicted ?? 0,
+      low: lowForecast[idx]?.predicted ?? 0,
+      isForecast: true,
+    }))
+  ];
+
+  // 3. CHART 3: Discovery Influx vs Verified Retest Closures with Forecast Horizon
+  const newForecast = (targets.total_findings?.forecast_points || []).slice(0, activeHorizon);
+  const closedForecast = (targets.verified_closures?.forecast_points || []).slice(0, activeHorizon);
+
+  const combinedNewVsClosedData = [
+    ...new_vs_closed.map(d => ({ ...d, isForecast: false })),
+    ...newForecast.map((nf, idx) => ({
+      period: nf.period,
+      new_count: nf.predicted,
+      closed_count: closedForecast[idx]?.predicted ?? 0,
+      isForecast: true,
+    }))
+  ];
+
+  // 4. CHART 4: Top Root Cause Weaknesses (Recurring CWEs) with Forecast Horizon
+  const cweKeys = Object.keys(top_cwes[0] || {}).filter(k => k !== 'period');
+  const futurePeriods = (targets.total_findings?.forecast_points || []).slice(0, activeHorizon).map(f => f.period);
+
+  const combinedCweData = [
+    ...top_cwes.map(d => ({ ...d, isForecast: false })),
+    ...futurePeriods.map((p, idx) => {
+      const row = { period: p, isForecast: true };
+      cweKeys.forEach(k => {
+        const targetKey = `cwe_${k}`;
+        const pts = (targets[targetKey]?.forecast_points || []).slice(0, activeHorizon);
+        row[k] = pts[idx]?.predicted ?? null;
+      });
+      return row;
+    })
   ];
 
   const handlePointClick = (state) => {
@@ -122,14 +215,27 @@ export default function FindingTrendsCharts({ metrics, forecastResults, onDrilld
 
   return (
     <Box sx={{ mb: 4 }}>
-      <Typography variant="h6" sx={{ fontWeight: 800, color: '#E2E8F0', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Timeline sx={{ color: '#00D4FF' }} /> Finding Trends & Time-Series Projections
-      </Typography>
+      {/* Section Header */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 800, color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Timeline sx={{ color: '#00D4FF' }} /> Key Strategic Vulnerability Trends & TimesFM-3 Forecasts
+        </Typography>
+        <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+          Displaying historical trends dynamically projected across a <strong>{activeHorizon}-month forecast horizon</strong>. Click any point to view underlying audit findings.
+        </Typography>
+      </Box>
 
+      {/* 4 Core Essential Charts in a clean 2x2 Grid */}
       <Grid container spacing={3}>
-        {/* 1. Total Distinct Findings (Actual + Forecast) */}
+        {/* CHART 1: Total Findings & TimesFM-3 Forecast */}
         <Grid item xs={12} md={6}>
-          <ChartWrapper title="1. Total Distinct Findings & Forecast Horizon" icon={<BugReport />} modelInfo={targets.total_findings}>
+          <ChartWrapper
+            title="1. Vulnerability Workload & TimesFM-3 Forecast"
+            icon={<BugReport />}
+            modelInfo={targets.total_findings}
+            horizonBadge={horizonBadgeLabel}
+            helpText="Shows past vulnerability volume and projects future expected findings over the next months with 80% confidence bands so you can plan patch engineering staffing."
+          >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={combinedTotalData} onClick={handlePointClick}>
                 <defs>
@@ -148,205 +254,83 @@ export default function FindingTrendsCharts({ metrics, forecastResults, onDrilld
                 <RechartsTooltip content={<GlassTooltip />} />
                 <Legend />
                 <Area type="monotone" dataKey="actual" name="Historical Actual" stroke="#00D4FF" fill="url(#actualGrad)" strokeWidth={2} />
-                <Area type="monotone" dataKey="forecast" name="Forecast Prediction" stroke="#00E676" strokeDasharray="5 5" fill="url(#forecastGrad)" strokeWidth={2} />
-                <Area type="monotone" dataKey="upper_80" name="80% Upper Bound" stroke="#00E676" strokeOpacity={0.2} fill="transparent" strokeDasharray="2 2" />
-                <Area type="monotone" dataKey="lower_80" name="80% Lower Bound" stroke="#00E676" strokeOpacity={0.2} fill="transparent" strokeDasharray="2 2" />
+                <Area type="monotone" dataKey="forecast" name="TimesFM-3 Prediction" stroke="#00E676" strokeDasharray="5 5" fill="url(#forecastGrad)" strokeWidth={2} />
+                <Area type="monotone" dataKey="upper_80" name="80% Upper Bound" stroke="#00E676" strokeOpacity={0.25} fill="transparent" strokeDasharray="2 2" />
+                <Area type="monotone" dataKey="lower_80" name="80% Lower Bound" stroke="#00E676" strokeOpacity={0.25} fill="transparent" strokeDasharray="2 2" />
               </AreaChart>
             </ResponsiveContainer>
           </ChartWrapper>
         </Grid>
 
-        {/* 2. New Findings vs Verified Closures */}
+        {/* CHART 2: Findings by Severity Progression with Projected Horizon */}
         <Grid item xs={12} md={6}>
-          <ChartWrapper title="2. New Findings vs Verified Closures" icon={<AssignmentTurnedIn />} modelInfo={targets.verified_closures}>
+          <ChartWrapper
+            title="2. Threat Severity Breakdown (Critical to Low)"
+            icon={<Warning />}
+            modelInfo={targets.severity_critical}
+            horizonBadge={horizonBadgeLabel}
+            helpText="Tracks the proportion of Critical, High, Medium, and Low severity flaws and projects future risk distribution across the forecast horizon."
+          >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={new_vs_closed} onClick={handlePointClick}>
+              <AreaChart data={combinedSeverityData} onClick={handlePointClick}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
                 <YAxis stroke="#64748B" fontSize={11} />
                 <RechartsTooltip content={<GlassTooltip />} />
                 <Legend />
-                <Bar dataKey="new_count" name="New Findings" fill="#00D4FF" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="closed_count" name="Verified Closures" fill="#00E676" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-        </Grid>
-
-        {/* 3. Severity Breakdown Over Time */}
-        <Grid item xs={12} md={6}>
-          <ChartWrapper title="3. Findings by Severity Level" icon={<Warning />} modelInfo={targets.severity_critical}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={severity_over_time} onClick={handlePointClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} />
-                <RechartsTooltip content={<GlassTooltip />} />
-                <Legend />
-                <Area type="monotone" dataKey="critical" name="Critical" stackId="1" stroke="#FF1744" fill="#FF1744" fillOpacity={0.6} />
-                <Area type="monotone" dataKey="high" name="High" stackId="1" stroke="#FF9100" fill="#FF9100" fillOpacity={0.6} />
-                <Area type="monotone" dataKey="medium" name="Medium" stackId="1" stroke="#FFD600" fill="#FFD600" fillOpacity={0.6} />
-                <Area type="monotone" dataKey="low" name="Low" stackId="1" stroke="#00E676" fill="#00E676" fillOpacity={0.6} />
+                <Area type="monotone" dataKey="critical" name="Critical" stackId="1" stroke="#FF1744" fill="#FF1744" fillOpacity={0.65} />
+                <Area type="monotone" dataKey="high" name="High" stackId="1" stroke="#FF9100" fill="#FF9100" fillOpacity={0.65} />
+                <Area type="monotone" dataKey="medium" name="Medium" stackId="1" stroke="#FFD600" fill="#FFD600" fillOpacity={0.65} />
+                <Area type="monotone" dataKey="low" name="Low" stackId="1" stroke="#00E676" fill="#00E676" fillOpacity={0.65} />
               </AreaChart>
             </ResponsiveContainer>
           </ChartWrapper>
         </Grid>
 
-        {/* 4. Status Distribution (Latest-Known) */}
+        {/* CHART 3: Discovery Influx vs Verified Retest Closures with Projected Horizon */}
         <Grid item xs={12} md={6}>
-          <ChartWrapper title="4. Latest-Known Status Distribution & Backlog" icon={<Layers />}>
+          <ChartWrapper
+            title="3. Remediation Velocity: New Flaws vs Verified Closures"
+            icon={<AssignmentTurnedIn />}
+            modelInfo={targets.verified_closures}
+            horizonBadge={horizonBadgeLabel}
+            helpText="Compares historical and projected newly discovered vulnerabilities against anticipated retest closures across the forecast horizon."
+          >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={backlog_status_over_time} onClick={handlePointClick}>
+              <BarChart data={combinedNewVsClosedData} onClick={handlePointClick}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
                 <YAxis stroke="#64748B" fontSize={11} />
                 <RechartsTooltip content={<GlassTooltip />} />
                 <Legend />
-                <Bar dataKey="open" name="Open" fill="#FF1744" stackId="a" />
-                <Bar dataKey="partially_remediated" name="Partially Remediated" fill="#FF9100" stackId="a" />
-                <Bar dataKey="closed" name="Closed" fill="#00E676" stackId="a" />
+                <Bar dataKey="new_count" name="New Findings Discovered" fill="#00D4FF" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="closed_count" name="Verified Retest Closures" fill="#00E676" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartWrapper>
         </Grid>
 
-        {/* 5. New vs Repeat Findings */}
+        {/* CHART 4: Top Recurring Weakness Classes (Top CWEs) with Projected Horizon */}
         <Grid item xs={12} md={6}>
-          <ChartWrapper title="5. New vs Repeat Audit Findings" icon={<Layers />} modelInfo={targets.repeat_findings}>
+          <ChartWrapper
+            title="4. Top Root Cause Weaknesses (Recurring CWEs)"
+            icon={<Category />}
+            horizonBadge={horizonBadgeLabel}
+            helpText="Identifies historical recurring defect categories (e.g. Broken Access Control, SQL Injection) and projects their trajectory across the forecast horizon."
+          >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={new_vs_repeat} onClick={handlePointClick}>
+              <LineChart data={combinedCweData} onClick={handlePointClick}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
                 <YAxis stroke="#64748B" fontSize={11} />
                 <RechartsTooltip content={<GlassTooltip />} />
                 <Legend />
-                <Bar dataKey="new" name="First-Time (New)" fill="#00D4FF" />
-                <Bar dataKey="repeat" name="Recurring (Repeat)" fill="#FF9100" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-        </Grid>
-
-        {/* 6. Mean CVSS Score Over Time */}
-        <Grid item xs={12} md={6}>
-          <ChartWrapper title="6. Mean CVSS Vulnerability Severity Trend" icon={<Speed />} modelInfo={targets.mean_cvss}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mean_cvss} onClick={handlePointClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
-                <YAxis domain={[0, 10]} stroke="#64748B" fontSize={11} />
-                <RechartsTooltip content={<GlassTooltip unit="/10" />} />
-                <Legend />
-                <Line type="monotone" dataKey="mean_cvss" name="Mean CVSS (0-10)" stroke="#00D4FF" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-        </Grid>
-
-        {/* 7. Mean EPSS Score Over Time */}
-        <Grid item xs={12} md={6}>
-          <ChartWrapper title="7. Mean EPSS Exploitation Risk & Coverage" icon={<Security />}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mean_epss} onClick={handlePointClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} />
-                <RechartsTooltip content={<GlassTooltip unit="%" />} />
-                <Legend />
-                <Bar dataKey="coverage_pct" name="EPSS Coverage % (Source Data)" fill="#7C4DFF" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-        </Grid>
-
-        {/* 8. Findings by CWE Category */}
-        <Grid item xs={12} md={6}>
-          <ChartWrapper title="8. Common Weakness Categories (Top CWEs)" icon={<Category />}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={top_cwes} onClick={handlePointClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} />
-                <RechartsTooltip content={<GlassTooltip />} />
-                <Legend />
-                {Object.keys(top_cwes[0] || {}).filter(k => k !== 'period').map((cweKey, i) => {
+                {cweKeys.map((cweKey, i) => {
                   const colors = ['#00D4FF', '#00E676', '#FF9100', '#E040FB', '#FF1744'];
                   return (
-                    <Line key={cweKey} type="monotone" dataKey={cweKey} name={cweKey} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
+                    <Line key={cweKey} type="monotone" dataKey={cweKey} name={cweKey} stroke={colors[i % colors.length]} strokeWidth={2.5} dot={{ r: 3 }} />
                   );
                 })}
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-        </Grid>
-
-        {/* 9. Findings by Audit Type */}
-        <Grid item xs={12} md={6}>
-          <ChartWrapper title="9. Finding Volumes by Audit Category" icon={<Layers />}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={audit_type} onClick={handlePointClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} />
-                <RechartsTooltip content={<GlassTooltip />} />
-                <Legend />
-                {Object.keys(audit_type[0] || {}).filter(k => k !== 'period').map((atKey, i) => {
-                  const colors = ['#00D4FF', '#7C4DFF', '#00E676', '#FFD600'];
-                  return (
-                    <Bar key={atKey} dataKey={atKey} name={atKey} stackId="at" fill={colors[i % colors.length]} />
-                  );
-                })}
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-        </Grid>
-
-        {/* 10. Critical Asset Findings */}
-        <Grid item xs={12} md={6}>
-          <ChartWrapper title="10. Vulnerabilities Linked to Critical Assets" icon={<Devices />}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={critical_assets} onClick={handlePointClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} />
-                <RechartsTooltip content={<GlassTooltip />} />
-                <Legend />
-                <Area type="monotone" dataKey="critical_asset_findings" name="Findings on Critical Assets" stroke="#FF1744" fill="#FF1744" fillOpacity={0.25} strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-        </Grid>
-
-        {/* 11. Impact & Likelihood */}
-        <Grid item xs={12} md={6}>
-          <ChartWrapper title="11. Impact & Likelihood Level Distributions" icon={<Speed />}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={impact_likelihood} onClick={handlePointClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} />
-                <RechartsTooltip content={<GlassTooltip />} />
-                <Legend />
-                <Bar dataKey="impact_major" name="Major Impact" fill="#FF1744" stackId="imp" />
-                <Bar dataKey="impact_moderate" name="Moderate Impact" fill="#FF9100" stackId="imp" />
-                <Bar dataKey="impact_minor" name="Minor Impact" fill="#00E676" stackId="imp" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-        </Grid>
-
-        {/* 12. Findings per 100 Assets */}
-        <Grid item xs={12} md={6}>
-          <ChartWrapper title="12. Findings Per 100 Assessed Assets & Projection" icon={<Devices />} modelInfo={targets.findings_per_100_assets}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={combinedAssetsData} onClick={handlePointClick}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} />
-                <RechartsTooltip content={<GlassTooltip />} />
-                <Legend />
-                <Line type="monotone" dataKey="actual" name="Historical Rate" stroke="#7C4DFF" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="forecast" name="Forecast Rate" stroke="#00E676" strokeDasharray="5 5" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           </ChartWrapper>
@@ -355,4 +339,3 @@ export default function FindingTrendsCharts({ metrics, forecastResults, onDrilld
     </Box>
   );
 }
-

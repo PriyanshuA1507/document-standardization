@@ -37,8 +37,11 @@ export default function RecurringWeaknessModule({ recurringData }) {
         <Grid item xs={12} md={6}>
           <Card sx={{ height: '100%', background: 'rgba(10, 14, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
             <CardContent sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Security sx={{ color: '#00D4FF', fontSize: 18 }} /> Top Recurring CWE Weakness Classes
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mb: 1.5, fontSize: '0.73rem' }}>
+                💡 <strong>Plain English:</strong> Identifies underlying software coding defects (e.g. Broken Access Control, Data Leaks) that recur most often across audits.
               </Typography>
               <TableContainer sx={{ maxHeight: 300 }}>
                 <Table size="small">
@@ -68,8 +71,11 @@ export default function RecurringWeaknessModule({ recurringData }) {
         <Grid item xs={12} md={6}>
           <Card sx={{ height: '100%', background: 'rgba(10, 14, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
             <CardContent sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Devices sx={{ color: '#7C4DFF', fontSize: 18 }} /> Asset Endpoints with Highest Finding Density
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mb: 1.5, fontSize: '0.73rem' }}>
+                💡 <strong>Plain English:</strong> Pinpoints the critical servers, APIs, and portals carrying the greatest concentration of security flaws.
               </Typography>
               <TableContainer sx={{ maxHeight: 300 }}>
                 <Table size="small">
@@ -101,8 +107,11 @@ export default function RecurringWeaknessModule({ recurringData }) {
         <Grid item xs={12} md={6}>
           <Card sx={{ height: '100%', background: 'rgba(10, 14, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
             <CardContent sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Warning sx={{ color: '#FF9100', fontSize: 18 }} /> Repeat Findings by Severity Distribution
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mb: 1.5, fontSize: '0.73rem' }}>
+                💡 <strong>Plain English:</strong> Vulnerabilities flagged in earlier audits that reappeared unpatched in later audits, categorized by threat level.
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 1 }}>
                 {repeat_by_severity.map((item, idx) => {
@@ -132,8 +141,11 @@ export default function RecurringWeaknessModule({ recurringData }) {
         <Grid item xs={12} md={6}>
           <Card sx={{ height: '100%', background: 'rgba(10, 14, 23, 0.8)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
             <CardContent sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Security sx={{ color: '#00E676', fontSize: 18 }} /> Top Observed CVE Identifiers
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mb: 1.5, fontSize: '0.73rem' }}>
+                💡 <strong>Plain English:</strong> Catalogs publicly known vulnerabilities in third-party packages, web frameworks, or operating system components.
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {top_cves.length > 0 ? (

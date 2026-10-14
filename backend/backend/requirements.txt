@@ -30,3 +30,5 @@ torch>=2.0.0
 prophet>=1.1.4
 hdbscan>=0.8.33
 sentence-transformers>=2.2.0
+timesfm>=3.0.0
+

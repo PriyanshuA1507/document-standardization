@@ -4,7 +4,7 @@ import {
 } from '@mui/material';
 import {
   TrendingUp, TrendingDown, TrendingFlat, BugReport,
-  NewReleases, Warning, CheckCircle, Replay, Speed, Devices
+  NewReleases, Warning, CheckCircle, Replay, Speed
 } from '@mui/icons-material';
 
 function KpiCard({ title, value, subtitle, changePct, color, icon, priorMissing, tooltip }) {
@@ -92,7 +92,6 @@ export default function TrendOverviewCards({ overview }) {
     verified_closures = {},
     mean_cvss = {},
     mean_epss = {},
-    findings_per_100_assets = {},
     has_comparable_prior_period = false,
   } = overview;
 
@@ -100,7 +99,7 @@ export default function TrendOverviewCards({ overview }) {
     <Box sx={{ mb: 3 }}>
       <Grid container spacing={2}>
         {/* 1. Total Distinct Findings */}
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
           <KpiCard
             title="Total Findings"
             value={total_findings.value?.toLocaleString()}
@@ -114,7 +113,7 @@ export default function TrendOverviewCards({ overview }) {
         </Grid>
 
         {/* 2. New Findings */}
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
           <KpiCard
             title="New Findings"
             value={new_findings.value?.toLocaleString()}
@@ -128,7 +127,7 @@ export default function TrendOverviewCards({ overview }) {
         </Grid>
 
         {/* 3. Open Critical Findings */}
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
           <KpiCard
             title="Open Critical"
             value={open_critical.value?.toLocaleString()}
@@ -142,7 +141,7 @@ export default function TrendOverviewCards({ overview }) {
         </Grid>
 
         {/* 4. Open High Findings */}
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
           <KpiCard
             title="Open High"
             value={open_high.value?.toLocaleString()}
@@ -156,7 +155,7 @@ export default function TrendOverviewCards({ overview }) {
         </Grid>
 
         {/* 5. Critical + High Backlog */}
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
           <KpiCard
             title="Critical + High Backlog"
             value={critical_high_backlog.value?.toLocaleString()}
@@ -170,7 +169,7 @@ export default function TrendOverviewCards({ overview }) {
         </Grid>
 
         {/* 6. Verified Closures */}
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
           <KpiCard
             title="Verified Closures"
             value={verified_closures.value?.toLocaleString()}
@@ -184,7 +183,7 @@ export default function TrendOverviewCards({ overview }) {
         </Grid>
 
         {/* 7. Repeat Findings */}
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
           <KpiCard
             title="Repeat Findings"
             value={repeat_findings.value?.toLocaleString()}
@@ -198,7 +197,7 @@ export default function TrendOverviewCards({ overview }) {
         </Grid>
 
         {/* 8. Mean CVSS & EPSS */}
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
           <KpiCard
             title="Mean CVSS / EPSS"
             value={mean_cvss.value ? `${mean_cvss.value} / 10` : '--'}
@@ -208,20 +207,6 @@ export default function TrendOverviewCards({ overview }) {
             color="#00D4FF"
             icon={<Speed sx={{ fontSize: 22 }} />}
             tooltip={`Average CVSS score across ${mean_cvss.sample_size || 0} scored findings.`}
-          />
-        </Grid>
-
-        {/* 9. Findings Per 100 Assets */}
-        <Grid item xs={12} sm={6} md={4} lg={2.4}>
-          <KpiCard
-            title="Findings / 100 Assets"
-            value={findings_per_100_assets.value || 0}
-            subtitle={`Normalized across ${findings_per_100_assets.denominator_assets || 0} assets`}
-            changePct={null}
-            priorMissing={true}
-            color="#7C4DFF"
-            icon={<Devices sx={{ fontSize: 22 }} />}
-            tooltip="Distinct findings divided by distinct assessed assets in engagement scope * 100."
           />
         </Grid>
       </Grid>

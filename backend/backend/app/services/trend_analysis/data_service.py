@@ -161,10 +161,6 @@ class TrendDataService:
                 "eligible": False,
                 "reason": f"Ineligible: 0 EPSS scores populated in current database ({epss_coverage_pct}% coverage). Requires external EPSS data enrichment."
             },
-            "findings_per_100_assets": {
-                "eligible": distinct_assets_count > 0 and has_sufficient_history_monthly,
-                "reason": f"Supported using {distinct_assets_count} assessed assets in engagement scope inventories."
-            },
             "critical_high_backlog": {
                 "eligible": False,
                 "status_labeled_latest_known": True,
@@ -472,7 +468,6 @@ class TrendDataService:
         audit_type_series: List[Dict[str, Any]] = []
         critical_asset_series: List[Dict[str, Any]] = []
         impact_likelihood_series: List[Dict[str, Any]] = []
-        findings_per_100_assets_series: List[Dict[str, Any]] = []
 
         # Global counters for recurring analysis
         cwe_counter = defaultdict(int)
@@ -561,12 +556,6 @@ class TrendDataService:
             mean_epss_series.append({
                 "period": p, "mean_epss": m_epss, "coverage_pct": round(len(epss_vals) / count_total * 100, 1) if count_total > 0 else 0.0
             })
-            findings_per_100_assets_series.append({
-                "period": p,
-                "findings_per_100_assets": per_100_assets,
-                "assessed_assets_denominator": assessed_assets,
-                "distinct_findings": count_total,
-            })
             critical_asset_series.append({
                 "period": p, "critical_asset_findings": crit_asset_findings
             })
@@ -631,9 +620,6 @@ class TrendDataService:
         mean_cvss_overall = round(float(np.mean(all_cvss)), 2) if all_cvss else None
         mean_epss_overall = round(float(np.mean(all_epss)), 4) if all_epss else None
 
-        tot_assets = sum(bucket_assets_count[p] for p in curr_keys)
-        findings_per_100_overall = round((curr_total / tot_assets) * 100, 2) if tot_assets > 0 else 0.0
-
         def calc_change(curr, prior):
             if prior is None or prior == 0:
                 return None
@@ -651,7 +637,6 @@ class TrendDataService:
             "verified_closures": {"value": curr_closures, "change_pct": calc_change(curr_closures, prior_closures)},
             "mean_cvss": {"value": mean_cvss_overall, "sample_size": len(all_cvss)},
             "mean_epss": {"value": mean_epss_overall, "sample_size": len(all_epss), "is_sparse": len(all_epss) == 0},
-            "findings_per_100_assets": {"value": findings_per_100_overall, "denominator_assets": tot_assets},
         }
 
         # Recurring Weakness Aggregates
@@ -698,7 +683,6 @@ class TrendDataService:
                 "audit_type": audit_type_series,
                 "critical_assets": critical_asset_series,
                 "impact_likelihood": impact_likelihood_series,
-                "findings_per_100_assets": findings_per_100_assets_series,
             },
             "overview": overview,
             "recurring_weakness": recurring_weakness,

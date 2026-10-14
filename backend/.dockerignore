@@ -1,0 +1,48 @@
+# backend/.dockerignore
+# Prevents transferring models_cache and local data when building backend context
+
+# Git and IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Python virtualenvs and caches
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Large Model Caches and weights
+models_cache/
+models_cache/*
+**/models_cache/
+**/models_cache/*
+models/
+**/models/
+
+# Storage and uploads
+storage/
+**/storage/
+reports/
+
+# Frontend artifacts if building within backend context
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+
+# Test caches
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Logs and databases
+*.log
+*.sqlite3

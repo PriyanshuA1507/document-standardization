@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Box, Typography, Alert, CircularProgress, Skeleton, Button, Chip
+  Box, Typography, Alert, CircularProgress, Skeleton, Button, Chip,
+  Card, CardContent, Grid
 } from '@mui/material';
 import {
-  TrendingUp, Refresh, History, CheckCircle, WarningAmber
+  TrendingUp, Refresh, History, CheckCircle, WarningAmber, Lightbulb, AutoGraph
 } from '@mui/icons-material';
 import api from '../api/axios';
 
+import HowItWorksBanner from '../components/trend_forecasting/HowItWorksBanner';
 import DataReadinessPanel from '../components/trend_forecasting/DataReadinessPanel';
 import RunControlBar from '../components/trend_forecasting/RunControlBar';
 import TrendOverviewCards from '../components/trend_forecasting/TrendOverviewCards';
@@ -75,6 +77,13 @@ export default function TrendAnalysisDashboardPage() {
       } else if (data.latest_completed_run) {
         // Load latest completed run results
         setCurrentRunData(data.latest_completed_run);
+        if (data.latest_completed_run.parameters?.horizon) {
+          setParams(prev => ({
+            ...prev,
+            ...data.latest_completed_run.parameters,
+            horizon: Number(data.latest_completed_run.parameters.horizon) || prev.horizon,
+          }));
+        }
       }
     } catch (err) {
       console.error('Failed to load trend analysis summary:', err);
@@ -99,11 +108,22 @@ export default function TrendAnalysisDashboardPage() {
         if (runInfo.status === 'COMPLETED') {
           clearInterval(pollingRef.current);
           setIsRunning(false);
-          // Fetch completed results
+          // Fetch completed results directly
           const resultRes = await api.get(`/api/trend-analysis/runs/${runId}/results`);
-          setCurrentRunData(resultRes.data?.data);
-          // Refresh readiness
-          fetchInitialSummary();
+          const completedData = resultRes.data?.data;
+          if (completedData) {
+            setCurrentRunData(completedData);
+            if (completedData.parameters?.horizon) {
+              setParams(prev => ({
+                ...prev,
+                ...completedData.parameters,
+                horizon: Number(completedData.parameters.horizon) || prev.horizon,
+              }));
+            }
+            if (completedData.data_readiness) {
+              setReadiness(completedData.data_readiness);
+            }
+          }
         } else if (runInfo.status === 'FAILED') {
           clearInterval(pollingRef.current);
           setIsRunning(false);
@@ -167,9 +187,19 @@ export default function TrendAnalysisDashboardPage() {
     try {
       setLoadingInitial(true);
       const res = await api.get(`/api/trend-analysis/runs/${runId}/results`);
-      setCurrentRunData(res.data?.data);
-      if (res.data?.data?.data_readiness) {
-        setReadiness(res.data?.data?.data_readiness);
+      const pastData = res.data?.data;
+      if (pastData) {
+        setCurrentRunData(pastData);
+        if (pastData.parameters?.horizon) {
+          setParams(prev => ({
+            ...prev,
+            ...pastData.parameters,
+            horizon: Number(pastData.parameters.horizon) || prev.horizon,
+          }));
+        }
+        if (pastData.data_readiness) {
+          setReadiness(pastData.data_readiness);
+        }
       }
     } catch (err) {
       setError(`Failed to load run ${runId}`);
@@ -234,16 +264,23 @@ export default function TrendAnalysisDashboardPage() {
             Trend Analysis & Time-Series Forecasting
           </Typography>
           <Typography variant="body2" sx={{ color: '#94A3B8', mt: 0.5 }}>
-            Historical vulnerability progression, multi-stage statistical forecasting, and retest closure analytics across normalized audit evidence.
+            Powered by <strong>Google TimesFM-3</strong> (Zero-Shot Foundation Model for Multivariate Forecasting) and CERT-In / MeitY retest closure analytics across normalized audit evidence.
           </Typography>
         </Box>
 
         {currentRunData && (
-          <Chip
-            label={`Showing Run: ${String(currentRunData.run_id || '').substring(0, 8)} (${currentRunData.parameters?.frequency === 'W' ? 'Weekly' : 'Monthly'})`}
-            size="medium"
-            sx={{ bgcolor: 'rgba(0, 212, 255, 0.1)', color: '#00D4FF', border: '1px solid rgba(0, 212, 255, 0.3)', fontWeight: 600 }}
-          />
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Chip
+              label="TimesFM-3 Foundation Engine"
+              size="medium"
+              sx={{ bgcolor: 'rgba(0, 230, 118, 0.15)', color: '#00E676', border: '1px solid rgba(0, 230, 118, 0.35)', fontWeight: 700 }}
+            />
+            <Chip
+              label={`Run: ${String(currentRunData.run_id || '').substring(0, 8)} (${currentRunData.parameters?.frequency === 'W' ? 'Weekly' : 'Monthly'})`}
+              size="medium"
+              sx={{ bgcolor: 'rgba(0, 212, 255, 0.1)', color: '#00D4FF', border: '1px solid rgba(0, 212, 255, 0.3)', fontWeight: 600 }}
+            />
+          </Box>
         )}
       </Box>
 
@@ -266,8 +303,8 @@ export default function TrendAnalysisDashboardPage() {
         </Alert>
       )}
 
-      {/* 1. Data Readiness Quality Panel */}
-      <DataReadinessPanel readiness={readiness} />
+      {/* 1. Visual Plain-English Explainer: What We Give -> AI Engine -> What It Gives */}
+      <HowItWorksBanner />
 
       {/* 2. Interactive Run Control Bar */}
       <RunControlBar
@@ -279,22 +316,83 @@ export default function TrendAnalysisDashboardPage() {
         activeRun={activeRun}
       />
 
+      {/* 3. Data Readiness Quality Panel (Audit Diagnostics) */}
+      <DataReadinessPanel readiness={readiness} />
+
       {/* No Run Executed Prompt */}
       {!currentRunData && !isRunning && (
         <Alert severity="info" sx={{ mb: 3, background: 'rgba(0, 212, 255, 0.08)', color: '#E2E8F0', border: '1px solid rgba(0, 212, 255, 0.25)' }}>
-          No trend analysis has been executed yet for this scope. Select your desired timeframe and parameters above, then click <strong>"Run Trend Analysis & Forecast"</strong> to execute your first model run.
+          No trend analysis has been executed yet for this scope. Select your desired timeframe and parameters above, then click <strong>"Run TimesFM-3 Multivariate Forecast"</strong> to execute your first model run.
         </Alert>
       )}
 
-      {/* 3. Section A: Trend Analysis Overview KPI Cards */}
+      {/* 4. Section A: Trend Analysis Overview KPI Cards */}
       {overview && <TrendOverviewCards overview={overview} />}
 
-      {/* 4. Section B: 12 Interactive Finding Trends Charts */}
+      {/* 5. Plain-Language Executive Summary (What This Means For Management) */}
+      {overview && (
+        <Card sx={{
+          mb: 3,
+          background: 'rgba(10, 14, 23, 0.85)',
+          border: '1px solid rgba(0, 212, 255, 0.25)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+        }}>
+          <CardContent sx={{ p: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.2 }}>
+              <Lightbulb sx={{ color: '#00D4FF', fontSize: 20 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#E2E8F0' }}>
+                Executive Plain-Language Summary: What This Data Means
+              </Typography>
+            </Box>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
+                  <Typography variant="caption" sx={{ color: '#00D4FF', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                    📈 VULNERABILITY WORKLOAD OUTLOOK
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                    {overview.total_findings?.change_pct !== null && overview.total_findings?.change_pct !== undefined ? (
+                      overview.total_findings.change_pct > 0 
+                        ? `Incoming vulnerability arrivals grew by +${overview.total_findings.change_pct}% over recent audit periods. TimesFM-3 foundation model projects this workload will require sustained remediation capacity.`
+                        : `Vulnerability arrivals decreased by ${Math.abs(overview.total_findings.change_pct)}%, showing measurable security posture stabilization across tested applications.`
+                    ) : 'Sustained audit discovery volume detected across current reporting cycles.'}
+                  </Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
+                  <Typography variant="caption" sx={{ color: '#FF1744', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                    🚨 HIGH-SEVERITY RISK EXPOSURE
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                    There are currently <strong>{overview.open_critical?.value || 0} Open Critical</strong> and <strong>{overview.open_high?.value || 0} Open High</strong> vulnerabilities. Remediation workflows should prioritize these to mitigate immediate breach exposure.
+                  </Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
+                  <Typography variant="caption" sx={{ color: '#00E676', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                    🛡️ FORMAL REMEDIATION VELOCITY
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                    <strong>{overview.verified_closures?.value || 0}</strong> verified closures documented via formal CERT-In / MeitY retest certificates, maintaining positive remediation momentum against newly identified flaws.
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 6. Section B: Interactive Finding Trends Charts (Tabbed & Simplified) */}
       {metrics && (
         <FindingTrendsCharts
           metrics={metrics}
           forecastResults={forecastResults}
           onDrilldown={handleDrilldown}
+          horizon={params.horizon}
         />
       )}
 

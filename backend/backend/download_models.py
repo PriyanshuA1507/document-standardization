@@ -26,6 +26,16 @@ def download_models():
         SentenceTransformer("all-mpnet-base-v2")
         print(f"  {sbert_model_name} loaded successfully.")
         
+        # TimesFM-3 Zero-Shot Foundation Model for Multivariate Time-Series Forecasting
+        print("Checking TimesFM-3 Foundation Model...")
+        try:
+            from timesfm import TimesFM3Forecaster
+            print("  TimesFM-3 library ready. Pre-caching checkpoint if accessible...")
+            TimesFM3Forecaster.from_pretrained("google/timesfm-3.0-pytorch")
+            print("  TimesFM-3 weights cached successfully.")
+        except Exception as e_tfm:
+            print(f"  Notice: TimesFM-3 weights download deferred or requires token: {e_tfm}")
+        
         print("Download complete. All models are cached locally.")
         
     except Exception as e:
