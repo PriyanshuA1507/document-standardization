@@ -1,0 +1,61 @@
+# Root .dockerignore
+# Prevents transferring gigabytes of model weights, caches, and build artifacts to Docker daemon
+
+# Git and IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Python virtualenvs and caches
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Large Model Weights (Mounted into containers via volumes, never baked into Docker images)
+document-standardization/models/
+document-standardization/models/*
+**/models/
+**/models/*
+backend/models_cache/
+backend/models_cache/*
+**/models_cache/
+**/models_cache/*
+models_cache/
+models/
+
+# Deep storage, reports, and pipeline outputs
+document-standardization/deep_storage/
+document-standardization/reports/
+document-standardization/outputs/
+**/deep_storage/
+**/reports/
+**/outputs/
+storage/
+**/storage/
+
+# Node / Frontend build artifacts
+**/node_modules/
+**/dist/
+**/build/
+.npm
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.tox/
+
+# Logs and databases
+*.log
+*.sqlite3
+**/seaweedfs-data/
+**/clamav-data/
+**/db-data/
