@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -23,7 +23,7 @@ import {
   Tab,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   Search,
   Visibility,
@@ -41,6 +41,8 @@ import {
   Security,
   Warning,
   TipsAndUpdates,
+  ContentCopy,
+  Check,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../contexts/AuthContext';
@@ -182,7 +184,9 @@ const JsonSectionView = ({ data }) => {
   );
 };
 function PipelineResultsDialog({ open, onClose, results, reportName }) {
+  const { enqueueSnackbar } = useSnackbar();
   const [tabValue, setTabValue] = useState(0);
+  const [copied, setCopied] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     detailed_observations: true,
     compliance: false,
@@ -190,6 +194,33 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
   });
 
   if (!results) return null;
+
+  const handleCopyJson = async () => {
+    if (!results) return;
+    try {
+      const jsonStr = JSON.stringify(results, null, 2);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(jsonStr);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = jsonStr;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        textArea.setAttribute('readonly', '');
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopied(true);
+      enqueueSnackbar('JSON copied to clipboard!', { variant: 'success', autoHideDuration: 2000 });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy JSON:', err);
+      enqueueSnackbar('Failed to copy JSON to clipboard', { variant: 'error' });
+    }
+  };
 
   const toggleSection = (section) =>
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
@@ -244,9 +275,29 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
             </Typography>
           </Box>
         </Box>
-        <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
-          <Close />
-        </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tooltip title={copied ? 'Copied!' : 'Copy All JSON'} arrow>
+            <IconButton
+              onClick={handleCopyJson}
+              size="small"
+              sx={{
+                color: copied ? '#00E676' : '#00D4FF',
+                bgcolor: copied ? 'rgba(0, 230, 118, 0.1)' : 'rgba(0, 212, 255, 0.1)',
+                border: '1px solid',
+                borderColor: copied ? 'rgba(0, 230, 118, 0.3)' : 'rgba(0, 212, 255, 0.2)',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  bgcolor: copied ? 'rgba(0, 230, 118, 0.2)' : 'rgba(0, 212, 255, 0.2)',
+                },
+              }}
+            >
+              {copied ? <Check fontSize="small" /> : <ContentCopy fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+          <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
+            <Close />
+          </IconButton>
+        </Box>
       </DialogTitle>
 
       <Tabs
@@ -667,6 +718,30 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
         )}
         {tabValue === 1 && (
           <Box sx={{ p: 1, maxHeight: 600, overflowY: 'auto' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
+              <Tooltip title={copied ? 'Copied to clipboard!' : 'Copy all JSON'} arrow>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={copied ? <Check sx={{ fontSize: 16 }} /> : <ContentCopy sx={{ fontSize: 16 }} />}
+                  onClick={handleCopyJson}
+                  sx={{
+                    borderColor: copied ? '#00E676' : 'rgba(0, 212, 255, 0.3)',
+                    color: copied ? '#00E676' : '#00D4FF',
+                    textTransform: 'none',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    bgcolor: copied ? 'rgba(0, 230, 118, 0.08)' : 'rgba(0, 212, 255, 0.08)',
+                    '&:hover': {
+                      borderColor: copied ? '#00E676' : '#00D4FF',
+                      bgcolor: copied ? 'rgba(0, 230, 118, 0.16)' : 'rgba(0, 212, 255, 0.16)',
+                    },
+                  }}
+                >
+                  {copied ? 'Copied!' : 'Copy JSON'}
+                </Button>
+              </Tooltip>
+            </Box>
             <JsonSectionView data={results} />
           </Box>
         )}
@@ -683,10 +758,57 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
         )}
 
         {tabValue === 3 && (
-          <Box sx={{ p: 2, maxHeight: 600, overflowY: 'auto', bgcolor: '#1e1e1e', borderRadius: 1 }}>
-            <pre style={{ margin: 0, color: '#00D4FF', fontSize: '0.85rem', whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-              {JSON.stringify(results, null, 2)}
-            </pre>
+          <Box
+            sx={{
+              position: 'relative',
+              bgcolor: '#1e1e1e',
+              borderRadius: 2,
+              border: '1px solid rgba(255,255,255,0.1)',
+              overflow: 'hidden',
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                px: 2,
+                py: 1,
+                bgcolor: 'rgba(255, 255, 255, 0.04)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace', fontWeight: 600 }}>
+                RAW JSON
+              </Typography>
+              <Tooltip title={copied ? 'Copied to clipboard!' : 'Copy all raw JSON'} arrow>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={copied ? <Check sx={{ fontSize: 16 }} /> : <ContentCopy sx={{ fontSize: 16 }} />}
+                  onClick={handleCopyJson}
+                  sx={{
+                    borderColor: copied ? '#00E676' : 'rgba(0, 212, 255, 0.3)',
+                    color: copied ? '#00E676' : '#00D4FF',
+                    textTransform: 'none',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    bgcolor: copied ? 'rgba(0, 230, 118, 0.08)' : 'rgba(0, 212, 255, 0.08)',
+                    '&:hover': {
+                      borderColor: copied ? '#00E676' : '#00D4FF',
+                      bgcolor: copied ? 'rgba(0, 230, 118, 0.16)' : 'rgba(0, 212, 255, 0.16)',
+                    },
+                  }}
+                >
+                  {copied ? 'Copied!' : 'Copy JSON'}
+                </Button>
+              </Tooltip>
+            </Box>
+            <Box sx={{ p: 2, maxHeight: 550, overflowY: 'auto' }}>
+              <pre style={{ margin: 0, color: '#00D4FF', fontSize: '0.85rem', whiteSpace: 'pre-wrap', wordWrap: 'break-word', fontFamily: 'monospace' }}>
+                {JSON.stringify(results, null, 2)}
+              </pre>
+            </Box>
           </Box>
         )}
       </DialogContent>
@@ -697,11 +819,22 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
 /* ──────────── Reports Page ──────────── */
 function ReportsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
+  const initialPage = useMemo(() => {
+    const p = parseInt(searchParams.get('page') || '1', 10);
+    return isNaN(p) || p < 1 ? 0 : p - 1;
+  }, []);
+
+  const initialPageSize = useMemo(() => {
+    const s = parseInt(searchParams.get('pageSize') || '10', 10);
+    return isNaN(s) || s < 1 ? 10 : s;
+  }, []);
+
+  const [paginationModel, setPaginationModel] = useState({ page: initialPage, pageSize: initialPageSize });
   const [search, setSearch] = useState('');
   const [searchDebounce, setSearchDebounce] = useState('');
 
@@ -727,11 +860,52 @@ function ReportsPage() {
       const response = await api.get('/api/reports', { params });
       return response.data;
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const reports = data?.reports || [];
-  const total = data?.total || 0;
+  const total = data?.total;
+
+  const rowCountRef = useRef(0);
+  const rowCount = useMemo(() => {
+    if (total !== undefined && total !== null) {
+      rowCountRef.current = total;
+    }
+    return rowCountRef.current || total || 0;
+  }, [total]);
+
+  const handlePaginationModelChange = (newModel) => {
+    // Prevent DataGrid from auto-clamping to page 0 if data is loading or total is not ready
+    if (newModel.page === 0 && paginationModel.page > 0 && (isLoading || rowCountRef.current === 0)) {
+      return;
+    }
+    setPaginationModel(newModel);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (newModel.page > 0) {
+        next.set('page', String(newModel.page + 1));
+      } else {
+        next.delete('page');
+      }
+      if (newModel.pageSize !== 10) {
+        next.set('pageSize', String(newModel.pageSize));
+      } else {
+        next.delete('pageSize');
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearch(val);
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  };
 
   const handleDownload = async (reportId, filename) => {
     try {
@@ -927,7 +1101,37 @@ function ReportsPage() {
     );
   };
 
-  const columns = [
+  const columns = useMemo(() => [
+    {
+      field: 'sno',
+      headerName: 'S.No',
+      width: 75,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => {
+        const index = reports.findIndex((r) => r.report_id === params.row.report_id);
+        const sno = paginationModel.page * paginationModel.pageSize + (index >= 0 ? index + 1 : 1);
+        return (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              fontWeight: 600,
+              fontFamily: 'monospace',
+            }}
+          >
+            {sno}
+          </Typography>
+        );
+      },
+    },
     {
       field: 'original_filename',
       headerName: 'File',
@@ -1113,7 +1317,7 @@ function ReportsPage() {
         );
       }
     }
-  ];
+  ], [pipelineStatus, isAdmin, reports, paginationModel]);
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -1123,7 +1327,7 @@ function ReportsPage() {
             Reports
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {total} reports in total
+            {rowCount} reports in total
           </Typography>
         </Box>
       </Box>
@@ -1134,7 +1338,7 @@ function ReportsPage() {
         placeholder="Search reports by filename..."
         size="small"
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={handleSearchChange}
         sx={{ mb: 3, width: { xs: '100%', sm: 360 } }}
         InputProps={{
           startAdornment: (
@@ -1152,11 +1356,11 @@ function ReportsPage() {
             rows={reports}
             columns={columns}
             getRowId={(row) => row.report_id}
-            rowCount={total}
+            rowCount={rowCount}
             loading={isLoading}
             paginationMode="server"
             paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
+            onPaginationModelChange={handlePaginationModelChange}
             pageSizeOptions={[5, 10, 25, 50]}
             disableRowSelectionOnClick
             rowHeight={80}
