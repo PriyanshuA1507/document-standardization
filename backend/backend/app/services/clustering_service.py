@@ -1,3 +1,4 @@
+import os
 import asyncio
 import logging
 import uuid
@@ -9,6 +10,11 @@ import re
 import numpy as np
 import pandas as pd
 import torch
+if hasattr(torch, "set_num_threads"):
+    try:
+        torch.set_num_threads(16)
+    except Exception:
+        pass
 from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
@@ -24,10 +30,26 @@ SBERT_MODEL_NAME = "all-mpnet-base-v2"  # 768-dim, highest quality sentence embe
 
 
 def _get_torch_device() -> str:
-    """Return 'cuda' if GPU is available and initialized, else 'cpu'."""
+    """Return functional CUDA device with the maximum available memory (at least 3GB free), or fallback to CPU."""
     try:
         if torch.cuda.is_available():
-            return "cuda"
+            best_dev = None
+            max_free = 0
+            for i in range(torch.cuda.device_count()):
+                try:
+                    free_mem, _ = torch.cuda.mem_get_info(i)
+                    if free_mem > max_free and free_mem >= 3 * 1024 * 1024 * 1024:
+                        max_free = free_mem
+                        best_dev = i
+                except Exception:
+                    continue
+            if best_dev is not None:
+                dev = f"cuda:{best_dev}"
+                t = torch.empty((16, 16), device=dev)
+                _ = torch.matmul(t, t)
+                del t
+                torch.cuda.empty_cache()
+                return dev
     except Exception as e:
         logger.warning(f"Error checking torch.cuda availability: {e}")
     return "cpu"
@@ -36,12 +58,13 @@ def _get_torch_device() -> str:
 def _get_device_metadata() -> Dict[str, Any]:
     """Retrieve structured compute device metadata for logging and client summaries."""
     device = _get_torch_device()
-    is_gpu = (device == "cuda")
+    is_gpu = device.startswith("cuda")
     gpu_name = None
     gpu_count = 0
     if is_gpu:
         try:
-            gpu_name = torch.cuda.get_device_name(0)
+            device_idx = int(device.split(":")[1]) if ":" in device else 0
+            gpu_name = torch.cuda.get_device_name(device_idx)
             gpu_count = torch.cuda.device_count()
         except Exception:
             gpu_name = "NVIDIA CUDA GPU"
@@ -55,7 +78,7 @@ def _get_device_metadata() -> Dict[str, Any]:
 
 
 async def _get_sbert_model() -> SentenceTransformer:
-    """Lazily load and cache the Sentence-BERT model (thread-safe, GPU-accelerated)."""
+    """Lazily load and cache the Sentence-BERT model (thread-safe, GPU-accelerated with CPU fallback)."""
     global _sbert_model
     if _sbert_model is None:
         async with _sbert_model_lock:
@@ -68,19 +91,54 @@ async def _get_sbert_model() -> SentenceTransformer:
                 )
 
                 def _load():
-                    model = SentenceTransformer(SBERT_MODEL_NAME, device=target_device)
-                    if target_device == "cuda":
-                        try:
-                            model = model.to("cuda")
-                        except Exception as err:
-                            logger.warning(f"Could not explicitly move SBERT model to cuda: {err}")
-                    return model
+                    try:
+                        return SentenceTransformer(SBERT_MODEL_NAME, device=target_device)
+                    except Exception as err:
+                        logger.warning(f"Could not load SBERT model on {target_device}: {err}. Falling back to cpu.")
+                        return SentenceTransformer(SBERT_MODEL_NAME, device="cpu")
 
                 _sbert_model = await asyncio.to_thread(_load)
                 logger.info(
                     f"Sentence-BERT model loaded successfully. Active device: {getattr(_sbert_model, 'device', target_device)}"
                 )
     return _sbert_model
+
+
+def _encode_texts_safe(
+    model: SentenceTransformer,
+    texts: List[str],
+    batch_size: int = 64,
+    normalize_embeddings: bool = True,
+    convert_to_numpy: bool = True
+) -> np.ndarray:
+    """Encode texts using SentenceTransformer with automatic GPU-to-CPU fallback on OOM / cuBLAS errors."""
+    dev = _get_torch_device()
+    try:
+        return model.encode(
+            texts,
+            show_progress_bar=False,
+            batch_size=batch_size,
+            normalize_embeddings=normalize_embeddings,
+            device=dev,
+            convert_to_numpy=convert_to_numpy
+        )
+    except Exception as e:
+        if "cuda" in str(e).lower() or "cublas" in str(e).lower() or "out of memory" in str(e).lower() or "same device" in str(e).lower():
+            logger.warning(f"GPU encoding failed ({e}). Falling back to fresh CPU SentenceTransformer...")
+            try:
+                cpu_model = SentenceTransformer(SBERT_MODEL_NAME, device="cpu")
+                return cpu_model.encode(
+                    texts,
+                    show_progress_bar=False,
+                    batch_size=batch_size,
+                    normalize_embeddings=normalize_embeddings,
+                    device="cpu",
+                    convert_to_numpy=convert_to_numpy
+                )
+            except Exception as cpu_err:
+                logger.error(f"CPU fallback encoding failed: {cpu_err}")
+                raise
+        raise
 
 from sqlalchemy import select, func, case, and_, desc, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -253,7 +311,8 @@ def _compute_quality_metrics(X: np.ndarray, labels: np.ndarray, extra_info: Opti
         return metrics
 
     try:
-        metrics["silhouette_score"] = round(float(silhouette_score(X_filtered, labels_filtered)), 4)
+        sample_size = min(2000, n_clustered) if n_clustered > 2000 else None
+        metrics["silhouette_score"] = round(float(silhouette_score(X_filtered, labels_filtered, sample_size=sample_size)), 4)
     except Exception:
         metrics["silhouette_score"] = None
 
@@ -335,20 +394,35 @@ def _execute_clustering_algorithm(
         metric = str(user_params.get("metric") or "euclidean")
         cluster_selection_method = str(user_params.get("cluster_selection_method") or "eom")
 
+        # Dimensionality reduction (768d -> 32d) for HDBSCAN space partitioning (Boruvka MST)
+        cluster_data = embeddings
+        pca_applied = False
+        if embeddings.shape[1] > 32 and len(embeddings) > 50:
+            try:
+                n_comp = min(32, len(embeddings) - 1)
+                pca = PCA(n_components=n_comp, svd_solver="randomized", random_state=42)
+                cluster_data = pca.fit_transform(embeddings)
+                pca_applied = True
+            except Exception as pca_err:
+                logger.warning(f"PCA pre-reduction skipped: {pca_err}")
+                cluster_data = embeddings
+
+        hdbscan_jobs = min(8, os.cpu_count() or 4)
         clusterer = hdbscan.HDBSCAN(
             min_cluster_size=min_cluster_size,
             min_samples=min_samples,
             metric=metric,
-            cluster_selection_method=cluster_selection_method
+            cluster_selection_method=cluster_selection_method,
+            core_dist_n_jobs=hdbscan_jobs
         )
-        labels = clusterer.fit_predict(embeddings)
+        labels = clusterer.fit_predict(cluster_data)
         probs = getattr(clusterer, "probabilities_", None)
         if probs is None:
             probs = np.ones(len(labels))
         else:
             probs = np.array([float(round(p, 4)) for p in probs])
 
-        return labels, probs, {"cluster_selection_method": cluster_selection_method}
+        return labels, probs, {"cluster_selection_method": cluster_selection_method, "pca_32d_applied": pca_applied}
 
 
 def _compute_2d_projection(
@@ -409,7 +483,17 @@ async def is_clustering_in_progress(db: AsyncSession, clustering_type: str) -> O
         .limit(1)
     )
     result = await db.execute(query)
-    return result.scalar_one_or_none()
+    run = result.scalar_one_or_none()
+    if run:
+        is_active_mem = clustering_type in _active_jobs
+        age_seconds = (datetime.now(timezone.utc) - run.created_at).total_seconds() if run.created_at else 0
+        if not is_active_mem and age_seconds > 120:
+            run.status = RunStatus.FAILED.value
+            run.error_message = "Execution interrupted or server restarted."
+            run.completed_at = datetime.now(timezone.utc)
+            await db.commit()
+            return None
+    return run
 
 
 async def trigger_vulnerability_clustering(
@@ -663,6 +747,8 @@ async def _run_vulnerability_clustering_job(run_id: uuid.UUID):
             combined_text = ". ".join(p.strip() for p in text_parts if p.strip()).strip()
             if not combined_text:
                 combined_text = title or "Unknown vulnerability"
+            if len(combined_text) > 1500:
+                combined_text = combined_text[:1497] + "..."
             texts.append(combined_text)
 
             if include_cvss:
@@ -688,19 +774,11 @@ async def _run_vulnerability_clustering_job(run_id: uuid.UUID):
         target_device = _get_torch_device()
 
         def _compute_clustering_in_thread():
-            if target_device == "cuda":
-                try:
-                    sbert_model.to("cuda")
-                except Exception as e:
-                    logger.warning(f"Could not transfer sbert_model to cuda: {e}")
-
-            # Encode selected vulnerability texts into 768-dim semantic vectors
-            embeddings = sbert_model.encode(
+            embeddings = _encode_texts_safe(
+                sbert_model,
                 texts,
-                show_progress_bar=False,
                 batch_size=64,
                 normalize_embeddings=True,
-                device=target_device,
                 convert_to_numpy=True,
             )
 
@@ -1026,18 +1104,11 @@ async def _run_report_clustering_job(run_id: uuid.UUID):
         dev_meta = _get_device_metadata()
 
         def _compute_report_clustering_in_thread():
-            if target_device == "cuda":
-                try:
-                    sbert_model.to("cuda")
-                except Exception as e:
-                    logger.warning(f"Could not transfer sbert_model to cuda: {e}")
-
-            embeddings = sbert_model.encode(
+            embeddings = _encode_texts_safe(
+                sbert_model,
                 texts,
-                show_progress_bar=False,
                 batch_size=64,
                 normalize_embeddings=True,
-                device=target_device,
                 convert_to_numpy=True,
             )
 
@@ -1601,8 +1672,7 @@ async def get_run_projection_2d(db: AsyncSession, run_id: uuid.UUID) -> List[Dic
             return []
         texts = [m.member_metadata.get("title", "") if m.member_metadata else "" for m in members]
         sbert = await _get_sbert_model()
-        target_device = _get_torch_device()
-        embeds = await asyncio.to_thread(sbert.encode, texts, False, 64, True, target_device, True)
+        embeds = await asyncio.to_thread(_encode_texts_safe, sbert, texts, 64, True, True)
         recs = [
             {
                 "finding_id": str(m.finding_id),
@@ -1627,8 +1697,7 @@ async def get_run_projection_2d(db: AsyncSession, run_id: uuid.UUID) -> List[Dic
             return []
         texts = [m.member_metadata.get("filename", "") if m.member_metadata else "" for m in members]
         sbert = await _get_sbert_model()
-        target_device = _get_torch_device()
-        embeds = await asyncio.to_thread(sbert.encode, texts, False, 64, True, target_device, True)
+        embeds = await asyncio.to_thread(_encode_texts_safe, sbert, texts, 64, True, True)
         recs = [
             {
                 "report_id": str(m.report_id),
@@ -1703,12 +1772,13 @@ async def compute_optimal_k_sweep(
             texts.append(txt)
 
     sbert = await _get_sbert_model()
-    target_device = _get_torch_device()
 
     def _sweep_in_thread():
-        embeds = sbert.encode(
-            texts, show_progress_bar=False, batch_size=64,
-            normalize_embeddings=True, device=target_device, convert_to_numpy=True
+        embeds = _encode_texts_safe(
+            sbert,
+            texts,
+            batch_size=64,
+            normalize_embeddings=True,
         )
         if num_vecs:
             scaler = StandardScaler()

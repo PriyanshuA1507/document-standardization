@@ -210,9 +210,16 @@ async def audit_score_anomalies(
 
     # Report-level Multi-Dimensional Feature Engineering
     report_list = []
-    for (rid, rtitle, ustatus, pcount, rdate, aid, aname, acode, emp), grp in df_raw.groupby(
-        ["report_id", "report_title", "upload_status", "page_count", "created_at", "agency_id", "agency_name", "agency_code", "cert_in_empanelled"]
-    ):
+    for rid, grp in df_raw.groupby("report_id", dropna=False):
+        first = grp.iloc[0]
+        rtitle = first["report_title"]
+        ustatus = first["upload_status"]
+        pcount = first["page_count"]
+        rdate = first["created_at"]
+        aid = first["agency_id"]
+        aname = first["agency_name"]
+        acode = first["agency_code"]
+        emp = first["cert_in_empanelled"]
         finds = grp[grp["finding_id"].notnull()]
         n_finds = len(finds)
 
@@ -424,14 +431,16 @@ async def audit_score_anomalies(
         s = search.lower().strip()
         filtered_data = [
             a for a in filtered_data
-            if s in a["report_title"].lower() or s in a["agency_name"].lower() or s in a["agency_code"].lower()
+            if s in str(a.get("report_title") or "").lower()
+            or s in str(a.get("agency_name") or "").lower()
+            or s in str(a.get("agency_code") or "").lower()
         ]
 
     return {
         "status": "success",
         "total_reports": len(anomalies_out),
-        "total_agencies": len({a["agency_id"] for a in anomalies_out if a["agency_id"]}),
-        "anomalies_detected": sum(1 for a in anomalies_out if a["is_anomaly"]),
+        "total_agencies": len({a["agency_id"] for a in anomalies_out if a.get("agency_id")}),
+        "anomalies_detected": sum(1 for a in anomalies_out if a.get("is_anomaly")),
         "contamination_applied": float(contamination),
         "fleet_benchmarks": fleet_benchmarks,
         "data": filtered_data

@@ -114,6 +114,9 @@ export default function ReportClusteringModule() {
             clearInterval(pollingTimerRef.current);
             pollingTimerRef.current = null;
             setActiveRun(null);
+            if (runData.status === 'FAILED') {
+              setError(runData.error_message || 'Report clustering run failed.');
+            }
             const latestRes = await api.get('/api/clustering/latest/REPORT');
             if (latestRes.data?.status === 'success') {
               setCompletedRun(latestRes.data.data.latest_completed_run);

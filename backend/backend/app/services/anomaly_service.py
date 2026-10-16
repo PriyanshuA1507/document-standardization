@@ -8,6 +8,11 @@ from typing import Optional, Dict, Any, List, Tuple
 import numpy as np
 import pandas as pd
 import torch
+if hasattr(torch, "set_num_threads"):
+    try:
+        torch.set_num_threads(16)
+    except Exception:
+        pass
 from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import IsolationForest
@@ -41,10 +46,26 @@ SBERT_MODEL_NAME = "all-mpnet-base-v2"  # 768-dim, locally cached sentence embed
 
 
 def _get_torch_device() -> str:
-    """Return 'cuda' if GPU is available and initialized, else 'cpu'."""
+    """Return functional CUDA device with the maximum available memory (at least 3GB free), or fallback to CPU."""
     try:
         if torch.cuda.is_available():
-            return "cuda"
+            best_dev = None
+            max_free = 0
+            for i in range(torch.cuda.device_count()):
+                try:
+                    free_mem, _ = torch.cuda.mem_get_info(i)
+                    if free_mem > max_free and free_mem >= 3 * 1024 * 1024 * 1024:
+                        max_free = free_mem
+                        best_dev = i
+                except Exception:
+                    continue
+            if best_dev is not None:
+                dev = f"cuda:{best_dev}"
+                t = torch.empty((16, 16), device=dev)
+                _ = torch.matmul(t, t)
+                del t
+                torch.cuda.empty_cache()
+                return dev
     except Exception as e:
         logger.warning(f"Error checking torch.cuda availability: {e}")
     return "cpu"
@@ -53,12 +74,13 @@ def _get_torch_device() -> str:
 def _get_device_metadata() -> Dict[str, Any]:
     """Retrieve structured compute device metadata for logging and client summaries."""
     device = _get_torch_device()
-    is_gpu = (device == "cuda")
+    is_gpu = device.startswith("cuda")
     gpu_name = None
     gpu_count = 0
     if is_gpu:
         try:
-            gpu_name = torch.cuda.get_device_name(0)
+            device_idx = int(device.split(":")[1]) if ":" in device else 0
+            gpu_name = torch.cuda.get_device_name(device_idx)
             gpu_count = torch.cuda.device_count()
         except Exception:
             gpu_name = "NVIDIA CUDA GPU"
@@ -72,7 +94,7 @@ def _get_device_metadata() -> Dict[str, Any]:
 
 
 async def _get_sbert_model() -> SentenceTransformer:
-    """Lazily load and cache the Sentence-BERT model (thread-safe, GPU-accelerated)."""
+    """Lazily load and cache the Sentence-BERT model (thread-safe, GPU-accelerated with CPU fallback)."""
     global _sbert_model
     if _sbert_model is None:
         async with _sbert_model_lock:
@@ -85,19 +107,54 @@ async def _get_sbert_model() -> SentenceTransformer:
                 )
 
                 def _load():
-                    model = SentenceTransformer(SBERT_MODEL_NAME, device=target_device)
-                    if target_device == "cuda":
-                        try:
-                            model = model.to("cuda")
-                        except Exception as err:
-                            logger.warning(f"Could not explicitly move SBERT model to cuda: {err}")
-                    return model
+                    try:
+                        return SentenceTransformer(SBERT_MODEL_NAME, device=target_device)
+                    except Exception as err:
+                        logger.warning(f"Could not load SBERT model on {target_device}: {err}. Falling back to cpu.")
+                        return SentenceTransformer(SBERT_MODEL_NAME, device="cpu")
 
                 _sbert_model = await asyncio.to_thread(_load)
                 logger.info(
                     f"Sentence-BERT model loaded successfully. Active device: {getattr(_sbert_model, 'device', target_device)}"
                 )
     return _sbert_model
+
+
+def _encode_texts_safe(
+    model: SentenceTransformer,
+    texts: List[str],
+    batch_size: int = 32,
+    normalize_embeddings: bool = True,
+    convert_to_numpy: bool = True
+) -> np.ndarray:
+    """Encode texts using SentenceTransformer with automatic GPU-to-CPU fallback on OOM / cuBLAS errors."""
+    dev = _get_torch_device()
+    try:
+        return model.encode(
+            texts,
+            show_progress_bar=False,
+            batch_size=batch_size,
+            normalize_embeddings=normalize_embeddings,
+            device=dev,
+            convert_to_numpy=convert_to_numpy
+        )
+    except Exception as e:
+        if "cuda" in str(e).lower() or "cublas" in str(e).lower() or "out of memory" in str(e).lower() or "same device" in str(e).lower():
+            logger.warning(f"GPU encoding failed ({e}). Falling back to fresh CPU SentenceTransformer...")
+            try:
+                cpu_model = SentenceTransformer(SBERT_MODEL_NAME, device="cpu")
+                return cpu_model.encode(
+                    texts,
+                    show_progress_bar=False,
+                    batch_size=batch_size,
+                    normalize_embeddings=normalize_embeddings,
+                    device="cpu",
+                    convert_to_numpy=convert_to_numpy
+                )
+            except Exception as cpu_err:
+                logger.error(f"CPU fallback encoding failed: {cpu_err}")
+                raise
+        raise
 
 
 def get_anomaly_config_options() -> Dict[str, Any]:
@@ -361,13 +418,17 @@ async def _extract_report_dataset(db: AsyncSession) -> pd.DataFrame:
     df_raw = pd.DataFrame(records)
 
     report_list = []
-    group_cols = [
-        "report_id", "report_title", "upload_status", "page_count",
-        "file_size", "created_at", "agency_id", "agency_name",
-        "agency_code", "cert_in_empanelled"
-    ]
-
-    for (rid, rtitle, ustatus, pcount, fsize, rdate, aid, aname, acode, emp), grp in df_raw.groupby(group_cols):
+    for rid, grp in df_raw.groupby("report_id", dropna=False):
+        first = grp.iloc[0]
+        rtitle = first["report_title"]
+        ustatus = first["upload_status"]
+        pcount = first["page_count"]
+        fsize = first["file_size"]
+        rdate = first["created_at"]
+        aid = first["agency_id"]
+        aname = first["agency_name"]
+        acode = first["agency_code"]
+        emp = first["cert_in_empanelled"]
         finds = grp[grp["finding_id"].notnull()]
         n_finds = len(finds)
 
@@ -592,11 +653,12 @@ async def execute_anomaly_detection_job(run_id: uuid.UUID, config: Dict[str, Any
             sbert = await _get_sbert_model()
 
             def _encode_texts():
-                return sbert.encode(
+                return _encode_texts_safe(
+                    sbert,
                     narrative_texts,
                     batch_size=32,
-                    show_progress_bar=False,
-                    normalize_embeddings=True
+                    normalize_embeddings=True,
+                    convert_to_numpy=True
                 )
 
             embeddings = await asyncio.to_thread(_encode_texts)

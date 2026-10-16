@@ -146,7 +146,7 @@ services:
       --max-model-len 262144
       --enable-prefix-caching
       --max-num-seqs 512
-      --gpu-memory-utilization 0.90
+      --gpu-memory-utilization 0.80
       --trust-remote-code
       --tensor-parallel-size 8
     deploy:

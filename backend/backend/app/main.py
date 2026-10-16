@@ -19,14 +19,40 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: seed admin user and roles on startup."""
+    """Application lifespan: seed admin user and roles on startup, cleanup orphan jobs."""
     logger.info("Starting application...")
     try:
         async with AsyncSessionLocal() as session:
             await seed_roles_and_admin(session)
             logger.info("Database seeded successfully")
+
+            # Clean up any orphaned RUNNING or QUEUED jobs from previous server instances
+            from app.models.clustering import ClusteringRun, RunStatus
+            from app.models.anomaly import AnomalyRun, AnomalyRunStatus
+            from app.models.trend_analysis import TrendAnalysisRun, TrendRunStatus
+            from sqlalchemy import update
+            from datetime import datetime, timezone
+
+            now = datetime.now(timezone.utc)
+            await session.execute(
+                update(ClusteringRun)
+                .where(ClusteringRun.status.in_([RunStatus.RUNNING.value, RunStatus.QUEUED.value]))
+                .values(status=RunStatus.FAILED.value, error_message="Interrupted by server restart", completed_at=now)
+            )
+            await session.execute(
+                update(AnomalyRun)
+                .where(AnomalyRun.status.in_([AnomalyRunStatus.RUNNING.value, AnomalyRunStatus.QUEUED.value]))
+                .values(status=AnomalyRunStatus.FAILED.value, error_message="Interrupted by server restart", completed_at=now)
+            )
+            await session.execute(
+                update(TrendAnalysisRun)
+                .where(TrendAnalysisRun.status.in_([TrendRunStatus.RUNNING.value, TrendRunStatus.QUEUED.value]))
+                .values(status=TrendRunStatus.FAILED.value, error_message="Interrupted by server restart", completed_at=now)
+            )
+            await session.commit()
+            logger.info("Orphaned runs cleaned up on startup successfully")
     except Exception as e:
-        logger.error(f"Failed to seed database: {e}")
+        logger.error(f"Failed during startup initialization: {e}")
     yield
     logger.info("Shutting down application...")
 

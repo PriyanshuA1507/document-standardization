@@ -155,6 +155,9 @@ export default function ReportAnomalyDetectionModule() {
             clearInterval(pollIntervalRef.current);
             setIsExecuting(false);
             setExecutingRunId(null);
+            if (st.status === 'FAILED') {
+              setError(st.error_message || 'Anomaly detection run failed.');
+            }
 
             // Fetch completed run details
             const detailRes = await api.get(`/api/anomaly/runs/${runId}`);

@@ -188,7 +188,7 @@ export default function AgencyAnomalyDetectionModule() {
       x: item.total_findings,
       y: item.avg_cvss,
       z: item.critical_high_count || 1,
-      name: item.agency_name,
+      name: item.agency_name || 'Unassigned Agency',
       is_anomaly: item.is_anomaly,
       score: item.anomaly_score,
       reports: item.total_reports,
@@ -201,12 +201,15 @@ export default function AgencyAnomalyDetectionModule() {
   const outlierComparisonData = useMemo(() => {
     const outliers = data.filter(d => d.is_anomaly).slice(0, 5);
     if (!outliers.length) return [];
-    return outliers.map(o => ({
-      name: o.agency_name.length > 18 ? o.agency_name.slice(0, 18) + '...' : o.agency_name,
-      avg_cvss: o.avg_cvss,
-      fleet_median: fleetBenchmarks?.fleet_median_cvss || 7.0,
-      p90_cvss: o.p90_cvss
-    }));
+    return outliers.map(o => {
+      const aName = o.agency_name || 'Unassigned Agency';
+      return {
+        name: aName.length > 18 ? aName.slice(0, 18) + '...' : aName,
+        avg_cvss: o.avg_cvss,
+        fleet_median: fleetBenchmarks?.fleet_median_cvss || 7.0,
+        p90_cvss: o.p90_cvss
+      };
+    });
   }, [data, fleetBenchmarks]);
 
   const outlierCount = data.filter(d => d.is_anomaly).length;
