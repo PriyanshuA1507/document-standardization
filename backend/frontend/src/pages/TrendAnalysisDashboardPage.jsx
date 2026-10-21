@@ -11,6 +11,9 @@ import api from '../api/axios';
 import HowItWorksBanner from '../components/trend_forecasting/HowItWorksBanner';
 import DataReadinessPanel from '../components/trend_forecasting/DataReadinessPanel';
 import RunControlBar from '../components/trend_forecasting/RunControlBar';
+import ForecastingConfigConsole from '../components/trend_forecasting/ForecastingConfigConsole';
+import ForecastQualityMetricsCard from '../components/trend_forecasting/ForecastQualityMetricsCard';
+import ForecastComparisonModal from '../components/trend_forecasting/ForecastComparisonModal';
 import TrendOverviewCards from '../components/trend_forecasting/TrendOverviewCards';
 import FindingTrendsCharts from '../components/trend_forecasting/FindingTrendsCharts';
 import RecurringWeaknessModule from '../components/trend_forecasting/RecurringWeaknessModule';
@@ -45,6 +48,10 @@ export default function TrendAnalysisDashboardPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRuns, setHistoryRuns] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
+  const [compareRunId1, setCompareRunId1] = useState(null);
+  const [compareRunId2, setCompareRunId2] = useState(null);
 
   const [drilldownOpen, setDrilldownOpen] = useState(false);
   const [drilldownPeriod, setDrilldownPeriod] = useState(null);
@@ -136,12 +143,13 @@ export default function TrendAnalysisDashboardPage() {
   };
 
   // 3. User-Initiated Explicit Trigger
-  const handleTriggerRun = async () => {
+  const handleTriggerRun = async (customPayload = null) => {
     try {
       setError(null);
       setIsRunning(true);
 
-      const payload = {
+      const payload = customPayload || {
+        model: params.model || 'TIMEFM_3',
         date_basis: params.date_basis,
         frequency: params.frequency,
         horizon: params.horizon,
@@ -264,14 +272,14 @@ export default function TrendAnalysisDashboardPage() {
             Trend Analysis & Time-Series Forecasting
           </Typography>
           <Typography variant="body2" sx={{ color: '#94A3B8', mt: 0.5 }}>
-            Powered by <strong>Google TimesFM-3</strong> (Zero-Shot Foundation Model for Multivariate Forecasting) and CERT-In / MeitY retest closure analytics across normalized audit evidence.
+            Powered by <strong>Tri-Model Foundation AI</strong> (Google TimeFM 3.0, Amazon Chronos-2, Salesforce Moirai 2.0) and CERT-In / MeitY retest closure analytics across normalized audit evidence.
           </Typography>
         </Box>
 
         {currentRunData && (
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <Chip
-              label="TimesFM-3 Foundation Engine"
+              label={currentRunData.forecast_results?.engine_name || 'TimesFM-3 Foundation Engine'}
               size="medium"
               sx={{ bgcolor: 'rgba(0, 230, 118, 0.15)', color: '#00E676', border: '1px solid rgba(0, 230, 118, 0.35)', fontWeight: 700 }}
             />
@@ -306,11 +314,20 @@ export default function TrendAnalysisDashboardPage() {
       {/* 1. Visual Plain-English Explainer: What We Give -> AI Engine -> What It Gives */}
       <HowItWorksBanner />
 
-      {/* 2. Interactive Run Control Bar */}
+      {/* 2. Interactive Forecasting AI Model & Parameter Configuration Console */}
+      <ForecastingConfigConsole
+        onTriggerRun={handleTriggerRun}
+        isRunning={isRunning}
+        activeRun={activeRun}
+        currentParams={params}
+        onOpenCompare={handleOpenHistory}
+      />
+
+      {/* 3. Interactive Run Control Bar */}
       <RunControlBar
         params={params}
         onChangeParams={setParams}
-        onTriggerRun={handleTriggerRun}
+        onTriggerRun={() => handleTriggerRun()}
         onOpenHistory={handleOpenHistory}
         isRunning={isRunning}
         activeRun={activeRun}
@@ -386,6 +403,15 @@ export default function TrendAnalysisDashboardPage() {
         </Card>
       )}
 
+      {/* Model Quality & Backtest Validation Metrics Card */}
+      {forecastResults && (
+        <ForecastQualityMetricsCard
+          forecastResults={forecastResults}
+          parameters={currentRunData?.parameters}
+          summary={currentRunData?.summary}
+        />
+      )}
+
       {/* 6. Section B: Interactive Finding Trends Charts (Tabbed & Simplified) */}
       {metrics && (
         <FindingTrendsCharts
@@ -409,6 +435,19 @@ export default function TrendAnalysisDashboardPage() {
         historyRuns={historyRuns}
         isLoading={historyLoading}
         onSelectRun={handleSelectPastRun}
+        onOpenCompare={(r1, r2) => {
+          setCompareRunId1(r1);
+          setCompareRunId2(r2);
+          setCompareModalOpen(true);
+        }}
+      />
+
+      {/* Cross-Run Side-by-Side Model Comparison Modal */}
+      <ForecastComparisonModal
+        open={compareModalOpen}
+        onClose={() => setCompareModalOpen(false)}
+        runId1={compareRunId1}
+        runId2={compareRunId2}
       />
 
       {/* Drill-down Modal */}

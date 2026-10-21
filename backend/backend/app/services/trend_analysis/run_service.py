@@ -4,6 +4,7 @@ import uuid
 import traceback
 from datetime import datetime, date, timezone
 from typing import Optional, Dict, Any, List, Tuple
+import numpy as np
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, func, and_, desc
@@ -171,10 +172,17 @@ async def _execute_trend_analysis_job(run_id: uuid.UUID, params: Dict[str, Any])
                 await session.commit()
 
         # Step 6: Multi-target Forecasting Engine
+        model_id = params.get("model", "TIMEFM_3")
+        selected_targets = params.get("selected_targets")
+        model_params = params.get("parameters", {})
+
         forecast_output = ForecastingEngine.run_multi_target_forecast(
             aggregated_data=aggregated,
             horizon=horizon,
             frequency=frequency,
+            model_id=model_id,
+            selected_targets=selected_targets,
+            parameters=model_params,
         )
 
         # Step 7: Persist Run Results (100% Completed)
@@ -282,6 +290,13 @@ async def list_runs_history(
 
     items = []
     for r in runs:
+        f_results = r.forecast_results or {}
+        tot_target = (f_results.get("targets") or {}).get("total_findings") or {}
+        b_metrics = tot_target.get("backtest_metrics") or {}
+        wape = b_metrics.get("wape")
+        engine_name = f_results.get("engine_name") or tot_target.get("model_name") or "TimeFM 3.0"
+        model_id = (r.parameters or {}).get("model") or f_results.get("model_id") or "TIMEFM_3"
+
         items.append({
             "run_id": str(r.run_id),
             "status": r.status,
@@ -291,6 +306,10 @@ async def list_runs_history(
             "horizon": (r.parameters or {}).get("horizon", 6),
             "date_basis": (r.parameters or {}).get("date_basis", "effective"),
             "total_findings": (r.summary or {}).get("overview", {}).get("total_findings", {}).get("value", 0),
+            "model_id": model_id,
+            "engine_name": engine_name,
+            "wape": wape,
+            "targets_count": len(f_results.get("targets") or {}),
         })
 
     return items, total
@@ -396,3 +415,203 @@ async def get_drilldown_findings(
         item["observation_date"] = item["observation_date"].isoformat() if isinstance(item["observation_date"], (date, datetime)) else str(item["observation_date"])
 
     return paged, total_count
+
+
+def get_forecasting_config_options() -> Dict[str, Any]:
+    """Return available models, hyperparameters, target channels, and presets."""
+    from app.services.trend_analysis.forecasting_engine import get_forecasting_config_options as get_engine_options
+    return get_engine_options()
+
+
+async def compare_forecast_runs(
+    db: AsyncSession,
+    run_id_1: uuid.UUID,
+    run_id_2: uuid.UUID,
+) -> Dict[str, Any]:
+    """
+    Cross-Run Comparison Matrix:
+    Evaluates two historical or active forecast runs side-by-side with delta error metrics.
+    """
+    run1 = await db.get(TrendAnalysisRun, run_id_1)
+    run2 = await db.get(TrendAnalysisRun, run_id_2)
+
+    if not run1:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Run {run_id_1} not found.")
+    if not run2:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Run {run_id_2} not found.")
+
+    res1 = run1.forecast_results or {}
+    res2 = run2.forecast_results or {}
+    targets1 = res1.get("targets", {})
+    targets2 = res2.get("targets", {})
+
+    p1 = run1.parameters or {}
+    p2 = run2.parameters or {}
+
+    common_keys = [k for k in targets1.keys() if k in targets2]
+
+    channel_comparisons = []
+    wape_deltas = []
+    mae_deltas = []
+
+    for k in common_keys:
+        t1 = targets1[k]
+        t2 = targets2[k]
+        m1 = t1.get("backtest_metrics", {})
+        m2 = t2.get("backtest_metrics", {})
+
+        wape1 = m1.get("wape")
+        wape2 = m2.get("wape")
+        mae1 = m1.get("mae")
+        mae2 = m2.get("mae")
+        rmse1 = m1.get("rmse")
+        rmse2 = m2.get("rmse")
+
+        delta_wape = round(wape1 - wape2, 4) if wape1 is not None and wape2 is not None else None
+        delta_mae = round(mae1 - mae2, 2) if mae1 is not None and mae2 is not None else None
+        delta_rmse = round(rmse1 - rmse2, 2) if rmse1 is not None and rmse2 is not None else None
+
+        if delta_wape is not None:
+            wape_deltas.append(delta_wape)
+        if delta_mae is not None:
+            mae_deltas.append(delta_mae)
+
+        # Winner: lower WAPE is better
+        winner = "run_1" if (wape1 or 999) < (wape2 or 999) else "run_2" if (wape2 or 999) < (wape1 or 999) else "tie"
+
+        # Trajectory alignment
+        pts1 = {pt["period"]: pt for pt in t1.get("forecast_points", [])}
+        pts2 = {pt["period"]: pt for pt in t2.get("forecast_points", [])}
+        all_future_periods = sorted(list(set(list(pts1.keys()) + list(pts2.keys()))))
+
+        aligned_trajectory = []
+        for fp in all_future_periods:
+            aligned_trajectory.append({
+                "period": fp,
+                "run1_pred": pts1.get(fp, {}).get("predicted"),
+                "run1_lower_80": pts1.get(fp, {}).get("lower_80"),
+                "run1_upper_80": pts1.get(fp, {}).get("upper_80"),
+                "run2_pred": pts2.get(fp, {}).get("predicted"),
+                "run2_lower_80": pts2.get(fp, {}).get("lower_80"),
+                "run2_upper_80": pts2.get(fp, {}).get("upper_80"),
+            })
+
+        channel_comparisons.append({
+            "target_key": k,
+            "target_label": t1.get("target_label", k),
+            "run1_model": t1.get("model_name"),
+            "run2_model": t2.get("model_name"),
+            "run1_wape": wape1,
+            "run2_wape": wape2,
+            "delta_wape": delta_wape,
+            "run1_mae": mae1,
+            "run2_mae": mae2,
+            "delta_mae": delta_mae,
+            "run1_rmse": rmse1,
+            "run2_rmse": rmse2,
+            "delta_rmse": delta_rmse,
+            "winner": winner,
+            "trajectory": aligned_trajectory,
+        })
+
+    avg_delta_wape = round(float(np.mean(wape_deltas)), 4) if wape_deltas else 0.0
+    avg_delta_mae = round(float(np.mean(mae_deltas)), 2) if mae_deltas else 0.0
+    overall_winner = "run_1" if avg_delta_wape < 0 else "run_2" if avg_delta_wape > 0 else "tie"
+
+    return {
+        "run_1": {
+            "run_id": str(run1.run_id),
+            "status": run1.status,
+            "created_at": run1.created_at.isoformat(),
+            "model_id": p1.get("model", res1.get("model_id", "TIMEFM_3")),
+            "engine_name": res1.get("engine_name", "TimeFM 3.0"),
+            "frequency": p1.get("frequency", "M"),
+            "horizon": p1.get("horizon", 6),
+            "date_basis": p1.get("date_basis", "effective"),
+            "total_findings": (run1.summary or {}).get("overview", {}).get("total_findings", {}).get("value", 0),
+        },
+        "run_2": {
+            "run_id": str(run2.run_id),
+            "status": run2.status,
+            "created_at": run2.created_at.isoformat(),
+            "model_id": p2.get("model", res2.get("model_id", "TIMEFM_3")),
+            "engine_name": res2.get("engine_name", "TimeFM 3.0"),
+            "frequency": p2.get("frequency", "M"),
+            "horizon": p2.get("horizon", 6),
+            "date_basis": p2.get("date_basis", "effective"),
+            "total_findings": (run2.summary or {}).get("overview", {}).get("total_findings", {}).get("value", 0),
+        },
+        "delta_summary": {
+            "avg_delta_wape": avg_delta_wape,
+            "avg_delta_mae": avg_delta_mae,
+            "overall_winner": overall_winner,
+            "wape_improved": avg_delta_wape < 0,
+        },
+        "channel_comparisons": channel_comparisons,
+    }
+
+
+async def compute_horizon_sensitivity(
+    db: AsyncSession,
+    model: str = "TIMEFM_3",
+    selected_targets: Optional[List[str]] = None,
+    horizons: Optional[List[int]] = None,
+    date_basis: str = "effective",
+    frequency: str = "M",
+    agency_id: Optional[uuid.UUID] = None,
+) -> Dict[str, Any]:
+    """
+    Sensitivity Analysis Sweep:
+    Simulates rolling backtests across multiple horizon steps (e.g. 3, 6, 9, 12)
+    to discover optimal horizon reliability.
+    """
+    test_horizons = horizons or [3, 6, 9, 12]
+
+    findings, reports_map, retests = await TrendDataService.extract_raw_records(
+        db=db, date_basis=date_basis, agency_id=agency_id
+    )
+    aggregated = TrendDataService.aggregate_time_series(
+        findings=findings,
+        reports_map=reports_map,
+        retest_closures=retests,
+        frequency=frequency,
+    )
+
+    periods = aggregated.get("periods", [])
+    metrics = aggregated.get("metrics", {})
+    tot_vals = [m.get("count", 0) for m in metrics.get("total_findings", [])]
+
+    sweep_points = []
+    best_h = test_horizons[0]
+    best_wape = 999.0
+
+    for h in test_horizons:
+        fc = ForecastingEngine.run_multi_target_forecast(
+            aggregated_data=aggregated,
+            horizon=h,
+            frequency=frequency,
+            model_id=model,
+            selected_targets=selected_targets or ["total_findings"],
+        )
+        tot_target = fc.get("targets", {}).get("total_findings", {})
+        wape = tot_target.get("backtest_metrics", {}).get("wape", 0.25)
+        mae = tot_target.get("backtest_metrics", {}).get("mae", 5.0)
+
+        if wape < best_wape:
+            best_wape = wape
+            best_h = h
+
+        sweep_points.append({
+            "horizon": h,
+            "horizon_label": f"{h} {('Weeks' if frequency == 'W' else 'Months')}",
+            "wape": wape,
+            "mae": mae,
+        })
+
+    return {
+        "model_id": model,
+        "frequency": frequency,
+        "optimal_horizon": best_h,
+        "optimal_wape": best_wape,
+        "sweep_curve": sweep_points,
+    }

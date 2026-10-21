@@ -269,3 +269,86 @@ class TestTrendForecastingIntegration(unittest.IsolatedAsyncioTestCase):
             self.assertGreaterEqual(rep_count, 800, "Reports table must remain intact.")
             self.assertGreaterEqual(obs_count, 10000, "Detailed observations table must remain intact.")
             self.assertGreaterEqual(cluster_count, 1, "Clustering runs must remain intact.")
+
+    async def test_11_config_options_discovery_endpoint(self):
+        """Verify that config-options endpoint returns all 4 models, parameters schemas, target channels, and presets."""
+        from app.services.trend_analysis.forecasting_engine import get_forecasting_config_options
+        options = get_forecasting_config_options()
+        self.assertIn("models", options)
+        self.assertIn("target_channels", options)
+        self.assertIn("presets", options)
+
+        model_ids = [m["id"] for m in options["models"]]
+        self.assertIn("TIMEFM_3", model_ids)
+        self.assertIn("CHRONOS_2", model_ids)
+        self.assertIn("MOIRAI_2", model_ids)
+        self.assertIn("ENSEMBLE", model_ids)
+
+        target_keys = [t["key"] for t in options["target_channels"]]
+        self.assertIn("total_findings", target_keys)
+        self.assertIn("severity_critical", target_keys)
+        self.assertIn("repeat_findings", target_keys)
+        self.assertIn("verified_closures", target_keys)
+
+    async def test_12_chronos_and_moirai_multi_model_execution(self):
+        """Verify that Chronos-2 and Moirai 2.0 execute zero-shot forecasts on historical data."""
+        async with AsyncSessionLocal() as session:
+            findings, reports_map, retests = await TrendDataService.extract_raw_records(session, date_basis="effective")
+            agg = TrendDataService.aggregate_time_series(findings, reports_map, retests, frequency="M")
+
+            # 1. Test Chronos-2
+            fc_chronos = ForecastingEngine.run_multi_target_forecast(
+                aggregated_data=agg,
+                horizon=3,
+                frequency="M",
+                model_id="CHRONOS_2",
+                selected_targets=["total_findings", "severity_critical"],
+            )
+            self.assertEqual(fc_chronos["status"], "completed")
+            self.assertEqual(fc_chronos["model_id"], "CHRONOS_2")
+            self.assertIn("total_findings", fc_chronos["targets"])
+            self.assertEqual(len(fc_chronos["targets"]["total_findings"]["forecast_points"]), 3)
+
+            # 2. Test Moirai 2.0
+            fc_moirai = ForecastingEngine.run_multi_target_forecast(
+                aggregated_data=agg,
+                horizon=3,
+                frequency="M",
+                model_id="MOIRAI_2",
+                selected_targets=["total_findings", "severity_critical"],
+            )
+            self.assertEqual(fc_moirai["status"], "completed")
+            self.assertEqual(fc_moirai["model_id"], "MOIRAI_2")
+            self.assertIn("total_findings", fc_moirai["targets"])
+            self.assertEqual(len(fc_moirai["targets"]["total_findings"]["forecast_points"]), 3)
+
+    async def test_13_cross_run_comparison_matrix(self):
+        """Verify side-by-side run comparison calculating delta WAPE and aligned trajectories."""
+        from app.services.trend_analysis.run_service import compare_forecast_runs
+
+        async with AsyncSessionLocal() as session:
+            # Create two runs
+            run1 = await trigger_trend_analysis_run(session, parameters={"model": "TIMEFM_3", "horizon": 3})
+            # Wait for run1
+            for _ in range(40):
+                await asyncio.sleep(0.5)
+                async with AsyncSessionLocal() as p_session:
+                    st = await get_run_status(p_session, run1.run_id)
+                    if st and st["status"] in ("COMPLETED", "FAILED"):
+                        break
+
+            run2 = await trigger_trend_analysis_run(session, parameters={"model": "CHRONOS_2", "horizon": 3})
+            # Wait for run2
+            for _ in range(40):
+                await asyncio.sleep(0.5)
+                async with AsyncSessionLocal() as p_session:
+                    st = await get_run_status(p_session, run2.run_id)
+                    if st and st["status"] in ("COMPLETED", "FAILED"):
+                        break
+
+            async with AsyncSessionLocal() as comp_session:
+                cmp = await compare_forecast_runs(comp_session, run1.run_id, run2.run_id)
+                self.assertIn("delta_summary", cmp)
+                self.assertIn("channel_comparisons", cmp)
+                self.assertIn("avg_delta_wape", cmp["delta_summary"])
+                self.assertGreater(len(cmp["channel_comparisons"]), 0)

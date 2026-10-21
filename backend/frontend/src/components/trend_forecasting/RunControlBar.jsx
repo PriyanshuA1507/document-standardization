@@ -21,6 +21,14 @@ export default function RunControlBar({
   const defaultHorizon = isWeekly ? 12 : 6;
   const currentHorizon = Number(params.horizon) || defaultHorizon;
 
+  const MODEL_LABELS = {
+    TIMEFM_3: 'TimeFM 3.0',
+    CHRONOS_2: 'Chronos-2',
+    MOIRAI_2: 'Moirai 2.0',
+    ENSEMBLE: 'Consensus Ensemble',
+  };
+  const activeModelName = MODEL_LABELS[params?.model] || 'TimesFM-3';
+
   const baseHorizonOptions = isWeekly
     ? [
         { value: 4, label: '4 Weeks' },
@@ -173,7 +181,7 @@ export default function RunControlBar({
                 },
               }}
             >
-              {isRunning ? 'Forecasting with TimesFM-3...' : 'Run TimesFM-3 Multivariate Forecast'}
+              {isRunning ? `Forecasting with ${activeModelName}...` : `Run ${activeModelName} Forecast`}
             </Button>
           </Grid>
         </Grid>

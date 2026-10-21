@@ -10,7 +10,7 @@ import {
   Timeline, BugReport, Warning, AssignmentTurnedIn, Category
 } from '@mui/icons-material';
 
-const GlassTooltip = ({ active, payload, label, unit = '' }) => {
+const GlassTooltip = ({ active, payload, label, unit = '', modelLabel = 'AI Forecast' }) => {
   if (active && payload && payload.length) {
     const isForecast = payload[0]?.payload?.isForecast;
     return (
@@ -29,7 +29,7 @@ const GlassTooltip = ({ active, payload, label, unit = '' }) => {
           </Typography>
           {isForecast && (
             <Chip
-              label="TimesFM-3 Projected"
+              label={`${modelLabel} Projected`}
               size="small"
               sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(0, 230, 118, 0.2)', color: '#00E676', fontWeight: 700 }}
             />
@@ -89,17 +89,17 @@ function ChartWrapper({ title, icon, modelInfo, horizonBadge, helpText, children
               />
             )}
             {modelInfo && (
-              <MuiTooltip title={`Forecasting Engine: ${modelInfo.model_name || 'N/A'} | Version: ${modelInfo.model_version || 'TimesFM-3'} | Backtested WAPE: ${modelInfo.backtest_metrics?.wape ?? 'N/A'}`}>
+              <MuiTooltip title={`Forecasting Engine: ${modelInfo.model_name || 'N/A'} | Version: ${modelInfo.model_version || 'Zero-Shot'} | Backtested WAPE: ${modelInfo.backtest_metrics?.wape ?? 'N/A'}`}>
                 <Chip
-                  label={modelInfo.model_name?.includes('TimesFM') ? `TimesFM-3 (WAPE: ${modelInfo.backtest_metrics?.wape})` : modelInfo.model_name ? `${modelInfo.model_name.split(' ')[0]} (WAPE: ${modelInfo.backtest_metrics?.wape})` : 'Baseline'}
+                  label={modelInfo.model_name ? `${modelInfo.model_name.split('(')[0].trim()} (WAPE: ${modelInfo.backtest_metrics?.wape ?? 'N/A'})` : 'Baseline'}
                   size="small"
                   sx={{
                     height: 22,
                     fontSize: '0.65rem',
                     fontWeight: 700,
-                    bgcolor: modelInfo.model_name?.includes('TimesFM') ? 'rgba(0, 230, 118, 0.15)' : 'rgba(0, 212, 255, 0.1)',
-                    color: modelInfo.model_name?.includes('TimesFM') ? '#00E676' : '#00D4FF',
-                    border: `1px solid ${modelInfo.model_name?.includes('TimesFM') ? 'rgba(0, 230, 118, 0.4)' : 'rgba(0, 212, 255, 0.25)'}`,
+                    bgcolor: 'rgba(0, 230, 118, 0.15)',
+                    color: '#00E676',
+                    border: '1px solid rgba(0, 230, 118, 0.4)',
                   }}
                 />
               </MuiTooltip>
@@ -133,7 +133,10 @@ export default function FindingTrendsCharts({ metrics, forecastResults, onDrilld
   const activeHorizon = Math.max(1, Number(horizon) || 6);
   const horizonBadgeLabel = `Horizon: +${activeHorizon} Mo`;
 
-  // 1. CHART 1: Total Findings + TimesFM-3 Forecast (Seamless bridge, no gap)
+  const engineName = forecastResults?.engine_name || targets.total_findings?.model_name || 'Foundation Model';
+  const modelShortName = engineName.includes('TimesFM') ? 'TimeFM 3.0' : engineName.includes('Chronos') ? 'Chronos-2' : engineName.includes('Moirai') ? 'Moirai 2.0' : engineName.includes('Consensus') ? 'Consensus' : 'AI Engine';
+
+  // 1. CHART 1: Total Findings + Foundation Forecast (Seamless bridge, no gap)
   const totalFindingsForecast = (targets.total_findings?.forecast_points || []).slice(0, activeHorizon);
   const combinedTotalData = [
     ...total_findings.map((d, idx) => {
@@ -218,19 +221,19 @@ export default function FindingTrendsCharts({ metrics, forecastResults, onDrilld
       {/* Section Header */}
       <Box sx={{ mb: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: 800, color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Timeline sx={{ color: '#00D4FF' }} /> Key Strategic Vulnerability Trends & TimesFM-3 Forecasts
+          <Timeline sx={{ color: '#00D4FF' }} /> Key Strategic Vulnerability Trends & {modelShortName} Forecasts
         </Typography>
         <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-          Displaying historical trends dynamically projected across a <strong>{activeHorizon}-month forecast horizon</strong>. Click any point to view underlying audit findings.
+          Displaying historical trends dynamically projected across a <strong>{activeHorizon}-month forecast horizon</strong> using <strong>{engineName}</strong>. Click any point to view underlying audit findings.
         </Typography>
       </Box>
 
       {/* 4 Core Essential Charts in a clean 2x2 Grid */}
       <Grid container spacing={3}>
-        {/* CHART 1: Total Findings & TimesFM-3 Forecast */}
+        {/* CHART 1: Total Findings & Foundation Forecast */}
         <Grid item xs={12} md={6}>
           <ChartWrapper
-            title="1. Vulnerability Workload & TimesFM-3 Forecast"
+            title={`1. Vulnerability Workload & ${modelShortName} Forecast`}
             icon={<BugReport />}
             modelInfo={targets.total_findings}
             horizonBadge={horizonBadgeLabel}
@@ -251,10 +254,10 @@ export default function FindingTrendsCharts({ metrics, forecastResults, onDrilld
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="period" stroke="#64748B" fontSize={11} />
                 <YAxis stroke="#64748B" fontSize={11} />
-                <RechartsTooltip content={<GlassTooltip />} />
+                <RechartsTooltip content={<GlassTooltip modelLabel={modelShortName} />} />
                 <Legend />
                 <Area type="monotone" dataKey="actual" name="Historical Actual" stroke="#00D4FF" fill="url(#actualGrad)" strokeWidth={2} />
-                <Area type="monotone" dataKey="forecast" name="TimesFM-3 Prediction" stroke="#00E676" strokeDasharray="5 5" fill="url(#forecastGrad)" strokeWidth={2} />
+                <Area type="monotone" dataKey="forecast" name={`${modelShortName} Prediction`} stroke="#00E676" strokeDasharray="5 5" fill="url(#forecastGrad)" strokeWidth={2} />
                 <Area type="monotone" dataKey="upper_80" name="80% Upper Bound" stroke="#00E676" strokeOpacity={0.25} fill="transparent" strokeDasharray="2 2" />
                 <Area type="monotone" dataKey="lower_80" name="80% Lower Bound" stroke="#00E676" strokeOpacity={0.25} fill="transparent" strokeDasharray="2 2" />
               </AreaChart>

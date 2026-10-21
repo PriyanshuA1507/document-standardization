@@ -131,26 +131,26 @@ export default function HowItWorksBanner() {
                 </Box>
 
                 <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.82rem', mb: 1.5, lineHeight: 1.5 }}>
-                  Google's <strong>TimesFM-3 Foundation Model</strong> analyzes the data using cross-metric attention:
+                  Tri-Model Foundation AI Ecosystem with Cross-Attention & Probabilistic Quantiles:
                 </Typography>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, mt: 'auto' }}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
                     <CheckCircle sx={{ color: '#B388FF', fontSize: 15, mt: 0.3 }} />
                     <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-                      <strong>Zero-Shot Pre-training:</strong> 330M parameters pre-trained on over 1 trillion data points; requires zero fine-tuning.
+                      <strong>Tri-Model Architecture:</strong> Google TimesFM 3.0 (2D Grid Attention), Amazon Chronos-2 (Probabilistic Tokenizer), and Salesforce Moirai 2.0 (Decoder-Only Any-Variate).
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
                     <CheckCircle sx={{ color: '#B388FF', fontSize: 15, mt: 0.3 }} />
                     <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-                      <strong>2D Grid Attention:</strong> Analyzes trends over time AND cross-relationships between severities, closures, and asset counts all at once.
+                      <strong>Consensus Auto-Selection:</strong> Dynamic backtest competition that automatically identifies the most accurate model per vulnerability stream or produces an inverse-variance weighted blend.
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
                     <CheckCircle sx={{ color: '#B388FF', fontSize: 15, mt: 0.3 }} />
                     <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-                      <strong>Automated Backtesting:</strong> Validates its own predictions against past quarters to guarantee high accuracy before serving.
+                      <strong>Automated Backtesting:</strong> Rigorously validates predictions against historical audit quarters (WAPE, MASE, sharpness) before serving.
                     </Typography>
                   </Box>
                 </Box>

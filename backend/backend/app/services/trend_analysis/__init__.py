@@ -8,6 +8,9 @@ from app.services.trend_analysis.run_service import (
     list_runs_history,
     get_precomputed_summary,
     get_drilldown_findings,
+    get_forecasting_config_options,
+    compare_forecast_runs,
+    compute_horizon_sensitivity,
 )
 
 __all__ = [
@@ -19,5 +22,8 @@ __all__ = [
     "list_runs_history",
     "get_precomputed_summary",
     "get_drilldown_findings",
+    "get_forecasting_config_options",
+    "compare_forecast_runs",
+    "compute_horizon_sensitivity",
 ]
 

@@ -14,6 +14,10 @@ from app.schemas.trend_analysis import (
     TrendRunResultsResponse,
     TrendSummaryResponse,
     DrilldownResponse,
+    ForecastConfigOptionsResponse,
+    ForecastComparisonResponse,
+    OptimizeHorizonRequest,
+    OptimizeHorizonResponse,
 )
 from app.services.trend_analysis import (
     trigger_trend_analysis_run,
@@ -22,6 +26,9 @@ from app.services.trend_analysis import (
     list_runs_history,
     get_precomputed_summary,
     get_drilldown_findings,
+    get_forecasting_config_options,
+    compare_forecast_runs,
+    compute_horizon_sensitivity,
 )
 
 router = APIRouter(prefix="/api/trend-analysis", tags=["Trend Analysis & Forecasting"])
@@ -172,3 +179,57 @@ async def read_drilldown_findings(
         offset=offset,
         data=items,
     )
+
+
+@router.get("/config-options")
+async def read_forecasting_config_options(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Discovery endpoint returning all available foundation models (TimeFM 3.0, Chronos-2, Moirai 2.0, Ensemble),
+    target audit channels, parameter schemas, and presets for dynamic user configuration.
+    """
+    options = get_forecasting_config_options()
+    return {"status": "success", "data": options}
+
+
+@router.get("/compare")
+async def compare_runs(
+    run_id_1: uuid.UUID = Query(..., description="First run UUID for comparison"),
+    run_id_2: uuid.UUID = Query(..., description="Second run UUID for comparison"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Cross-Run Comparison & Model Benchmark Matrix:
+    Evaluates two historical or active runs side-by-side with delta error metrics (Delta WAPE, Delta MAE)
+    and overlaid trajectory curves.
+    """
+    comparison = await compare_forecast_runs(
+        db, run_id_1=run_id_1, run_id_2=run_id_2
+    )
+    return {"status": "success", "data": comparison}
+
+
+@router.post("/optimize-horizon")
+async def optimize_horizon(
+    payload: OptimizeHorizonRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Auto-Optimizer / Sensitivity Sweep:
+    Simulates rolling backtests across multiple horizon steps (e.g. 3, 6, 9, 12 months)
+    to discover mathematically optimal horizon reliability.
+    """
+    effective_agency = getattr(current_user, "agency_id", None)
+    result = await compute_horizon_sensitivity(
+        db,
+        model=payload.model or "TIMEFM_3",
+        selected_targets=payload.selected_targets,
+        horizons=payload.horizons or [3, 6, 9, 12],
+        date_basis=payload.date_basis or "effective",
+        frequency=payload.frequency or "M",
+        agency_id=effective_agency,
+    )
+    return {"status": "success", "data": result}

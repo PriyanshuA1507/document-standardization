@@ -4,6 +4,9 @@ from pydantic import BaseModel, Field
 
 
 class TrendRunTriggerRequest(BaseModel):
+    model: Optional[str] = Field("TIMEFM_3", description="Forecasting foundation model: TIMEFM_3, CHRONOS_2, MOIRAI_2, or ENSEMBLE")
+    selected_targets: Optional[List[str]] = Field(None, description="Target audit channels to forecast")
+    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Model-specific hyperparameters")
     date_basis: str = Field("effective", description="'strict' for observation_date only, 'effective' for observation_date with report assessment date fallback")
     frequency: str = Field("M", description="'M' for monthly or 'W' for weekly")
     horizon: int = Field(6, ge=1, le=26, description="Forecast horizon steps")
@@ -14,6 +17,29 @@ class TrendRunTriggerRequest(BaseModel):
     audit_types: Optional[List[str]] = Field(None, description="Filter list of audit types")
     asset_criticalities: Optional[List[str]] = Field(None, description="Filter list of asset criticalities")
     agency_id: Optional[uuid.UUID] = Field(None, description="Agency/tenant scope")
+
+
+class OptimizeHorizonRequest(BaseModel):
+    model: Optional[str] = Field("TIMEFM_3", description="Model to evaluate")
+    selected_targets: Optional[List[str]] = Field(None, description="Targets to evaluate")
+    horizons: Optional[List[int]] = Field(default_factory=lambda: [3, 6, 9, 12], description="Horizon steps to test")
+    date_basis: Optional[str] = Field("effective")
+    frequency: Optional[str] = Field("M")
+
+
+class OptimizeHorizonResponse(BaseModel):
+    status: str
+    data: Dict[str, Any]
+
+
+class ForecastConfigOptionsResponse(BaseModel):
+    status: str
+    data: Dict[str, Any]
+
+
+class ForecastComparisonResponse(BaseModel):
+    status: str
+    data: Dict[str, Any]
 
 
 class TrendRunTriggerResponse(BaseModel):
