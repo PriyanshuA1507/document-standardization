@@ -1,10 +1,12 @@
 import React from 'react';
-import { Box, Paper, Typography, LinearProgress, IconButton, Collapse, Button } from '@mui/material';
+import { Box, Paper, Typography, LinearProgress, IconButton, Collapse, Button, useTheme } from '@mui/material';
 import { Close, Minimize, OpenInFull, CheckCircle, Visibility } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useBulkUpload } from '../contexts/BulkUploadContext';
 
 const BulkProgressWidget = () => {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const navigate = useNavigate();
   const {
     bulkProgress,
@@ -33,12 +35,12 @@ const BulkProgressWidget = () => {
         right: 24,
         width: 360,
         zIndex: 9999,
-        background: 'rgba(10, 14, 23, 0.95)',
-        border: '1px solid rgba(0, 212, 255, 0.4)',
+        background: isLight ? '#FFFFFF' : 'rgba(10, 14, 23, 0.95)',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.12)' : '1px solid rgba(0, 212, 255, 0.4)',
         borderRadius: 2.5,
         overflow: 'hidden',
         backdropFilter: 'blur(12px)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 16px rgba(0, 212, 255, 0.15)',
+        boxShadow: isLight ? '0 8px 32px rgba(0, 0, 0, 0.12)' : '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 16px rgba(0, 212, 255, 0.15)',
       }}
     >
       {/* Header */}
@@ -49,8 +51,8 @@ const BulkProgressWidget = () => {
           justifyContent: 'space-between',
           px: 2,
           py: 1.2,
-          background: 'rgba(0, 212, 255, 0.1)',
-          borderBottom: '1px solid rgba(0, 212, 255, 0.2)',
+          background: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.1)',
+          borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.2)',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -59,11 +61,11 @@ const BulkProgressWidget = () => {
               width: 8,
               height: 8,
               borderRadius: '50%',
-              backgroundColor: bulkRunning ? '#00D4FF' : bulkPaused ? '#FFB300' : '#00E676',
-              boxShadow: `0 0 8px ${bulkRunning ? '#00D4FF' : bulkPaused ? '#FFB300' : '#00E676'}`,
+              backgroundColor: bulkRunning ? (isLight ? '#0284C7' : '#00D4FF') : bulkPaused ? '#FFB300' : '#00E676',
+              boxShadow: `0 0 8px ${bulkRunning ? (isLight ? '#0284C7' : '#00D4FF') : bulkPaused ? '#FFB300' : '#00E676'}`,
             }}
           />
-          <Typography variant="subtitle2" fontWeight={600} color="#FFFFFF">
+          <Typography variant="subtitle2" fontWeight={600} color={isLight ? '#0F172A' : '#FFFFFF'}>
             {bulkRunning ? 'Batch Running' : bulkPaused ? 'Batch Paused' : bulkFinished ? 'Batch Completed' : 'Batch Processing'}
           </Typography>
         </Box>

@@ -3,16 +3,28 @@ import React from 'react';
 export default function GradientDefs() {
   return (
     <defs>
-      {/* Primary Cyan */}
+      {/* Primary Cyan (Dark) */}
       <linearGradient id="cyberCyanGradient" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stopColor="#00D4FF" stopOpacity={0.85} />
         <stop offset="100%" stopColor="#007799" stopOpacity={0.05} />
       </linearGradient>
 
-      {/* Mint Success */}
+      {/* Primary Cyan (Light) */}
+      <linearGradient id="cyberCyanGradientLight" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#0284C7" stopOpacity={0.5} />
+        <stop offset="100%" stopColor="#0284C7" stopOpacity={0.03} />
+      </linearGradient>
+
+      {/* Mint Success (Dark) */}
       <linearGradient id="cyberMintGradient" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stopColor="#00E676" stopOpacity={0.85} />
         <stop offset="100%" stopColor="#009944" stopOpacity={0.05} />
+      </linearGradient>
+
+      {/* Mint Success (Light) */}
+      <linearGradient id="cyberMintGradientLight" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#059669" stopOpacity={0.5} />
+        <stop offset="100%" stopColor="#059669" stopOpacity={0.03} />
       </linearGradient>
 
       {/* Critical Red */}

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
-  Box, Card, CardContent, Typography, LinearProgress, Alert, Chip, Paper, Button, Dialog, DialogTitle, DialogContent, DialogContentText, TextField, DialogActions, FormControl, InputLabel, Select, MenuItem, Tabs, Tab, RadioGroup, FormControlLabel, Radio, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Backdrop
+  Box, Card, CardContent, Typography, LinearProgress, Alert, Chip, Paper, Button, Dialog, DialogTitle, DialogContent, DialogContentText, TextField, DialogActions, FormControl, InputLabel, Select, MenuItem, Tabs, Tab, RadioGroup, FormControlLabel, Radio, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Backdrop, useTheme
 } from '@mui/material';
 import {
   CloudUpload, CheckCircle, Error as ErrorIcon, Description, Lock as LockIcon, PlayArrow, Folder, TableChart, Autorenew, Pending, Cancel, Download, FolderZip
@@ -13,6 +13,8 @@ import { useBulkUpload } from '../contexts/BulkUploadContext';
 import BatchHistoryPanel from '../components/BatchHistoryPanel';
 
 function UploadReportPage() {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   // Cache buster: v4-folder-loading
   const { enqueueSnackbar } = useSnackbar();
   
@@ -1211,14 +1213,14 @@ function UploadReportPage() {
         disableEscapeKeyDown
         PaperProps={{
           sx: {
-            background: 'rgba(10, 14, 23, 0.96)',
-            border: '1px solid rgba(0, 212, 255, 0.4)',
+            background: isLight ? '#FFFFFF' : 'rgba(10, 14, 23, 0.96)',
+            border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(0, 212, 255, 0.4)',
             borderRadius: 3,
             p: 3,
             minWidth: 420,
             maxWidth: 520,
             textAlign: 'center',
-            boxShadow: '0 16px 48px rgba(0, 0, 0, 0.8), 0 0 32px rgba(0, 212, 255, 0.25)',
+            boxShadow: isLight ? '0 16px 48px rgba(0, 0, 0, 0.15)' : '0 16px 48px rgba(0, 0, 0, 0.8), 0 0 32px rgba(0, 212, 255, 0.25)',
             backdropFilter: 'blur(16px)',
           },
         }}
@@ -1231,8 +1233,8 @@ function UploadReportPage() {
               size={76}
               thickness={4}
               sx={{
-                color: '#00D4FF',
-                filter: 'drop-shadow(0 0 10px rgba(0, 212, 255, 0.7))',
+                color: isLight ? '#0284C7' : '#00D4FF',
+                filter: isLight ? 'none' : 'drop-shadow(0 0 10px rgba(0, 212, 255, 0.7))',
               }}
             />
             {uploadTransferProgress !== null && (
@@ -1248,14 +1250,14 @@ function UploadReportPage() {
                   justifyContent: 'center',
                 }}
               >
-                <Typography variant="body2" component="div" fontWeight={700} sx={{ color: '#00D4FF', fontSize: '1rem' }}>
+                <Typography variant="body2" component="div" fontWeight={700} sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: '1rem' }}>
                   {`${uploadTransferProgress}%`}
                 </Typography>
               </Box>
             )}
           </Box>
 
-          <Typography variant="h6" fontWeight={700} color="#FFFFFF" sx={{ mb: 1 }}>
+          <Typography variant="h6" fontWeight={700} color={isLight ? '#0F172A' : '#FFFFFF'} sx={{ mb: 1 }}>
             Staging Batch on Server
           </Typography>
 
@@ -1294,15 +1296,15 @@ function UploadReportPage() {
               width: '100%',
               p: 1.8,
               borderRadius: 2,
-              background: 'rgba(0, 230, 118, 0.06)',
-              border: '1px solid rgba(0, 230, 118, 0.2)',
+              background: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(0, 230, 118, 0.06)',
+              border: isLight ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(0, 230, 118, 0.2)',
               display: 'flex',
               alignItems: 'center',
               gap: 1.5,
             }}
           >
-            <CheckCircle sx={{ color: '#00E676', fontSize: 22, flexShrink: 0 }} />
-            <Typography variant="caption" sx={{ color: '#E2E8F0', textAlign: 'left', lineHeight: 1.4 }}>
+            <CheckCircle sx={{ color: isLight ? '#059669' : '#00E676', fontSize: 22, flexShrink: 0 }} />
+            <Typography variant="caption" sx={{ color: isLight ? '#334155' : '#E2E8F0', textAlign: 'left', lineHeight: 1.4 }}>
               Once staged, processing continues entirely in the background. You can safely close or leave this page anytime.
             </Typography>
           </Paper>

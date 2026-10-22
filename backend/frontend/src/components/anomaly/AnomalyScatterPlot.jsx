@@ -7,7 +7,8 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Chip,
-  Paper
+  Paper,
+  useTheme
 } from '@mui/material';
 import {
   BubbleChart,
@@ -36,6 +37,8 @@ const TIER_COLORS = {
 };
 
 function CustomScatterTooltip({ active, payload }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const color = TIER_COLORS[data.anomaly_tier] || '#00D4FF';
@@ -44,12 +47,12 @@ function CustomScatterTooltip({ active, payload }) {
       <Paper
         sx={{
           p: 1.8,
-          bgcolor: 'rgba(11, 17, 32, 0.95)',
+          bgcolor: isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(11, 17, 32, 0.95)',
           backdropFilter: 'blur(16px)',
-          border: `1px solid ${color}`,
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : `1px solid ${color}`,
           borderRadius: 2,
           maxWidth: 320,
-          boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 12px ${color}30`
+          boxShadow: isLight ? '0 8px 32px rgba(15, 23, 42, 0.12)' : `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 12px ${color}30`
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
@@ -62,20 +65,20 @@ function CustomScatterTooltip({ active, payload }) {
             Score: {(data.ensemble_score * 100).toFixed(1)}
           </Typography>
         </Box>
-        <Typography variant="body2" fontWeight={800} color="#F1F5F9" sx={{ my: 0.5 }}>
+        <Typography variant="body2" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'} sx={{ my: 0.5 }}>
           {data.report_title}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
           {data.agency_name}
         </Typography>
-        <Box sx={{ pt: 1, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+        <Box sx={{ pt: 1, borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
           <Box>
             <Typography variant="caption" color="text.secondary">Findings:</Typography>
-            <Typography variant="body2" fontWeight={700} color="#E2E8F0">{data.total_findings}</Typography>
+            <Typography variant="body2" fontWeight={700} color={isLight ? '#0F172A' : '#E2E8F0'}>{data.total_findings}</Typography>
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">Mean CVSS:</Typography>
-            <Typography variant="body2" fontWeight={700} color="#E2E8F0">{data.avg_cvss?.toFixed(1)}</Typography>
+            <Typography variant="body2" fontWeight={700} color={isLight ? '#0F172A' : '#E2E8F0'}>{data.avg_cvss?.toFixed(1)}</Typography>
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">SLA Breaches:</Typography>
@@ -95,6 +98,8 @@ function CustomScatterTooltip({ active, payload }) {
 }
 
 export default function AnomalyScatterPlot({ scatterPoints = [], onSelectPoint, pcaVariance = [] }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [viewMode, setViewMode] = useState('pca'); // 'pca' or 'density'
 
   const formattedData = useMemo(() => {
@@ -126,14 +131,22 @@ export default function AnomalyScatterPlot({ scatterPoints = [], onSelectPoint, 
     : 'Mean CVSS Severity Score';
 
   return (
-    <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card sx={{
+      bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+      border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+      borderRadius: 2,
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none'
+    }}>
       <CardContent sx={{ p: 2.2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: 'rgba(0, 212, 255, 0.1)', display: 'flex' }}>
             <BubbleChart sx={{ color: '#00D4FF', fontSize: 22 }} />
           </Box>
           <Box>
-            <Typography variant="h6" fontWeight={800} color="#F1F5F9" sx={{ fontSize: '0.95rem' }}>
+            <Typography variant="h6" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'} sx={{ fontSize: '0.95rem' }}>
               Multi-Dimensional Outlier Projection Space
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -149,8 +162,8 @@ export default function AnomalyScatterPlot({ scatterPoints = [], onSelectPoint, 
             exclusive
             onChange={(e, val) => val && setViewMode(val)}
             sx={{
-              bgcolor: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              bgcolor: isLight ? '#F1F5F9' : 'rgba(255,255,255,0.04)',
+              border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)',
               '& .MuiToggleButton-root': {
                 color: 'text.secondary',
                 fontSize: '0.72rem',
@@ -158,7 +171,7 @@ export default function AnomalyScatterPlot({ scatterPoints = [], onSelectPoint, 
                 textTransform: 'none',
                 py: 0.4,
                 px: 1.2,
-                '&.Mui-selected': { color: '#00D4FF', bgcolor: 'rgba(0,212,255,0.15)' }
+                '&.Mui-selected': { color: '#00D4FF', bgcolor: isLight ? '#E0F2FE' : 'rgba(0,212,255,0.15)' }
               }
             }}
           >
@@ -169,7 +182,15 @@ export default function AnomalyScatterPlot({ scatterPoints = [], onSelectPoint, 
       </CardContent>
 
       {/* Legend strip */}
-      <Box sx={{ px: 2.5, py: 0.8, bgcolor: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{
+        px: 2.5,
+        py: 0.8,
+        bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)',
+        borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255,255,255,0.04)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 2
+      }}>
         {Object.entries(TIER_COLORS).map(([tier, color]) => (
           <Box key={tier} sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Box, Card, CardContent, Grid, FormControl, InputLabel, Select, MenuItem,
-  Button, Typography, LinearProgress, Chip, TextField, IconButton, Tooltip
+  Button, Typography, LinearProgress, Chip, TextField, IconButton, Tooltip, useTheme
 } from '@mui/material';
 import {
   PlayArrow, History, Tune, CalendarToday, Timeline, FilterList, Refresh
@@ -15,6 +15,8 @@ export default function RunControlBar({
   isRunning,
   activeRun,
 }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const isWeekly = params.frequency === 'W';
@@ -51,20 +53,20 @@ export default function RunControlBar({
   const selectMenuProps = {
     PaperProps: {
       sx: {
-        bgcolor: '#0F172A',
-        border: '1px solid rgba(0, 212, 255, 0.3)',
-        color: '#F1F5F9',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        bgcolor: isLight ? '#FFFFFF' : '#0F172A',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.12)' : '1px solid rgba(0, 212, 255, 0.3)',
+        color: isLight ? '#0F172A' : '#F1F5F9',
+        boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.1)' : '0 8px 32px rgba(0,0,0,0.6)',
         '& .MuiMenuItem-root': {
           fontSize: '0.85rem',
           py: 1,
         },
         '& .MuiMenuItem-root:hover': {
-          bgcolor: 'rgba(0, 212, 255, 0.12)',
+          bgcolor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.12)',
         },
         '& .MuiMenuItem-root.Mui-selected': {
-          bgcolor: 'rgba(0, 230, 118, 0.2)',
-          color: '#00E676',
+          bgcolor: isLight ? 'rgba(5, 150, 105, 0.12)' : 'rgba(0, 230, 118, 0.2)',
+          color: isLight ? '#059669' : '#00E676',
           fontWeight: 700,
         },
       },
@@ -78,7 +80,7 @@ export default function RunControlBar({
   };
 
   return (
-    <Card sx={{ mb: 3, border: '1px solid rgba(255, 255, 255, 0.08)', background: 'rgba(10, 14, 23, 0.85)' }}>
+    <Card sx={{ mb: 3, border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)', background: isLight ? '#FFFFFF' : 'rgba(10, 14, 23, 0.85)', boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : undefined }}>
       <CardContent>
         {/* Main Controls Row */}
         <Grid container spacing={2} alignItems="center">

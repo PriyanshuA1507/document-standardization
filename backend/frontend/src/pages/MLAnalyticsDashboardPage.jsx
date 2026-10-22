@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Backdrop, CircularProgress, Card, CardContent, Grid, Typography, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Chip, Skeleton, Tooltip, Alert,
-  IconButton, Dialog, DialogTitle, DialogContent, Tabs, Tab, Button
+  IconButton, Dialog, DialogTitle, DialogContent, Tabs, Tab, Button, useTheme
 } from '@mui/material';
 import {
   Assessment, ReportProblem, ErrorOutline,
@@ -21,14 +21,16 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { CSS } from '@dnd-kit/utilities';
 
 function ChartCard({ title, icon, action, children, delay = 0, sx: sxProp = {}, onExpand, dragHandleProps = {} }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   return (
     <Card className="fade-in-up" sx={{ animationDelay: `${delay}ms`, minHeight: 440, height: '100%', display: 'flex', flexDirection: 'column', ...sxProp }}>
-      <CardContent sx={{ p: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <CardContent sx={{ p: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.05)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Box className="drag-handle" {...dragHandleProps} sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'text.secondary', '&:active': { cursor: 'grabbing' } }}>
             <DragIndicator sx={{ fontSize: 20 }} />
           </Box>
-          {icon && React.cloneElement(icon, { sx: { color: '#00D4FF', fontSize: 20 } })}
+          {icon && React.cloneElement(icon, { sx: { color: isLight ? '#0284C7' : '#00D4FF', fontSize: 20 } })}
           <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '0.9rem' }}>
             {title}
           </Typography>
@@ -65,6 +67,8 @@ function SortableWidget({ id, children, md }) {
 }
 
 export default function MLAnalyticsDashboardPage() {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [anomalies, setAnomalies] = useState(null);
   const [prioritize, setPrioritize] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -370,22 +374,22 @@ export default function MLAnalyticsDashboardPage() {
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
       {/* ═══════ SIX UNIFIED ML MODULE TABS ═══════ */}
-      <Box sx={{ borderBottom: 1, borderColor: 'rgba(255, 255, 255, 0.08)', mb: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)', mb: 3 }}>
         <Tabs
           value={currentTab}
           onChange={(e, val) => setCurrentTab(val)}
           variant="scrollable"
           scrollButtons="auto"
           sx={{
-            '& .MuiTabs-indicator': { backgroundColor: '#00D4FF', height: 3 },
+            '& .MuiTabs-indicator': { backgroundColor: isLight ? '#0284C7' : '#00D4FF', height: 3 },
             '& .MuiTab-root': {
               color: 'text.secondary',
               fontWeight: 700,
               fontSize: '0.88rem',
               textTransform: 'none',
               minHeight: 48,
-              '&.Mui-selected': { color: '#00D4FF' },
-              '&:hover': { color: '#E2E8F0' },
+              '&.Mui-selected': { color: isLight ? '#0284C7' : '#00D4FF' },
+              '&:hover': { color: isLight ? '#0F172A' : '#E2E8F0' },
             },
           }}
         >
@@ -404,7 +408,7 @@ export default function MLAnalyticsDashboardPage() {
           {/* Surface KPI Strip */}
           <Grid container spacing={2.5} sx={{ mb: 3 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2 }}>
+              <Card sx={{ bgcolor: isLight ? '#FFFFFF' : '#0B1120', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', borderRadius: 2, boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none' }}>
                 <CardContent sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
@@ -420,7 +424,7 @@ export default function MLAnalyticsDashboardPage() {
                       size="small"
                       variant="outlined"
                       onClick={() => setCurrentTab(1)}
-                      sx={{ borderColor: topTask ? 'rgba(255,23,68,0.3)' : 'rgba(255,255,255,0.1)', color: topTask ? '#FF1744' : 'text.secondary', fontSize: '0.7rem', fontWeight: 700 }}
+                      sx={{ borderColor: topTask ? 'rgba(255,23,68,0.3)' : (isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255,255,255,0.1)'), color: topTask ? '#FF1744' : 'text.secondary', fontSize: '0.7rem', fontWeight: 700 }}
                     >
                       View Queue
                     </Button>
@@ -430,12 +434,12 @@ export default function MLAnalyticsDashboardPage() {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2 }}>
+              <Card sx={{ bgcolor: isLight ? '#FFFFFF' : '#0B1120', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', borderRadius: 2, boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none' }}>
                 <CardContent sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary" fontWeight={700}>CRITICAL QUEUE</Typography>
-                      <Typography variant="h5" fontWeight={900} sx={{ color: (prioritize?.summary?.p1_count ?? 0) > 0 ? '#FF9100' : 'text.secondary', my: 0.3 }}>
+                      <Typography variant="h5" fontWeight={900} sx={{ color: (prioritize?.summary?.p1_count ?? 0) > 0 ? (isLight ? '#D97706' : '#FF9100') : 'text.secondary', my: 0.3 }}>
                         {prioritize?.summary?.p1_count ?? 0} Urgent
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -446,7 +450,7 @@ export default function MLAnalyticsDashboardPage() {
                       size="small"
                       variant="outlined"
                       onClick={() => setCurrentTab(1)}
-                      sx={{ borderColor: (prioritize?.summary?.p1_count ?? 0) > 0 ? 'rgba(255,145,0,0.3)' : 'rgba(255,255,255,0.1)', color: (prioritize?.summary?.p1_count ?? 0) > 0 ? '#FF9100' : 'text.secondary', fontSize: '0.7rem', fontWeight: 700 }}
+                      sx={{ borderColor: (prioritize?.summary?.p1_count ?? 0) > 0 ? (isLight ? 'rgba(217, 119, 6, 0.4)' : 'rgba(255,145,0,0.3)') : (isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255,255,255,0.1)'), color: (prioritize?.summary?.p1_count ?? 0) > 0 ? (isLight ? '#D97706' : '#FF9100') : 'text.secondary', fontSize: '0.7rem', fontWeight: 700 }}
                     >
                       Configure
                     </Button>
@@ -456,12 +460,12 @@ export default function MLAnalyticsDashboardPage() {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2 }}>
+              <Card sx={{ bgcolor: isLight ? '#FFFFFF' : '#0B1120', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', borderRadius: 2, boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none' }}>
                 <CardContent sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary" fontWeight={700}>FLAGGED OUTLIERS</Typography>
-                      <Typography variant="h5" fontWeight={900} sx={{ color: '#00D4FF', my: 0.3 }}>
+                      <Typography variant="h5" fontWeight={900} sx={{ color: isLight ? '#0284C7' : '#00D4FF', my: 0.3 }}>
                         {anomalies?.anomalies_detected ?? 0} Reports
                       </Typography>
                       <Typography variant="caption" color="text.secondary">Isolation Forest flags</Typography>
@@ -470,7 +474,7 @@ export default function MLAnalyticsDashboardPage() {
                       size="small"
                       variant="outlined"
                       onClick={() => setCurrentTab(2)}
-                      sx={{ borderColor: 'rgba(0,212,255,0.3)', color: '#00D4FF', fontSize: '0.7rem', fontWeight: 700 }}
+                      sx={{ borderColor: isLight ? 'rgba(2, 132, 199, 0.35)' : 'rgba(0,212,255,0.3)', color: isLight ? '#0284C7' : '#00D4FF', fontSize: '0.7rem', fontWeight: 700 }}
                     >
                       Inspect
                     </Button>
@@ -480,12 +484,12 @@ export default function MLAnalyticsDashboardPage() {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2 }}>
+              <Card sx={{ bgcolor: isLight ? '#FFFFFF' : '#0B1120', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', borderRadius: 2, boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none' }}>
                 <CardContent sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary" fontWeight={700}>NEURAL CLUSTERING</Typography>
-                      <Typography variant="h6" fontWeight={800} sx={{ color: '#00E676', my: 0.3 }}>
+                      <Typography variant="h6" fontWeight={800} sx={{ color: isLight ? '#059669' : '#00E676', my: 0.3 }}>
                         HDBSCAN SBERT
                       </Typography>
                       <Typography variant="caption" color="text.secondary">Semantic grouping</Typography>
@@ -494,7 +498,7 @@ export default function MLAnalyticsDashboardPage() {
                       size="small"
                       variant="outlined"
                       onClick={() => setCurrentTab(3)}
-                      sx={{ borderColor: 'rgba(0,230,118,0.3)', color: '#00E676', fontSize: '0.7rem', fontWeight: 700 }}
+                      sx={{ borderColor: isLight ? 'rgba(5, 150, 105, 0.35)' : 'rgba(0,230,118,0.3)', color: isLight ? '#059669' : '#00E676', fontSize: '0.7rem', fontWeight: 700 }}
                     >
                       Clusters
                     </Button>
@@ -525,8 +529,8 @@ export default function MLAnalyticsDashboardPage() {
             fullWidth
             PaperProps={{
               sx: {
-                bgcolor: '#0B1120',
-                border: '1px solid rgba(255,255,255,0.1)',
+                bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255,255,255,0.1)',
                 backgroundImage: 'none',
                 height: '80vh',
                 display: 'flex',
@@ -534,7 +538,7 @@ export default function MLAnalyticsDashboardPage() {
               }
             }}
           >
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', p: 2 }}>
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.05)', p: 2 }}>
               <Typography variant="h6" fontWeight={700}>Expanded View</Typography>
               <IconButton onClick={() => setExpandedWidget(null)} sx={{ color: 'text.secondary' }}>
                 <Close />

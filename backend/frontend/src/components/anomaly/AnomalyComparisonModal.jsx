@@ -21,7 +21,8 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  useTheme
 } from '@mui/material';
 import {
   Close,
@@ -33,6 +34,9 @@ import {
 import api from '../../api/axios';
 
 export default function AnomalyComparisonModal({ open, onClose, runsHistory = [] }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   const [runId1, setRunId1] = useState(runsHistory[0]?.run_id || '');
   const [runId2, setRunId2] = useState(runsHistory[1]?.run_id || '');
   const [loading, setLoading] = useState(false);
@@ -65,20 +69,20 @@ export default function AnomalyComparisonModal({ open, onClose, runsHistory = []
       fullWidth
       PaperProps={{
         sx: {
-          bgcolor: '#0B1120',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255, 255, 255, 0.1)',
           backgroundImage: 'none',
           borderRadius: 2
         }
       }}
     >
-      <DialogTitle sx={{ p: 2.5, bgcolor: '#0F172A', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <DialogTitle sx={{ p: 2.5, bgcolor: isLight ? '#F8FAFC' : '#0F172A', borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: 'rgba(0, 212, 255, 0.1)', display: 'flex' }}>
             <CompareArrows sx={{ color: '#00D4FF', fontSize: 22 }} />
           </Box>
           <Box>
-            <Typography variant="h6" fontWeight={800} color="#F1F5F9" sx={{ fontSize: '1.05rem' }}>
+            <Typography variant="h6" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'} sx={{ fontSize: '1.05rem' }}>
               Anomaly Detector Benchmark & Run Comparison
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -86,7 +90,7 @@ export default function AnomalyComparisonModal({ open, onClose, runsHistory = []
             </Typography>
           </Box>
         </Box>
-        <IconButton onClick={onClose} sx={{ color: '#94A3B8' }}><Close /></IconButton>
+        <IconButton onClick={onClose} sx={{ color: isLight ? '#64748B' : '#94A3B8' }}><Close /></IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ p: 3 }}>
@@ -99,7 +103,7 @@ export default function AnomalyComparisonModal({ open, onClose, runsHistory = []
                 value={runId1}
                 label="Run A (Baseline)"
                 onChange={(e) => setRunId1(e.target.value)}
-                sx={{ bgcolor: '#0F172A', color: '#F1F5F9' }}
+                sx={{ bgcolor: isLight ? '#F8FAFC' : '#0F172A', color: isLight ? '#0F172A' : '#F1F5F9' }}
               >
                 {runsHistory.map(r => (
                   <MenuItem key={r.run_id} value={r.run_id}>
@@ -117,7 +121,7 @@ export default function AnomalyComparisonModal({ open, onClose, runsHistory = []
                 value={runId2}
                 label="Run B (Comparison)"
                 onChange={(e) => setRunId2(e.target.value)}
-                sx={{ bgcolor: '#0F172A', color: '#F1F5F9' }}
+                sx={{ bgcolor: isLight ? '#F8FAFC' : '#0F172A', color: isLight ? '#0F172A' : '#F1F5F9' }}
               >
                 {runsHistory.map(r => (
                   <MenuItem key={r.run_id} value={r.run_id}>
@@ -198,20 +202,20 @@ export default function AnomalyComparisonModal({ open, onClose, runsHistory = []
             <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 1 }}>
               Top Discordant Audit Reports (Greatest Score Deviation)
             </Typography>
-            <TableContainer component={Paper} sx={{ bgcolor: '#0F172A', borderRadius: 2, maxHeight: 260 }}>
+            <TableContainer component={Paper} sx={{ bgcolor: isLight ? '#F8FAFC' : '#0F172A', borderRadius: 2, maxHeight: 260, border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : 'none' }}>
               <Table size="small">
                 <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Audit Report Title</TableCell>
-                    <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Run A Score</TableCell>
-                    <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Run B Score</TableCell>
-                    <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Delta</TableCell>
+                  <TableRow sx={{ bgcolor: isLight ? '#F1F5F9' : 'transparent' }}>
+                    <TableCell sx={{ color: isLight ? '#475569' : 'text.secondary', fontWeight: 800 }}>Audit Report Title</TableCell>
+                    <TableCell sx={{ color: isLight ? '#475569' : 'text.secondary', fontWeight: 800 }}>Run A Score</TableCell>
+                    <TableCell sx={{ color: isLight ? '#475569' : 'text.secondary', fontWeight: 800 }}>Run B Score</TableCell>
+                    <TableCell sx={{ color: isLight ? '#475569' : 'text.secondary', fontWeight: 800 }}>Delta</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {comparison.top_discordant_reports?.slice(0, 8).map((rep) => (
                     <TableRow key={rep.report_id}>
-                      <TableCell sx={{ color: '#F1F5F9', fontWeight: 600, maxWidth: 260 }}>
+                      <TableCell sx={{ color: isLight ? '#0F172A' : '#F1F5F9', fontWeight: 600, maxWidth: 260 }}>
                         <Typography variant="body2" noWrap>{rep.report_title}</Typography>
                       </TableCell>
                       <TableCell sx={{ color: '#00D4FF', fontWeight: 700 }}>
@@ -231,7 +235,7 @@ export default function AnomalyComparisonModal({ open, onClose, runsHistory = []
           </Box>
         )}
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <DialogActions sx={{ p: 2, borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)' }}>
         <Button onClick={onClose} sx={{ color: 'text.secondary' }}>Close</Button>
       </DialogActions>
     </Dialog>

@@ -41,11 +41,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  NotificationsNone,
-  FiberManualRecord,
   KeyboardArrowRight,
+  LightMode,
+  DarkMode,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useColorMode } from '../contexts/ThemeModeContext';
 import Footer from './Footer';
 
 const EXPANDED_WIDTH = 250;
@@ -66,6 +67,7 @@ const navItems = [
 
 function Layout() {
   const { user, logout, isAdmin } = useAuth();
+  const { mode, toggleColorMode, isLight } = useColorMode();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -103,14 +105,17 @@ function Layout() {
   const filteredNav = navItems.filter((item) => !item.adminOnly || isAdmin());
   const activeNavItem = navItems.find((n) => n.path === location.pathname);
 
+  const primaryAccent = isLight ? '#0284C7' : '#00D4FF';
+  const secondaryAccent = isLight ? '#059669' : '#00E676';
+
   const drawerContent = (
     <Box
       sx={{
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        backgroundColor: '#080E1A',
-        transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        backgroundColor: isLight ? '#FFFFFF' : '#080E1A',
+        transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease',
         overflowX: 'hidden',
       }}
     >
@@ -124,14 +129,16 @@ function Layout() {
           px: collapsed && !isMobile ? 1.5 : 2.5,
           py: 2.2,
           minHeight: 64,
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
         }}
       >
         <Shield
           sx={{
             fontSize: 32,
-            color: '#00D4FF',
-            filter: 'drop-shadow(0 0 10px rgba(0,212,255,0.45))',
+            color: primaryAccent,
+            filter: isLight
+              ? 'drop-shadow(0 0 8px rgba(2,132,199,0.35))'
+              : 'drop-shadow(0 0 10px rgba(0,212,255,0.45))',
             flexShrink: 0,
           }}
         />
@@ -141,7 +148,9 @@ function Layout() {
               variant="h6"
               sx={{
                 fontWeight: 800,
-                background: 'linear-gradient(135deg, #00D4FF 0%, #00E676 100%)',
+                background: isLight
+                  ? 'linear-gradient(135deg, #0284C7 0%, #059669 100%)'
+                  : 'linear-gradient(135deg, #00D4FF 0%, #00E676 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 fontSize: '1.05rem',
@@ -153,7 +162,12 @@ function Layout() {
             </Typography>
             <Typography
               variant="caption"
-              sx={{ color: '#64748B', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.05em' }}
+              sx={{
+                color: isLight ? '#64748B' : '#64748B',
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+              }}
             >
               SECURITY INTELLIGENCE
             </Typography>
@@ -179,13 +193,31 @@ function Layout() {
                 justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
                 mb: 0.5,
                 transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                backgroundColor: isActive ? 'rgba(0, 212, 255, 0.1)' : 'transparent',
-                border: isActive ? '1px solid rgba(0, 212, 255, 0.25)' : '1px solid transparent',
+                backgroundColor: isActive
+                  ? isLight
+                    ? 'rgba(2, 132, 199, 0.09)'
+                    : 'rgba(0, 212, 255, 0.1)'
+                  : 'transparent',
+                border: isActive
+                  ? isLight
+                    ? '1px solid rgba(2, 132, 199, 0.3)'
+                    : '1px solid rgba(0, 212, 255, 0.25)'
+                  : '1px solid transparent',
                 position: 'relative',
                 overflow: 'hidden',
                 '&:hover': {
-                  backgroundColor: isActive ? 'rgba(0, 212, 255, 0.14)' : 'rgba(255, 255, 255, 0.04)',
-                  borderColor: isActive ? 'rgba(0, 212, 255, 0.4)' : 'rgba(255, 255, 255, 0.08)',
+                  backgroundColor: isActive
+                    ? isLight
+                      ? 'rgba(2, 132, 199, 0.14)'
+                      : 'rgba(0, 212, 255, 0.14)'
+                    : isLight
+                    ? 'rgba(15, 23, 42, 0.04)'
+                    : 'rgba(255, 255, 255, 0.04)',
+                  borderColor: isActive
+                    ? primaryAccent
+                    : isLight
+                    ? 'rgba(15, 23, 42, 0.1)'
+                    : 'rgba(255, 255, 255, 0.08)',
                   transform: 'translateX(2px)',
                 },
               }}
@@ -193,10 +225,14 @@ function Layout() {
               <ListItemIcon
                 sx={{
                   minWidth: collapsed && !isMobile ? 0 : 36,
-                  color: isActive ? '#00D4FF' : '#94A3B8',
+                  color: isActive ? primaryAccent : isLight ? '#64748B' : '#94A3B8',
                   transition: 'all 0.2s ease',
                   transform: isActive ? 'scale(1.05)' : 'scale(1)',
-                  filter: isActive ? 'drop-shadow(0 0 6px rgba(0,212,255,0.4))' : 'none',
+                  filter: isActive
+                    ? isLight
+                      ? 'drop-shadow(0 0 5px rgba(2,132,199,0.3))'
+                      : 'drop-shadow(0 0 6px rgba(0,212,255,0.4))'
+                    : 'none',
                 }}
               >
                 {item.icon}
@@ -205,9 +241,15 @@ function Layout() {
                 <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
-                    fontWeight: isActive ? 600 : 450,
+                    fontWeight: isActive ? 700 : 500,
                     fontSize: '0.85rem',
-                    color: isActive ? '#F1F5F9' : '#94A3B8',
+                    color: isActive
+                      ? isLight
+                        ? '#0F172A'
+                        : '#F1F5F9'
+                      : isLight
+                      ? '#475569'
+                      : '#94A3B8',
                     noWrap: true,
                   }}
                 />
@@ -235,7 +277,7 @@ function Layout() {
           sx={{
             px: 1.5,
             py: 1,
-            borderTop: '1px solid rgba(255,255,255,0.06)',
+            borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-end',
@@ -246,13 +288,13 @@ function Layout() {
               size="small"
               onClick={() => setCollapsed(!collapsed)}
               sx={{
-                color: '#94A3B8',
+                color: isLight ? '#64748B' : '#94A3B8',
                 borderRadius: 1.5,
                 p: 0.75,
-                backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                backgroundColor: isLight ? 'rgba(15, 23, 42, 0.03)' : 'rgba(255, 255, 255, 0.03)',
                 '&:hover': {
-                  color: '#00D4FF',
-                  backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                  color: primaryAccent,
+                  backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.1)',
                 },
               }}
             >
@@ -266,33 +308,40 @@ function Layout() {
       <Box
         sx={{
           p: collapsed && !isMobile ? 1 : 1.5,
-          borderTop: '1px solid rgba(255,255,255,0.06)',
+          borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
           gap: 1.5,
-          backgroundColor: 'rgba(7, 11, 18, 0.5)',
+          backgroundColor: isLight ? 'rgba(241, 245, 249, 0.65)' : 'rgba(7, 11, 18, 0.5)',
         }}
       >
         <Avatar
           sx={{
             width: 34,
             height: 34,
-            background: 'linear-gradient(135deg, #00D4FF 0%, #7C4DFF 100%)',
+            background: isLight
+              ? 'linear-gradient(135deg, #0284C7 0%, #6366F1 100%)'
+              : 'linear-gradient(135deg, #00D4FF 0%, #7C4DFF 100%)',
             fontSize: '0.85rem',
             fontWeight: 700,
-            color: '#070B12',
-            boxShadow: '0 0 10px rgba(0, 212, 255, 0.25)',
+            color: '#FFFFFF',
+            boxShadow: isLight ? '0 0 8px rgba(2, 132, 199, 0.25)' : '0 0 10px rgba(0, 212, 255, 0.25)',
           }}
         >
           {user?.username?.charAt(0).toUpperCase() || 'A'}
         </Avatar>
         {(!collapsed || isMobile) && (
           <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-            <Typography variant="body2" fontWeight={600} noWrap sx={{ fontSize: '0.8rem', color: '#F1F5F9' }}>
+            <Typography
+              variant="body2"
+              fontWeight={650}
+              noWrap
+              sx={{ fontSize: '0.8rem', color: isLight ? '#0F172A' : '#F1F5F9' }}
+            >
               {user?.full_name || user?.username}
             </Typography>
-            <Typography variant="caption" noWrap sx={{ fontSize: '0.68rem', color: '#64748B' }}>
+            <Typography variant="caption" noWrap sx={{ fontSize: '0.68rem', color: isLight ? '#64748B' : '#64748B' }}>
               {user?.roles?.join(', ') || 'User'}
             </Typography>
           </Box>
@@ -302,7 +351,14 @@ function Layout() {
   );
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#070B12' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        height: '100vh',
+        backgroundColor: isLight ? '#F8FAFC' : '#070B12',
+        transition: 'background-color 0.25s ease',
+      }}
+    >
       {/* Top Application Bar (HUD) */}
       <AppBar
         position="fixed"
@@ -310,27 +366,38 @@ function Layout() {
           width: { md: `calc(100% - ${drawerWidth}px)` },
           ml: { md: `${drawerWidth}px` },
           transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-          backgroundColor: 'rgba(8, 14, 26, 0.88)',
+          backgroundColor: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(8, 14, 26, 0.88)',
           backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-          boxShadow: 'none',
+          borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
+          boxShadow: isLight ? '0 1px 3px rgba(15, 23, 42, 0.04)' : 'none',
         }}
       >
         <Toolbar sx={{ justifyContent: 'space-between', minHeight: 64, px: { xs: 2, sm: 3 } }}>
           {/* Left: Mobile hamburger & Breadcrumbs */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             {isMobile && (
-              <IconButton color="inherit" onClick={handleDrawerToggle} edge="start" sx={{ mr: 0.5 }}>
+              <IconButton
+                color="inherit"
+                onClick={handleDrawerToggle}
+                edge="start"
+                sx={{ mr: 0.5, color: isLight ? '#0F172A' : '#FFFFFF' }}
+              >
                 <MenuIcon />
               </IconButton>
             )}
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <Typography variant="body2" sx={{ color: '#64748B', fontWeight: 500, fontSize: '0.8rem' }}>
+              <Typography
+                variant="body2"
+                sx={{ color: isLight ? '#64748B' : '#64748B', fontWeight: 500, fontSize: '0.8rem' }}
+              >
                 CyberAudit
               </Typography>
-              <KeyboardArrowRight sx={{ fontSize: 16, color: '#475569' }} />
-              <Typography variant="body2" sx={{ color: '#E2E8F0', fontWeight: 600, fontSize: '0.875rem' }}>
+              <KeyboardArrowRight sx={{ fontSize: 16, color: isLight ? '#94A3B8' : '#475569' }} />
+              <Typography
+                variant="body2"
+                sx={{ color: isLight ? '#0F172A' : '#E2E8F0', fontWeight: 700, fontSize: '0.875rem' }}
+              >
                 {activeNavItem?.text || 'Dashboard'}
               </Typography>
             </Box>
@@ -341,37 +408,39 @@ function Layout() {
             sx={{
               display: { xs: 'none', md: 'flex' },
               alignItems: 'center',
-              backgroundColor: 'rgba(13, 21, 39, 0.6)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: isLight ? '#F1F5F9' : 'rgba(13, 21, 39, 0.6)',
+              border: isLight ? '1px solid rgba(15, 23, 42, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: 2,
               px: 1.5,
               py: 0.4,
-              width: { md: 280, lg: 380 },
+              width: { md: 260, lg: 360 },
               transition: 'all 0.2s ease',
               '&:focus-within': {
-                borderColor: '#00D4FF',
-                boxShadow: '0 0 12px rgba(0, 212, 255, 0.15)',
-                backgroundColor: 'rgba(13, 21, 39, 0.9)',
+                borderColor: primaryAccent,
+                boxShadow: isLight
+                  ? '0 0 10px rgba(2, 132, 199, 0.15)'
+                  : '0 0 12px rgba(0, 212, 255, 0.15)',
+                backgroundColor: isLight ? '#FFFFFF' : 'rgba(13, 21, 39, 0.9)',
               },
             }}
           >
-            <Search sx={{ color: '#64748B', fontSize: 18, mr: 1 }} />
+            <Search sx={{ color: isLight ? '#64748B' : '#64748B', fontSize: 18, mr: 1 }} />
             <InputBase
               placeholder="Search reports, vulnerabilities, agencies..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchSubmit}
               sx={{
-                color: '#F1F5F9',
+                color: isLight ? '#0F172A' : '#F1F5F9',
                 fontSize: '0.8rem',
                 width: '100%',
-                '& input::placeholder': { color: '#64748B', opacity: 1 },
+                '& input::placeholder': { color: isLight ? '#94A3B8' : '#64748B', opacity: 1 },
               }}
             />
           </Box>
 
-          {/* Right: Status Pill & Actions */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          {/* Right: Status Pill, Theme Toggle, & Actions */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             {/* Live Status indicator */}
             <Chip
               icon={<Box className="live-pulse-dot" sx={{ ml: 1 }} />}
@@ -379,11 +448,11 @@ function Layout() {
               size="small"
               sx={{
                 display: { xs: 'none', sm: 'inline-flex' },
-                backgroundColor: 'rgba(0, 230, 118, 0.08)',
-                color: '#00E676',
-                border: '1px solid rgba(0, 230, 118, 0.25)',
+                backgroundColor: isLight ? 'rgba(5, 150, 105, 0.08)' : 'rgba(0, 230, 118, 0.08)',
+                color: secondaryAccent,
+                border: isLight ? '1px solid rgba(5, 150, 105, 0.25)' : '1px solid rgba(0, 230, 118, 0.25)',
                 fontSize: '0.725rem',
-                fontWeight: 600,
+                fontWeight: 700,
                 height: 26,
               }}
             />
@@ -396,20 +465,55 @@ function Layout() {
               onClick={() => navigate('/upload')}
               sx={{
                 display: { xs: 'none', lg: 'inline-flex' },
-                borderColor: 'rgba(0, 212, 255, 0.35)',
-                color: '#00D4FF',
+                borderColor: isLight ? 'rgba(2, 132, 199, 0.4)' : 'rgba(0, 212, 255, 0.35)',
+                color: primaryAccent,
                 borderRadius: 1.75,
                 py: 0.5,
                 px: 1.5,
                 fontSize: '0.75rem',
+                fontWeight: 650,
                 '&:hover': {
-                  borderColor: '#00D4FF',
-                  backgroundColor: 'rgba(0, 212, 255, 0.08)',
+                  borderColor: primaryAccent,
+                  backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.08)',
                 },
               }}
             >
               Upload
             </Button>
+
+            {/* ── THEME MODE TOGGLE (DARK / LIGHT) ── */}
+            <Tooltip
+              title={isLight ? 'Switch to Dark Mode (Cyber Theme)' : 'Switch to Light Mode (Executive White)'}
+              arrow
+            >
+              <IconButton
+                onClick={toggleColorMode}
+                id="theme-mode-toggle"
+                sx={{
+                  p: 0.85,
+                  borderRadius: 2,
+                  backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+                  border: isLight ? '1px solid rgba(2, 132, 199, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  color: isLight ? '#0284C7' : '#FBBF24',
+                  transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                  '&:hover': {
+                    backgroundColor: isLight ? 'rgba(2, 132, 199, 0.16)' : 'rgba(251, 191, 36, 0.12)',
+                    borderColor: isLight ? '#0284C7' : '#FBBF24',
+                    transform: 'rotate(15deg) scale(1.06)',
+                    boxShadow: isLight
+                      ? '0 0 14px rgba(2, 132, 199, 0.3)'
+                      : '0 0 14px rgba(251, 191, 36, 0.35)',
+                  },
+                }}
+                aria-label="Toggle dark and light theme"
+              >
+                {isLight ? (
+                  <DarkMode sx={{ fontSize: 20, color: '#0284C7' }} />
+                ) : (
+                  <LightMode sx={{ fontSize: 20, color: '#FBBF24' }} />
+                )}
+              </IconButton>
+            </Tooltip>
 
             {/* Profile Menu */}
             <IconButton onClick={handleMenuOpen} sx={{ p: 0.5 }}>
@@ -417,11 +521,13 @@ function Layout() {
                 sx={{
                   width: 34,
                   height: 34,
-                  background: 'linear-gradient(135deg, #00D4FF 0%, #7C4DFF 100%)',
+                  background: isLight
+                    ? 'linear-gradient(135deg, #0284C7 0%, #6366F1 100%)'
+                    : 'linear-gradient(135deg, #00D4FF 0%, #7C4DFF 100%)',
                   fontSize: '0.85rem',
                   fontWeight: 700,
-                  color: '#070B12',
-                  boxShadow: '0 0 10px rgba(0, 212, 255, 0.3)',
+                  color: '#FFFFFF',
+                  boxShadow: isLight ? '0 0 8px rgba(2, 132, 199, 0.25)' : '0 0 10px rgba(0, 212, 255, 0.3)',
                 }}
               >
                 {user?.username?.charAt(0).toUpperCase() || 'A'}
@@ -437,11 +543,14 @@ function Layout() {
               PaperProps={{
                 sx: {
                   mt: 1,
-                  minWidth: 190,
-                  backgroundColor: 'rgba(13, 21, 39, 0.95)',
+                  minWidth: 200,
+                  backgroundColor: isLight ? '#FFFFFF' : 'rgba(13, 21, 39, 0.95)',
                   backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  boxShadow: '0 12px 36px rgba(0, 0, 0, 0.6)',
+                  border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  boxShadow: isLight
+                    ? '0 12px 36px rgba(15, 23, 42, 0.12)'
+                    : '0 12px 36px rgba(0, 0, 0, 0.6)',
+                  borderRadius: 2.5,
                 },
               }}
             >
@@ -450,19 +559,55 @@ function Layout() {
                   handleMenuClose();
                   navigate('/profile');
                 }}
-                sx={{ py: 1, fontSize: '0.85rem' }}
+                sx={{ py: 1, fontSize: '0.85rem', color: isLight ? '#0F172A' : '#F1F5F9' }}
               >
                 <ListItemIcon>
-                  <Person fontSize="small" sx={{ color: '#00D4FF' }} />
+                  <Person fontSize="small" sx={{ color: primaryAccent }} />
                 </ListItemIcon>
                 Profile Settings
               </MenuItem>
-              <Divider sx={{ my: 0.5, borderColor: 'rgba(255, 255, 255, 0.06)' }} />
+
+              {/* Theme toggle directly inside profile dropdown */}
+              <MenuItem
+                onClick={() => {
+                  toggleColorMode();
+                  handleMenuClose();
+                }}
+                sx={{ py: 1, fontSize: '0.85rem', color: isLight ? '#0F172A' : '#F1F5F9' }}
+              >
+                <ListItemIcon>
+                  {isLight ? (
+                    <DarkMode fontSize="small" sx={{ color: '#0284C7' }} />
+                  ) : (
+                    <LightMode fontSize="small" sx={{ color: '#FBBF24' }} />
+                  )}
+                </ListItemIcon>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <Typography fontSize="0.85rem">
+                    {isLight ? 'Dark Mode' : 'Light Mode'}
+                  </Typography>
+                  <Chip
+                    label={isLight ? 'LIGHT' : 'DARK'}
+                    size="small"
+                    sx={{
+                      height: 18,
+                      fontSize: '0.6rem',
+                      fontWeight: 800,
+                      bgcolor: isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(255, 255, 255, 0.08)',
+                      color: isLight ? '#0284C7' : '#00D4FF',
+                      ml: 1.5,
+                    }}
+                  />
+                </Box>
+              </MenuItem>
+
+              <Divider sx={{ my: 0.5, borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.06)' }} />
+
               <MenuItem onClick={handleLogout} sx={{ py: 1, fontSize: '0.85rem' }}>
                 <ListItemIcon>
                   <Logout fontSize="small" sx={{ color: 'error.main' }} />
                 </ListItemIcon>
-                <Typography color="error.main" fontSize="0.85rem" fontWeight={500}>
+                <Typography color="error.main" fontSize="0.85rem" fontWeight={600}>
                   Sign Out
                 </Typography>
               </MenuItem>
@@ -489,8 +634,8 @@ function Layout() {
             sx={{
               '& .MuiDrawer-paper': {
                 width: EXPANDED_WIDTH,
-                backgroundColor: '#080E1A',
-                borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+                backgroundColor: isLight ? '#FFFFFF' : '#080E1A',
+                borderRight: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
               },
             }}
           >
@@ -502,9 +647,9 @@ function Layout() {
             sx={{
               '& .MuiDrawer-paper': {
                 width: drawerWidth,
-                transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                backgroundColor: '#080E1A',
-                borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+                transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease',
+                backgroundColor: isLight ? '#FFFFFF' : '#080E1A',
+                borderRight: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
                 boxSizing: 'border-box',
               },
             }}
@@ -524,8 +669,8 @@ function Layout() {
           mt: '64px',
           overflow: 'auto',
           height: 'calc(100vh - 64px)',
-          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-          backgroundColor: '#070B12',
+          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease',
+          backgroundColor: isLight ? '#F8FAFC' : '#070B12',
           display: 'flex',
           flexDirection: 'column',
         }}

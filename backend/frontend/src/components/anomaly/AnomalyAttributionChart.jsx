@@ -7,7 +7,8 @@ import {
   Grid,
   Paper,
   LinearProgress,
-  Stack
+  Stack,
+  useTheme
 } from '@mui/material';
 import {
   Functions,
@@ -26,6 +27,8 @@ import {
 } from 'recharts';
 
 export default function AnomalyAttributionChart({ records = [], summary = {} }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   // Aggregate ECOD feature attributions across anomalous records
   const anomRecords = records.filter(r => r.is_anomaly);
   const sampleSet = anomRecords.length > 0 ? anomRecords : records.slice(0, 25);
@@ -57,14 +60,22 @@ export default function AnomalyAttributionChart({ records = [], summary = {} }) 
   };
 
   return (
-    <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card sx={{
+      bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+      border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+      borderRadius: 2,
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none'
+    }}>
       <CardContent sx={{ p: 2.2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: 'rgba(255, 214, 0, 0.1)', display: 'flex' }}>
             <Functions sx={{ color: '#FFD600', fontSize: 22 }} />
           </Box>
           <Box>
-            <Typography variant="h6" fontWeight={800} color="#F1F5F9" sx={{ fontSize: '0.95rem' }}>
+            <Typography variant="h6" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'} sx={{ fontSize: '0.95rem' }}>
               ECOD Dimensional Attribution & Detector Correlations
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -84,12 +95,18 @@ export default function AnomalyAttributionChart({ records = [], summary = {} }) 
             <Box sx={{ height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.05)'} horizontal={false} />
                   <XAxis type="number" stroke="#64748B" tick={{ fill: '#64748B', fontSize: 11 }} unit="%" />
-                  <YAxis type="category" dataKey="feature" stroke="#64748B" tick={{ fill: '#E2E8F0', fontSize: 11 }} width={120} />
+                  <YAxis type="category" dataKey="feature" stroke="#64748B" tick={{ fill: isLight ? '#334155' : '#E2E8F0', fontSize: 11 }} width={120} />
                   <RechartsTooltip
                     formatter={(val) => [`${val}% attribution`, 'Contribution']}
-                    contentStyle={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
+                    contentStyle={{
+                      backgroundColor: isLight ? '#FFFFFF' : '#0B1120',
+                      borderColor: isLight ? 'rgba(15, 23, 42, 0.1)' : 'rgba(255,255,255,0.1)',
+                      borderRadius: 8,
+                      color: isLight ? '#0F172A' : '#FFF',
+                      boxShadow: isLight ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
+                    }}
                   />
                   <Bar dataKey="avg_attribution" radius={[0, 4, 4, 0]}>
                     {chartData.map((entry, index) => (
@@ -110,7 +127,12 @@ export default function AnomalyAttributionChart({ records = [], summary = {} }) 
               Tri-Model Agreement Matrix
             </Typography>
             <Stack spacing={1.5} sx={{ mt: 1 }}>
-              <Paper sx={{ p: 1.5, bgcolor: '#0F172A', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 1.5 }}>
+              <Paper sx={{
+                p: 1.5,
+                bgcolor: isLight ? '#F8FAFC' : '#0F172A',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 1.5
+              }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={600}>
                     iForest &harr; ECOD (Tabular Concordance)
@@ -122,11 +144,16 @@ export default function AnomalyAttributionChart({ records = [], summary = {} }) 
                 <LinearProgress
                   variant="determinate"
                   value={Math.max(0, (correlations.iforest_ecod ?? 0.72) * 100)}
-                  sx={{ height: 4, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.06)', '& .MuiLinearProgress-bar': { bgcolor: '#00E676' } }}
+                  sx={{ height: 4, borderRadius: 2, bgcolor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.06)', '& .MuiLinearProgress-bar': { bgcolor: '#00E676' } }}
                 />
               </Paper>
 
-              <Paper sx={{ p: 1.5, bgcolor: '#0F172A', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 1.5 }}>
+              <Paper sx={{
+                p: 1.5,
+                bgcolor: isLight ? '#F8FAFC' : '#0F172A',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 1.5
+              }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={600}>
                     iForest &harr; SBERT (Metric vs Narrative)
@@ -138,11 +165,16 @@ export default function AnomalyAttributionChart({ records = [], summary = {} }) 
                 <LinearProgress
                   variant="determinate"
                   value={Math.max(0, (correlations.iforest_embed ?? 0.54) * 100)}
-                  sx={{ height: 4, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.06)', '& .MuiLinearProgress-bar': { bgcolor: '#00D4FF' } }}
+                  sx={{ height: 4, borderRadius: 2, bgcolor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.06)', '& .MuiLinearProgress-bar': { bgcolor: '#00D4FF' } }}
                 />
               </Paper>
 
-              <Paper sx={{ p: 1.5, bgcolor: '#0F172A', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 1.5 }}>
+              <Paper sx={{
+                p: 1.5,
+                bgcolor: isLight ? '#F8FAFC' : '#0F172A',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 1.5
+              }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={600}>
                     ECOD &harr; SBERT (Tail vs Narrative)
@@ -154,7 +186,7 @@ export default function AnomalyAttributionChart({ records = [], summary = {} }) 
                 <LinearProgress
                   variant="determinate"
                   value={Math.max(0, (correlations.ecod_embed ?? 0.48) * 100)}
-                  sx={{ height: 4, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.06)', '& .MuiLinearProgress-bar': { bgcolor: '#D500F9' } }}
+                  sx={{ height: 4, borderRadius: 2, bgcolor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.06)', '& .MuiLinearProgress-bar': { bgcolor: '#D500F9' } }}
                 />
               </Paper>
             </Stack>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Typography, Alert, CircularProgress, Skeleton, Button, Chip,
-  Card, CardContent, Grid
+  Card, CardContent, Grid, useTheme
 } from '@mui/material';
 import {
   TrendingUp, Refresh, History, CheckCircle, WarningAmber, Lightbulb, AutoGraph
@@ -22,6 +22,8 @@ import RunHistoryModal from '../components/trend_forecasting/RunHistoryModal';
 import FindingDrillDownModal from '../components/trend_forecasting/FindingDrillDownModal';
 
 export default function TrendAnalysisDashboardPage() {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   // Page load & summary state
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [readiness, setReadiness] = useState(null);
@@ -350,24 +352,24 @@ export default function TrendAnalysisDashboardPage() {
       {overview && (
         <Card sx={{
           mb: 3,
-          background: 'rgba(10, 14, 23, 0.85)',
-          border: '1px solid rgba(0, 212, 255, 0.25)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+          background: isLight ? '#FFFFFF' : 'rgba(10, 14, 23, 0.85)',
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.25)',
+          boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : '0 4px 20px rgba(0, 0, 0, 0.3)'
         }}>
           <CardContent sx={{ p: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.2 }}>
-              <Lightbulb sx={{ color: '#00D4FF', fontSize: 20 }} />
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#E2E8F0' }}>
+              <Lightbulb sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 20 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: isLight ? '#0F172A' : '#E2E8F0' }}>
                 Executive Plain-Language Summary: What This Data Means
               </Typography>
             </Box>
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
-                <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
-                  <Typography variant="caption" sx={{ color: '#00D4FF', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.03)', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
+                  <Typography variant="caption" sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontWeight: 700, display: 'block', mb: 0.5 }}>
                     📈 VULNERABILITY WORKLOAD OUTLOOK
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: isLight ? '#334155' : '#CBD5E1', fontSize: '0.8rem', lineHeight: 1.5 }}>
                     {overview.total_findings?.change_pct !== null && overview.total_findings?.change_pct !== undefined ? (
                       overview.total_findings.change_pct > 0 
                         ? `Incoming vulnerability arrivals grew by +${overview.total_findings.change_pct}% over recent audit periods. TimesFM-3 foundation model projects this workload will require sustained remediation capacity.`
@@ -378,22 +380,22 @@ export default function TrendAnalysisDashboardPage() {
               </Grid>
 
               <Grid item xs={12} md={4}>
-                <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
+                <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.03)', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
                   <Typography variant="caption" sx={{ color: '#FF1744', fontWeight: 700, display: 'block', mb: 0.5 }}>
                     🚨 HIGH-SEVERITY RISK EXPOSURE
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: isLight ? '#334155' : '#CBD5E1', fontSize: '0.8rem', lineHeight: 1.5 }}>
                     There are currently <strong>{overview.open_critical?.value || 0} Open Critical</strong> and <strong>{overview.open_high?.value || 0} Open High</strong> vulnerabilities. Remediation workflows should prioritize these to mitigate immediate breach exposure.
                   </Typography>
                 </Box>
               </Grid>
 
               <Grid item xs={12} md={4}>
-                <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
+                <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.03)', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
                   <Typography variant="caption" sx={{ color: '#00E676', fontWeight: 700, display: 'block', mb: 0.5 }}>
                     🛡️ FORMAL REMEDIATION VELOCITY
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: isLight ? '#334155' : '#CBD5E1', fontSize: '0.8rem', lineHeight: 1.5 }}>
                     <strong>{overview.verified_closures?.value || 0}</strong> verified closures documented via formal CERT-In / MeitY retest certificates, maintaining positive remediation momentum against newly identified flaws.
                   </Typography>
                 </Box>

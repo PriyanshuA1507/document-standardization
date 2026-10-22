@@ -17,6 +17,7 @@ import {
   FormControl,
   InputLabel,
   Tooltip,
+  useTheme,
 } from '@mui/material';
 import { Add, Edit, Delete, Person } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
@@ -28,6 +29,8 @@ import api from '../api/axios';
 const ROLES = ['ADMIN', 'AUDITOR', 'REVIEWER'];
 
 function UserManagementPage() {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -241,15 +244,16 @@ function UserManagementPage() {
             sx={{
               border: 'none',
               '& .MuiDataGrid-cell': {
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255,255,255,0.04)',
+                color: isLight ? '#0F172A' : undefined,
               },
               '& .MuiDataGrid-columnHeaders': {
-                backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                borderBottom: '1px solid rgba(255,255,255,0.08)',
-                color: '#E2E8F0',
+                backgroundColor: isLight ? '#F1F5F9' : 'rgba(0, 0, 0, 0.4)',
+                borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)',
+                color: isLight ? '#475569' : '#E2E8F0',
               },
               '& .MuiDataGrid-footerContainer': {
-                borderTop: '1px solid rgba(255,255,255,0.08)',
+                borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)',
               },
             }}
           />
@@ -265,7 +269,8 @@ function UserManagementPage() {
         fullWidth
         PaperProps={{
           sx: {
-            background: 'rgba(17, 24, 39, 0.95)',
+            background: isLight ? '#FFFFFF' : 'rgba(17, 24, 39, 0.95)',
+            border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255, 255, 255, 0.1)',
             backdropFilter: 'blur(20px)',
             borderRadius: 3,
           },

@@ -26,6 +26,7 @@ import {
   Grid,
   Pagination,
   Breadcrumbs,
+  useTheme,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
@@ -2025,6 +2026,8 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
 
 /* ──────────── Reports Page ──────────── */
 function ReportsPage() {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin } = useAuth();
@@ -2620,12 +2623,12 @@ function ReportsPage() {
                     noWrap
                     sx={{
                       cursor: 'pointer',
-                      color: '#F8FAFC !important',
+                      color: isLight ? '#0F172A !important' : '#F8FAFC !important',
                       fontSize: '0.84rem',
                       lineHeight: 1.3,
                       maxWidth: { xs: 160, sm: 220, md: 280, lg: 360 },
                       transition: 'color 0.15s ease',
-                      '&:hover': { color: '#00F0FF !important', textDecoration: 'underline' },
+                      '&:hover': { color: isLight ? '#0284C7 !important' : '#00F0FF !important', textDecoration: 'underline' },
                     }}
                   >
                     {report.original_filename}
@@ -2646,12 +2649,12 @@ function ReportsPage() {
                           px: 0.8,
                           py: 0.15,
                           borderRadius: '4px',
-                          backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          backgroundColor: isLight ? 'rgba(15, 23, 42, 0.04)' : 'rgba(255, 255, 255, 0.04)',
+                          border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
                           fontSize: '0.67rem',
                           fontFamily: 'monospace',
                           lineHeight: 1.2,
-                          color: copiedHash === report.sha256_hash ? '#34D399' : '#94A3B8',
+                          color: copiedHash === report.sha256_hash ? '#34D399' : (isLight ? '#475569' : '#94A3B8'),
                           '&:hover': {
                             backgroundColor: 'rgba(0, 240, 255, 0.08)',
                             borderColor: 'rgba(0, 240, 255, 0.3)',
@@ -2704,7 +2707,7 @@ function ReportsPage() {
         renderCell: (params) => (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, height: '100%' }}>
             <Business sx={{ fontSize: 15, color: '#64748B' }} />
-            <Typography variant="body2" sx={{ fontSize: '0.78rem', color: '#CBD5E1', fontWeight: 600 }} noWrap>
+            <Typography variant="body2" sx={{ fontSize: '0.78rem', color: isLight ? '#334155' : '#CBD5E1', fontWeight: 600 }} noWrap>
               {params.row.agency?.agency_name || '—'}
             </Typography>
           </Box>
@@ -2780,7 +2783,7 @@ function ReportsPage() {
               alignItems: 'center',
               height: '100%',
               fontSize: '0.8rem',
-              color: '#CBD5E1',
+              color: isLight ? '#0F172A' : '#CBD5E1',
               fontVariantNumeric: 'tabular-nums',
               fontWeight: 600,
             }}
@@ -3058,26 +3061,27 @@ function ReportsPage() {
             sx={{
               p: 2,
               borderRadius: '12px',
-              backgroundColor: statusFilter === 'ALL' ? 'rgba(0, 240, 255, 0.08)' : '#0D1527',
+              backgroundColor: statusFilter === 'ALL' ? (isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0, 240, 255, 0.08)') : (isLight ? '#FFFFFF' : '#0D1527'),
               border: '1px solid',
-              borderColor: statusFilter === 'ALL' ? '#00F0FF' : 'rgba(255, 255, 255, 0.07)',
+              borderColor: statusFilter === 'ALL' ? (isLight ? '#0284C7' : '#00F0FF') : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.07)'),
+              boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               position: 'relative',
               overflow: 'hidden',
               '&:hover': {
                 transform: 'translateY(-2px)',
-                borderColor: '#00F0FF',
+                borderColor: isLight ? '#0284C7' : '#00F0FF',
               },
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
                 Total Documents
               </Typography>
-              <FolderCopy sx={{ fontSize: 18, color: '#00F0FF' }} />
+              <FolderCopy sx={{ fontSize: 18, color: isLight ? '#0284C7' : '#00F0FF' }} />
             </Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#F8FAFC', fontVariantNumeric: 'tabular-nums' }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: isLight ? '#0F172A' : '#F8FAFC', fontVariantNumeric: 'tabular-nums' }}>
               {stats.total}
             </Typography>
             <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.72rem', display: 'block', mt: 0.3 }}>
@@ -3093,9 +3097,10 @@ function ReportsPage() {
             sx={{
               p: 2,
               borderRadius: '12px',
-              backgroundColor: statusFilter === 'VALIDATED' ? 'rgba(16, 185, 129, 0.08)' : '#0D1527',
+              backgroundColor: statusFilter === 'VALIDATED' ? (isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(16, 185, 129, 0.08)') : (isLight ? '#FFFFFF' : '#0D1527'),
               border: '1px solid',
-              borderColor: statusFilter === 'VALIDATED' ? '#10B981' : 'rgba(255, 255, 255, 0.07)',
+              borderColor: statusFilter === 'VALIDATED' ? '#10B981' : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.07)'),
+              boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               '&:hover': {
@@ -3105,12 +3110,12 @@ function ReportsPage() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
                 Integrity Validated
               </Typography>
               <CheckCircle sx={{ fontSize: 18, color: '#10B981' }} />
             </Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#34D399', fontVariantNumeric: 'tabular-nums' }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: isLight ? '#059669' : '#34D399', fontVariantNumeric: 'tabular-nums' }}>
               {stats.validated}
             </Typography>
             <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.72rem', display: 'block', mt: 0.3 }}>
@@ -3126,24 +3131,25 @@ function ReportsPage() {
             sx={{
               p: 2,
               borderRadius: '12px',
-              backgroundColor: statusFilter === 'UPLOADED' ? 'rgba(56, 189, 248, 0.08)' : '#0D1527',
+              backgroundColor: statusFilter === 'UPLOADED' ? (isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(56, 189, 248, 0.08)') : (isLight ? '#FFFFFF' : '#0D1527'),
               border: '1px solid',
-              borderColor: statusFilter === 'UPLOADED' ? '#38BDF8' : 'rgba(255, 255, 255, 0.07)',
+              borderColor: statusFilter === 'UPLOADED' ? (isLight ? '#0284C7' : '#38BDF8') : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.07)'),
+              boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               '&:hover': {
                 transform: 'translateY(-2px)',
-                borderColor: '#38BDF8',
+                borderColor: isLight ? '#0284C7' : '#38BDF8',
               },
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
                 Ingested / Pending
               </Typography>
-              <HourglassTop sx={{ fontSize: 18, color: '#38BDF8' }} />
+              <HourglassTop sx={{ fontSize: 18, color: isLight ? '#0284C7' : '#38BDF8' }} />
             </Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#38BDF8', fontVariantNumeric: 'tabular-nums' }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: isLight ? '#0284C7' : '#38BDF8', fontVariantNumeric: 'tabular-nums' }}>
               {stats.uploaded}
             </Typography>
             <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.72rem', display: 'block', mt: 0.3 }}>
@@ -3159,9 +3165,10 @@ function ReportsPage() {
             sx={{
               p: 2,
               borderRadius: '12px',
-              backgroundColor: statusFilter === 'QUARANTINED' ? 'rgba(245, 158, 11, 0.08)' : '#0D1527',
+              backgroundColor: statusFilter === 'QUARANTINED' ? (isLight ? 'rgba(217, 119, 6, 0.1)' : 'rgba(245, 158, 11, 0.08)') : (isLight ? '#FFFFFF' : '#0D1527'),
               border: '1px solid',
-              borderColor: statusFilter === 'QUARANTINED' ? '#F59E0B' : 'rgba(255, 255, 255, 0.07)',
+              borderColor: statusFilter === 'QUARANTINED' ? '#F59E0B' : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.07)'),
+              boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               '&:hover': {
@@ -3171,12 +3178,12 @@ function ReportsPage() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
                 Flagged & Lineage
               </Typography>
               <Shield sx={{ fontSize: 18, color: '#F59E0B' }} />
             </Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#FBBF24', fontVariantNumeric: 'tabular-nums' }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: isLight ? '#D97706' : '#FBBF24', fontVariantNumeric: 'tabular-nums' }}>
               {stats.flagged}
             </Typography>
             <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.72rem', display: 'block', mt: 0.3 }}>
@@ -3191,8 +3198,9 @@ function ReportsPage() {
         sx={{
           p: 2,
           borderRadius: '12px',
-          backgroundColor: '#0D1527',
-          border: '1px solid rgba(255, 255, 255, 0.07)',
+          backgroundColor: isLight ? '#FFFFFF' : '#0D1527',
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.07)',
+          boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
           display: 'flex',
           flexDirection: { xs: 'column', lg: 'row' },
           gap: 2,
@@ -3210,13 +3218,13 @@ function ReportsPage() {
           sx={{
             width: { xs: '100%', lg: 380 },
             '& .MuiOutlinedInput-root': {
-              backgroundColor: 'rgba(7, 11, 18, 0.8)',
+              backgroundColor: isLight ? '#F8FAFC' : 'rgba(7, 11, 18, 0.8)',
               borderRadius: '8px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              border: isLight ? '1px solid rgba(15, 23, 42, 0.12)' : '1px solid rgba(255, 255, 255, 0.1)',
               fontSize: '0.82rem',
-              color: '#F8FAFC',
-              '&:hover': { borderColor: 'rgba(0, 240, 255, 0.4)' },
-              '&.Mui-focused': { borderColor: '#00F0FF' },
+              color: isLight ? '#0F172A' : '#F8FAFC',
+              '&:hover': { borderColor: isLight ? 'rgba(2, 132, 199, 0.4)' : 'rgba(0, 240, 255, 0.4)' },
+              '&.Mui-focused': { borderColor: isLight ? '#0284C7' : '#00F0FF' },
             },
           }}
           InputProps={{
@@ -3248,19 +3256,19 @@ function ReportsPage() {
                 fontSize: '0.68rem',
                 fontWeight: 700,
                 cursor: 'pointer',
-                backgroundColor: statusFilter === st ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                color: statusFilter === st ? '#00F0FF' : '#94A3B8',
+                backgroundColor: statusFilter === st ? (isLight ? 'rgba(2, 132, 199, 0.12)' : 'rgba(0, 240, 255, 0.15)') : (isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.04)'),
+                color: statusFilter === st ? (isLight ? '#0284C7' : '#00F0FF') : (isLight ? '#475569' : '#94A3B8'),
                 border: '1px solid',
-                borderColor: statusFilter === st ? 'rgba(0, 240, 255, 0.4)' : 'rgba(255, 255, 255, 0.08)',
+                borderColor: statusFilter === st ? (isLight ? 'rgba(2, 132, 199, 0.4)' : 'rgba(0, 240, 255, 0.4)') : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)'),
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 240, 255, 0.1)',
-                  color: '#00F0FF',
+                  backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 240, 255, 0.1)',
+                  color: isLight ? '#0284C7' : '#00F0FF',
                 },
               }}
             />
           ))}
 
-          <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', my: 0.5 }} />
+          <Divider orientation="vertical" flexItem sx={{ borderColor: isLight ? 'rgba(15, 23, 42, 0.1)' : 'rgba(255, 255, 255, 0.1)', my: 0.5 }} />
 
           {/* Format Pills */}
           {['ALL', '.pdf', '.docx'].map((fmt) => (
@@ -3273,13 +3281,13 @@ function ReportsPage() {
                 fontSize: '0.68rem',
                 fontWeight: 700,
                 cursor: 'pointer',
-                backgroundColor: formatFilter === fmt ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                color: formatFilter === fmt ? '#38BDF8' : '#94A3B8',
+                backgroundColor: formatFilter === fmt ? (isLight ? 'rgba(2, 132, 199, 0.12)' : 'rgba(56, 189, 248, 0.15)') : (isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.04)'),
+                color: formatFilter === fmt ? (isLight ? '#0284C7' : '#38BDF8') : (isLight ? '#475569' : '#94A3B8'),
                 border: '1px solid',
-                borderColor: formatFilter === fmt ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255, 255, 255, 0.08)',
+                borderColor: formatFilter === fmt ? (isLight ? 'rgba(2, 132, 199, 0.4)' : 'rgba(56, 189, 248, 0.4)') : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)'),
                 '&:hover': {
-                  backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                  color: '#38BDF8',
+                  backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(56, 189, 248, 0.1)',
+                  color: isLight ? '#0284C7' : '#38BDF8',
                 },
               }}
             />
@@ -3342,8 +3350,9 @@ function ReportsPage() {
       {viewMode === 'table' ? (
         <Card
           sx={{
-            backgroundColor: '#0D1527',
-            border: '1px solid rgba(255, 255, 255, 0.07)',
+            backgroundColor: isLight ? '#FFFFFF' : '#0D1527',
+            border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.07)',
+            boxShadow: isLight ? '0 4px 20px -2px rgba(15, 23, 42, 0.05)' : 'none',
             borderRadius: '14px',
             overflow: 'hidden',
           }}
@@ -3364,30 +3373,30 @@ function ReportsPage() {
               sx={{
                 border: 'none',
                 '& .MuiDataGrid-cell': {
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255, 255, 255, 0.05)',
                   lineHeight: 'normal !important',
                   display: 'flex',
                   alignItems: 'center',
                 },
                 '& .MuiDataGrid-columnHeaders': {
-                  backgroundColor: '#0A101D',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                  color: '#94A3B8',
+                  backgroundColor: isLight ? '#F1F5F9' : '#0A101D',
+                  borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  color: isLight ? '#475569' : '#94A3B8',
                   fontSize: '0.75rem',
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                 },
                 '& .MuiDataGrid-footerContainer': {
-                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                  backgroundColor: '#0A101D',
-                  color: '#94A3B8',
+                  borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  backgroundColor: isLight ? '#F8FAFC' : '#0A101D',
+                  color: isLight ? '#475569' : '#94A3B8',
                 },
                 '& .MuiTablePagination-root': {
-                  color: '#94A3B8',
+                  color: isLight ? '#475569' : '#94A3B8',
                 },
                 '& .MuiIconButton-root': {
-                  color: '#94A3B8',
+                  color: isLight ? '#475569' : '#94A3B8',
                 },
               }}
               slots={{
@@ -3455,8 +3464,9 @@ function ReportsPage() {
               sx={{
                 p: 6,
                 textAlign: 'center',
-                backgroundColor: '#0D1527',
-                border: '1px solid rgba(255, 255, 255, 0.07)',
+                backgroundColor: isLight ? '#FFFFFF' : '#0D1527',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.07)',
+                boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
                 borderRadius: '14px',
               }}
             >
@@ -3494,8 +3504,9 @@ function ReportsPage() {
                   <Grid item xs={12} sm={6} lg={4} key={report.report_id}>
                     <Card
                       sx={{
-                        backgroundColor: '#0D1527',
-                        border: '1px solid rgba(255, 255, 255, 0.07)',
+                        backgroundColor: isLight ? '#FFFFFF' : '#0D1527',
+                        border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.07)',
+                        boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
                         borderRadius: '14px',
                         overflow: 'hidden',
                         transition: 'all 0.2s ease',
@@ -3504,8 +3515,8 @@ function ReportsPage() {
                         height: '100%',
                         '&:hover': {
                           transform: 'translateY(-3px)',
-                          borderColor: 'rgba(0, 240, 255, 0.35)',
-                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+                          borderColor: isLight ? 'rgba(2, 132, 199, 0.4)' : 'rgba(0, 240, 255, 0.35)',
+                          boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.4)',
                         },
                       }}
                     >

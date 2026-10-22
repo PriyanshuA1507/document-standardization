@@ -16,7 +16,8 @@ import {
   Tooltip,
   Paper,
   LinearProgress,
-  Stack
+  Stack,
+  useTheme
 } from '@mui/material';
 import {
   Tune,
@@ -49,6 +50,8 @@ export default function AnomalyConfigConsole({
   currentStage,
   progressPercent
 }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [expanded, setExpanded] = useState(false);
 
   // Form state
@@ -117,7 +120,13 @@ export default function AnomalyConfigConsole({
   };
 
   return (
-    <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(0, 212, 255, 0.2)', borderRadius: 2, mb: 3 }}>
+    <Card sx={{
+      bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+      border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.2)',
+      borderRadius: 2,
+      mb: 3,
+      boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none'
+    }}>
       {/* Header bar */}
       <CardContent sx={{ p: 2.5, pb: expanded ? 1.5 : 2.5 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -127,7 +136,7 @@ export default function AnomalyConfigConsole({
             </Box>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="h6" fontWeight={800} color="#F1F5F9" sx={{ fontSize: '1.05rem' }}>
+                <Typography variant="h6" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'} sx={{ fontSize: '1.05rem' }}>
                   Multi-Detector Anomaly Configuration Console
                 </Typography>
                 <Chip
@@ -168,7 +177,10 @@ export default function AnomalyConfigConsole({
             <IconButton
               size="small"
               onClick={() => setExpanded(!expanded)}
-              sx={{ color: '#94A3B8', border: '1px solid rgba(255,255,255,0.1)' }}
+              sx={{
+                color: isLight ? '#475569' : '#94A3B8',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255,255,255,0.1)'
+              }}
             >
               {expanded ? <ExpandLess /> : <ExpandMore />}
             </IconButton>
@@ -192,7 +204,7 @@ export default function AnomalyConfigConsole({
               sx={{
                 height: 6,
                 borderRadius: 3,
-                bgcolor: 'rgba(255,255,255,0.06)',
+                bgcolor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.06)',
                 '& .MuiLinearProgress-bar': { bgcolor: '#00D4FF' }
               }}
             />
@@ -202,7 +214,7 @@ export default function AnomalyConfigConsole({
 
       {/* Expandable Configuration Body */}
       <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />
+        <Divider sx={{ borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)' }} />
         <CardContent sx={{ p: 2.5 }}>
           {/* 1. Presets */}
           <Box sx={{ mb: 3 }}>
@@ -217,9 +229,9 @@ export default function AnomalyConfigConsole({
                   onClick={() => handleApplyPreset(preset)}
                   icon={<AutoAwesome sx={{ fontSize: 16 }} />}
                   sx={{
-                    bgcolor: 'rgba(255, 255, 255, 0.04)',
-                    color: '#E2E8F0',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    bgcolor: isLight ? '#F1F5F9' : 'rgba(255, 255, 255, 0.04)',
+                    color: isLight ? '#334155' : '#E2E8F0',
+                    border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
                     fontWeight: 600,
                     fontSize: '0.78rem',
                     py: 1.8,
@@ -238,8 +250,14 @@ export default function AnomalyConfigConsole({
           <Grid container spacing={3}>
             {/* 2. Algorithm Mode Selection */}
             <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 2, bgcolor: '#0F172A', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2, height: '100%' }}>
-                <Typography variant="subtitle2" fontWeight={800} color="#F1F5F9" sx={{ mb: 1.5 }}>
+              <Paper sx={{
+                p: 2,
+                bgcolor: isLight ? '#F8FAFC' : '#0F172A',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 2,
+                height: '100%'
+              }}>
+                <Typography variant="subtitle2" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'} sx={{ mb: 1.5 }}>
                   Detection Engine Mode
                 </Typography>
                 <Stack spacing={1}>
@@ -256,16 +274,16 @@ export default function AnomalyConfigConsole({
                         p: 1.5,
                         borderRadius: 1.5,
                         cursor: 'pointer',
-                        bgcolor: algorithmMode === mode.id ? 'rgba(0, 212, 255, 0.12)' : 'rgba(255,255,255,0.02)',
+                        bgcolor: algorithmMode === mode.id ? 'rgba(0, 212, 255, 0.12)' : (isLight ? '#FFFFFF' : 'rgba(255,255,255,0.02)'),
                         border: '1px solid',
-                        borderColor: algorithmMode === mode.id ? '#00D4FF' : 'rgba(255,255,255,0.05)',
+                        borderColor: algorithmMode === mode.id ? '#00D4FF' : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.05)'),
                         transition: 'all 0.2s',
                         '&:hover': { borderColor: 'rgba(0, 212, 255, 0.5)' }
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.3 }}>
                         {DETECTOR_ICONS[mode.id]}
-                        <Typography variant="body2" fontWeight={700} color={algorithmMode === mode.id ? '#00D4FF' : '#F1F5F9'}>
+                        <Typography variant="body2" fontWeight={700} color={algorithmMode === mode.id ? '#00D4FF' : (isLight ? '#0F172A' : '#F1F5F9')}>
                           {mode.name}
                         </Typography>
                       </Box>
@@ -280,8 +298,14 @@ export default function AnomalyConfigConsole({
 
             {/* 3. Hyperparameter Controls */}
             <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 2, bgcolor: '#0F172A', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2, height: '100%' }}>
-                <Typography variant="subtitle2" fontWeight={800} color="#F1F5F9" sx={{ mb: 2 }}>
+              <Paper sx={{
+                p: 2,
+                bgcolor: isLight ? '#F8FAFC' : '#0F172A',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 2,
+                height: '100%'
+              }}>
+                <Typography variant="subtitle2" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'} sx={{ mb: 2 }}>
                   Hyperparameters & Sensitivity
                 </Typography>
 
@@ -366,7 +390,7 @@ export default function AnomalyConfigConsole({
 
                 {/* Ensemble Weights */}
                 {algorithmMode === 'ENSEMBLE' && (
-                  <Box sx={{ pt: 1, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <Box sx={{ pt: 1, borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)' }}>
                     <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                       Ensemble Fusion Weights
                     </Typography>
@@ -391,9 +415,15 @@ export default function AnomalyConfigConsole({
 
             {/* 4. Feature Space Toggles */}
             <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 2, bgcolor: '#0F172A', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2, height: '100%' }}>
+              <Paper sx={{
+                p: 2,
+                bgcolor: isLight ? '#F8FAFC' : '#0F172A',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 2,
+                height: '100%'
+              }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Typography variant="subtitle2" fontWeight={800} color="#F1F5F9">
+                  <Typography variant="subtitle2" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'}>
                     Feature Vector Catalog
                   </Typography>
                   <Button size="small" onClick={handleSelectAllFeatures} sx={{ color: '#00D4FF', fontSize: '0.72rem', p: 0, minWidth: 0 }}>
@@ -413,10 +443,10 @@ export default function AnomalyConfigConsole({
                         size="small"
                         onClick={() => handleToggleFeature(f.key)}
                         sx={{
-                          bgcolor: active ? 'rgba(0, 212, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                          color: active ? '#00D4FF' : 'text.secondary',
+                          bgcolor: active ? 'rgba(0, 212, 255, 0.15)' : (isLight ? '#FFFFFF' : 'rgba(255, 255, 255, 0.04)'),
+                          color: active ? '#00D4FF' : (isLight ? '#334155' : 'text.secondary'),
                           border: '1px solid',
-                          borderColor: active ? 'rgba(0, 212, 255, 0.4)' : 'rgba(255, 255, 255, 0.06)',
+                          borderColor: active ? 'rgba(0, 212, 255, 0.4)' : (isLight ? 'rgba(15, 23, 42, 0.1)' : 'rgba(255, 255, 255, 0.06)'),
                           fontWeight: active ? 700 : 500,
                           fontSize: '0.72rem',
                           cursor: 'pointer'

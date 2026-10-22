@@ -22,6 +22,7 @@ import {
   Divider,
   Tabs,
   Tab,
+  useTheme,
 } from '@mui/material';
 import {
   Close,
@@ -49,6 +50,9 @@ import {
 import api from '../../api/axios';
 
 export default function ForecastComparisonModal({ open, onClose, runId1, runId2 }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [comparison, setComparison] = useState(null);
@@ -94,7 +98,7 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
           size="small"
           icon={<Remove sx={{ fontSize: 14 }} />}
           label={`0.00${suffix}`}
-          sx={{ bgcolor: 'rgba(255,255,255,0.05)', color: '#94A3B8', fontSize: '0.72rem' }}
+          sx={{ bgcolor: isLight ? 'rgba(15,23,42,0.05)' : 'rgba(255,255,255,0.05)', color: isLight ? '#64748B' : '#94A3B8', fontSize: '0.72rem' }}
         />
       );
     }
@@ -134,21 +138,21 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
       fullWidth
       PaperProps={{
         sx: {
-          bgcolor: '#0B1220',
-          border: '1px solid rgba(0, 212, 255, 0.3)',
+          bgcolor: isLight ? '#FFFFFF' : '#0B1220',
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(0, 212, 255, 0.3)',
           borderRadius: 3,
-          boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
+          boxShadow: isLight ? '0 12px 48px rgba(15, 23, 42, 0.1)' : '0 12px 48px rgba(0,0,0,0.6)',
         },
       }}
     >
       <DialogTitle
         sx={{
           p: 2.5,
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          background: 'linear-gradient(90deg, rgba(13,21,39,0.95) 0%, rgba(15,23,42,0.95) 100%)',
+          background: isLight ? '#F8FAFC' : 'linear-gradient(90deg, rgba(13,21,39,0.95) 0%, rgba(15,23,42,0.95) 100%)',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -156,7 +160,7 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
             <CompareArrows />
           </Box>
           <Box>
-            <Typography variant="h6" fontWeight={800} color="#F8FAFC">
+            <Typography variant="h6" fontWeight={800} color={isLight ? '#0F172A' : '#F8FAFC'}>
               Multi-Model Forecasting Benchmark Matrix
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -164,7 +168,7 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
             </Typography>
           </Box>
         </Box>
-        <IconButton size="small" onClick={onClose} sx={{ color: '#94A3B8', '&:hover': { color: '#FFF' } }}>
+        <IconButton size="small" onClick={onClose} sx={{ color: isLight ? '#64748B' : '#94A3B8', '&:hover': { color: isLight ? '#0F172A' : '#FFF' } }}>
           <Close />
         </IconButton>
       </DialogTitle>
@@ -248,7 +252,13 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
             </Grid>
 
             {/* Delta Summary Strip */}
-            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2, mb: 3 }}>
+            <Box sx={{
+              p: 2,
+              bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)',
+              border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 2,
+              mb: 3
+            }}>
               <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} sm={4}>
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
@@ -267,7 +277,7 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
                     AVERAGE MAE DELTA
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="h5" fontWeight={800} sx={{ color: '#F1F5F9' }}>
+                    <Typography variant="h5" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#F1F5F9' }}>
                       {deltaSummary?.avg_delta_mae !== undefined ? `${deltaSummary.avg_delta_mae}` : '—'}
                     </Typography>
                     {renderDeltaChip(deltaSummary?.avg_delta_mae, false, 2)}
@@ -295,7 +305,7 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
             {/* Overlaid Trajectory Visualizer */}
             {currentChannel && (
               <Box sx={{ mb: 3 }}>
-                <Box sx={{ borderBottom: 1, borderColor: 'rgba(255,255,255,0.08)', mb: 2 }}>
+                <Box sx={{ borderBottom: 1, borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)', mb: 2 }}>
                   <Tabs
                     value={activeChannelTab}
                     onChange={(e, val) => setActiveChannelTab(val)}
@@ -303,7 +313,7 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
                     scrollButtons="auto"
                     sx={{
                       '& .MuiTabs-indicator': { backgroundColor: '#00D4FF' },
-                      '& .MuiTab-root': { color: '#94A3B8', fontWeight: 700, fontSize: '0.8rem', textTransform: 'none' },
+                      '& .MuiTab-root': { color: isLight ? '#475569' : '#94A3B8', fontWeight: 700, fontSize: '0.8rem', textTransform: 'none' },
                     }}
                   >
                     {channels.map((ch, idx) => (
@@ -312,9 +322,15 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
                   </Tabs>
                 </Box>
 
-                <Paper elevation={0} sx={{ p: 2, bgcolor: 'rgba(10, 14, 23, 0.85)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2 }}>
+                <Paper elevation={0} sx={{
+                  p: 2,
+                  bgcolor: isLight ? '#FFFFFF' : 'rgba(10, 14, 23, 0.85)',
+                  border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 2,
+                  boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none'
+                }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="subtitle2" fontWeight={800} color="#F1F5F9">
+                    <Typography variant="subtitle2" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'}>
                       Trajectory Comparison: {currentChannel.target_label}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -326,10 +342,10 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
                   <Box sx={{ height: 260, width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={currentChannel.trajectory} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis dataKey="period" stroke="#64748B" tick={{ fontSize: 11 }} />
-                        <YAxis stroke="#64748B" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
-                        <RechartsTooltip contentStyle={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8 }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.05)'} />
+                        <XAxis dataKey="period" stroke={isLight ? '#64748B' : '#64748B'} tick={{ fontSize: 11 }} />
+                        <YAxis stroke={isLight ? '#64748B' : '#64748B'} tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
+                        <RechartsTooltip contentStyle={{ backgroundColor: isLight ? '#FFFFFF' : '#0B1120', border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255,255,255,0.2)', borderRadius: 8, color: isLight ? '#0F172A' : '#F1F5F9' }} />
                         <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: 8 }} />
                         <Line type="monotone" dataKey="run1_pred" name={`Run A: ${run1.engine_name}`} stroke="#00E676" strokeWidth={2.5} dot={{ r: 4, fill: '#00E676' }} />
                         <Line type="monotone" dataKey="run2_pred" name={`Run B: ${run2.engine_name}`} stroke="#00D4FF" strokeWidth={2.5} strokeDasharray="5 5" dot={{ r: 4, fill: '#00D4FF' }} />
@@ -341,14 +357,14 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
             )}
 
             {/* Per-Channel Metrics Matrix Table */}
-            <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 1 }}>
+            <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 1 }}>
               Channel-by-Channel Breakdown & Accuracy Deltas:
             </Typography>
 
-            <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2 }}>
+            <TableContainer component={Paper} elevation={0} sx={{ bgcolor: isLight ? '#FFFFFF' : 'transparent', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)', borderRadius: 2 }}>
               <Table size="small">
                 <TableHead>
-                  <TableRow sx={{ '& th': { borderColor: 'rgba(255,255,255,0.08)', color: '#94A3B8', fontWeight: 800, fontSize: '0.75rem' } }}>
+                  <TableRow sx={{ bgcolor: isLight ? '#F1F5F9' : 'transparent', '& th': { borderColor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.08)', color: isLight ? '#475569' : '#94A3B8', fontWeight: 800, fontSize: '0.75rem' } }}>
                     <TableCell>Channel</TableCell>
                     <TableCell>Run A WAPE</TableCell>
                     <TableCell>Run B WAPE</TableCell>
@@ -359,10 +375,10 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
                     <TableCell align="center">Channel Winner</TableCell>
                   </TableRow>
                 </TableHead>
-                <TableBody sx={{ '& td': { borderColor: 'rgba(255,255,255,0.04)', fontSize: '0.78rem', color: '#CBD5E1' } }}>
+                <TableBody sx={{ '& td': { borderColor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.04)', fontSize: '0.78rem', color: isLight ? '#334155' : '#CBD5E1' } }}>
                   {channels.map((ch) => (
-                    <TableRow key={ch.target_key} hover sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
-                      <TableCell sx={{ fontWeight: 700, color: '#F1F5F9' }}>{ch.target_label}</TableCell>
+                    <TableRow key={ch.target_key} hover sx={{ '&:hover': { bgcolor: isLight ? 'rgba(15, 23, 42, 0.02)' : 'rgba(255,255,255,0.02)' } }}>
+                      <TableCell sx={{ fontWeight: 700, color: isLight ? '#0F172A' : '#F1F5F9' }}>{ch.target_label}</TableCell>
                       <TableCell sx={{ color: '#00E676', fontWeight: 700 }}>{(ch.run1_wape * 100).toFixed(1)}%</TableCell>
                       <TableCell sx={{ color: '#00D4FF', fontWeight: 700 }}>{(ch.run2_wape * 100).toFixed(1)}%</TableCell>
                       <TableCell>{renderDeltaChip(ch.delta_wape, false, 3)}</TableCell>
@@ -374,8 +390,8 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
                           size="small"
                           label={ch.winner === 'run_1' ? 'Run A Winner' : ch.winner === 'run_2' ? 'Run B Winner' : 'Tie'}
                           sx={{
-                            bgcolor: ch.winner === 'run_1' ? 'rgba(0, 230, 118, 0.15)' : ch.winner === 'run_2' ? 'rgba(0, 212, 255, 0.15)' : 'rgba(255,255,255,0.05)',
-                            color: ch.winner === 'run_1' ? '#00E676' : ch.winner === 'run_2' ? '#00D4FF' : '#94A3B8',
+                            bgcolor: ch.winner === 'run_1' ? 'rgba(0, 230, 118, 0.15)' : ch.winner === 'run_2' ? 'rgba(0, 212, 255, 0.15)' : (isLight ? 'rgba(15,23,42,0.05)' : 'rgba(255,255,255,0.05)'),
+                            color: ch.winner === 'run_1' ? '#00E676' : ch.winner === 'run_2' ? '#00D4FF' : (isLight ? '#64748B' : '#94A3B8'),
                             fontWeight: 700,
                             fontSize: '0.7rem',
                           }}
@@ -390,8 +406,8 @@ export default function ForecastComparisonModal({ open, onClose, runId1, runId2 
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <Button onClick={onClose} sx={{ color: '#94A3B8', fontWeight: 700 }}>
+      <DialogActions sx={{ p: 2, borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)' }}>
+        <Button onClick={onClose} sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>
           Close Benchmark Matrix
         </Button>
       </DialogActions>

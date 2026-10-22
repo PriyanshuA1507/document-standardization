@@ -13,6 +13,15 @@
   --color-border-subtle: rgba(255, 255, 255, 0.07);
 }
 
+[data-theme='light'] {
+  --color-bg-base: #F8FAFC;
+  --color-surface-panel: #FFFFFF;
+  --color-surface-card: #FFFFFF;
+  --color-surface-hover: rgba(2, 132, 199, 0.06);
+  --color-cyan-glow: rgba(2, 132, 199, 0.12);
+  --color-border-subtle: rgba(15, 23, 42, 0.08);
+}
+
 html, body, #root {
   height: 100%;
   width: 100%;
@@ -25,6 +34,12 @@ body {
   color: #F1F5F9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+[data-theme='light'] body {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
 }
 
 /* Custom silky scrollbar */
@@ -41,6 +56,16 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 212, 255, 0.45);
+}
+
+[data-theme='light'] ::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.03);
+}
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: rgba(2, 132, 199, 0.3);
+}
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(2, 132, 199, 0.55);
 }
 
 /* Tabular numbers for clean numeric layout */
@@ -109,7 +134,7 @@ body {
   animation: livePulse 2s infinite;
 }
 
-/* Ambient Cyber Grid Background (optimized with low opacity) */
+/* Ambient Cyber Grid Background */
 .cyber-grid {
   position: fixed;
   top: 0;
@@ -123,6 +148,7 @@ body {
   background-size: 48px 48px;
   background-position: center center;
   pointer-events: none;
+  transition: background 0.3s ease;
 }
 .cyber-grid::after {
   content: '';
@@ -133,6 +159,16 @@ body {
   height: 100%;
   background: radial-gradient(ellipse at center, transparent 20%, #070B12 90%);
   pointer-events: none;
+  transition: background 0.3s ease;
+}
+
+[data-theme='light'] .cyber-grid {
+  background-image: 
+    linear-gradient(rgba(2, 132, 199, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.04) 1px, transparent 1px);
+}
+[data-theme='light'] .cyber-grid::after {
+  background: radial-gradient(ellipse at center, transparent 35%, #F8FAFC 90%);
 }
 
 .page-transition {
@@ -146,4 +182,10 @@ body {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='light'] .glass-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
 }

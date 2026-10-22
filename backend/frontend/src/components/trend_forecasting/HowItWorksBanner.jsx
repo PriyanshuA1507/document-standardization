@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Box, Card, CardContent, Typography, Grid, Chip, IconButton, Collapse, Tooltip
+  Box, Card, CardContent, Typography, Grid, Chip, IconButton, Collapse, Tooltip, useTheme
 } from '@mui/material';
 import {
   UploadFile, Psychology, TrendingUp, HelpOutline, ExpandMore, ExpandLess,
@@ -8,14 +8,16 @@ import {
 } from '@mui/icons-material';
 
 export default function HowItWorksBanner() {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [expanded, setExpanded] = useState(true);
 
   return (
     <Card sx={{
       mb: 3,
-      background: 'linear-gradient(135deg, rgba(10, 14, 23, 0.95) 0%, rgba(13, 27, 42, 0.92) 100%)',
-      border: '1px solid rgba(0, 212, 255, 0.25)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+      background: isLight ? '#FFFFFF' : 'linear-gradient(135deg, rgba(10, 14, 23, 0.95) 0%, rgba(13, 27, 42, 0.92) 100%)',
+      border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.25)',
+      boxShadow: isLight ? '0 4px 20px -2px rgba(15, 23, 42, 0.05)' : '0 8px 32px rgba(0, 0, 0, 0.4)',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -37,10 +39,10 @@ export default function HowItWorksBanner() {
               <HelpOutline sx={{ fontSize: 20 }} />
             </Box>
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#E2E8F0', letterSpacing: '-0.01em' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: isLight ? '#0F172A' : '#E2E8F0', letterSpacing: '-0.01em' }}>
                 How This Trend Forecasting System Works
               </Typography>
-              <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8' }}>
                 Simple 3-step breakdown: what data goes in, how the AI foundation model thinks, and what actionable predictions you receive.
               </Typography>
             </Box>
@@ -65,43 +67,43 @@ export default function HowItWorksBanner() {
             <Grid item xs={12} md={4}>
               <Box sx={{
                 p: 2, height: '100%', borderRadius: 2,
-                background: 'rgba(0, 212, 255, 0.04)',
-                border: '1px solid rgba(0, 212, 255, 0.2)',
+                background: isLight ? 'rgba(2, 132, 199, 0.04)' : 'rgba(0, 212, 255, 0.04)',
+                border: isLight ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(0, 212, 255, 0.2)',
                 display: 'flex', flexDirection: 'column'
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                   <Box sx={{
                     px: 1, py: 0.2, borderRadius: 1,
-                    bgcolor: 'rgba(0, 212, 255, 0.2)', color: '#00D4FF',
+                    bgcolor: isLight ? 'rgba(2, 132, 199, 0.15)' : 'rgba(0, 212, 255, 0.2)', color: isLight ? '#0284C7' : '#00D4FF',
                     fontWeight: 800, fontSize: '0.75rem'
                   }}>
                     STEP 1
                   </Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#00D4FF', display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: isLight ? '#0284C7' : '#00D4FF', display: 'flex', alignItems: 'center', gap: 0.8 }}>
                     <UploadFile sx={{ fontSize: 18 }} /> What We Give (Inputs)
                   </Typography>
                 </Box>
 
-                <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.82rem', mb: 1.5, lineHeight: 1.5 }}>
+                <Typography variant="body2" sx={{ color: isLight ? '#334155' : '#CBD5E1', fontSize: '0.82rem', mb: 1.5, lineHeight: 1.5 }}>
                   Raw audit evidence extracted from your uploaded CERT-In / MeitY audit reports:
                 </Typography>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, mt: 'auto' }}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
-                    <CheckCircle sx={{ color: '#00D4FF', fontSize: 15, mt: 0.3 }} />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                    <CheckCircle sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 15, mt: 0.3 }} />
+                    <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
                       <strong>Audit Reports & Findings:</strong> Titles, CWEs, CVEs, and initial severity levels (Critical to Low).
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
-                    <CheckCircle sx={{ color: '#00D4FF', fontSize: 15, mt: 0.3 }} />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                    <CheckCircle sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 15, mt: 0.3 }} />
+                    <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
                       <strong>Verified Timelines:</strong> Assessment dates & observation timestamps mapped across continuous monthly periods.
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
-                    <CheckCircle sx={{ color: '#00D4FF', fontSize: 15, mt: 0.3 }} />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                    <CheckCircle sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 15, mt: 0.3 }} />
+                    <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
                       <strong>Retest Closures & Assets:</strong> Annexure III retest certificates proving patches + target server inventory counts.
                     </Typography>
                   </Box>
@@ -113,43 +115,43 @@ export default function HowItWorksBanner() {
             <Grid item xs={12} md={4}>
               <Box sx={{
                 p: 2, height: '100%', borderRadius: 2,
-                background: 'rgba(124, 77, 255, 0.04)',
-                border: '1px solid rgba(124, 77, 255, 0.25)',
+                background: isLight ? 'rgba(124, 77, 255, 0.04)' : 'rgba(124, 77, 255, 0.04)',
+                border: isLight ? '1px solid rgba(124, 77, 255, 0.2)' : '1px solid rgba(124, 77, 255, 0.25)',
                 display: 'flex', flexDirection: 'column'
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                   <Box sx={{
                     px: 1, py: 0.2, borderRadius: 1,
-                    bgcolor: 'rgba(124, 77, 255, 0.2)', color: '#B388FF',
+                    bgcolor: isLight ? 'rgba(124, 77, 255, 0.15)' : 'rgba(124, 77, 255, 0.2)', color: isLight ? '#7C4DFF' : '#B388FF',
                     fontWeight: 800, fontSize: '0.75rem'
                   }}>
                     STEP 2
                   </Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#B388FF', display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: isLight ? '#7C4DFF' : '#B388FF', display: 'flex', alignItems: 'center', gap: 0.8 }}>
                     <Psychology sx={{ fontSize: 18 }} /> How It Works (AI Engine)
                   </Typography>
                 </Box>
 
-                <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.82rem', mb: 1.5, lineHeight: 1.5 }}>
+                <Typography variant="body2" sx={{ color: isLight ? '#334155' : '#CBD5E1', fontSize: '0.82rem', mb: 1.5, lineHeight: 1.5 }}>
                   Tri-Model Foundation AI Ecosystem with Cross-Attention & Probabilistic Quantiles:
                 </Typography>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, mt: 'auto' }}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
-                    <CheckCircle sx={{ color: '#B388FF', fontSize: 15, mt: 0.3 }} />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                    <CheckCircle sx={{ color: isLight ? '#7C4DFF' : '#B388FF', fontSize: 15, mt: 0.3 }} />
+                    <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
                       <strong>Tri-Model Architecture:</strong> Google TimesFM 3.0 (2D Grid Attention), Amazon Chronos-2 (Probabilistic Tokenizer), and Salesforce Moirai 2.0 (Decoder-Only Any-Variate).
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
-                    <CheckCircle sx={{ color: '#B388FF', fontSize: 15, mt: 0.3 }} />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                    <CheckCircle sx={{ color: isLight ? '#7C4DFF' : '#B388FF', fontSize: 15, mt: 0.3 }} />
+                    <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
                       <strong>Consensus Auto-Selection:</strong> Dynamic backtest competition that automatically identifies the most accurate model per vulnerability stream or produces an inverse-variance weighted blend.
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
-                    <CheckCircle sx={{ color: '#B388FF', fontSize: 15, mt: 0.3 }} />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                    <CheckCircle sx={{ color: isLight ? '#7C4DFF' : '#B388FF', fontSize: 15, mt: 0.3 }} />
+                    <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
                       <strong>Automated Backtesting:</strong> Rigorously validates predictions against historical audit quarters (WAPE, MASE, sharpness) before serving.
                     </Typography>
                   </Box>
@@ -161,43 +163,43 @@ export default function HowItWorksBanner() {
             <Grid item xs={12} md={4}>
               <Box sx={{
                 p: 2, height: '100%', borderRadius: 2,
-                background: 'rgba(0, 230, 118, 0.04)',
-                border: '1px solid rgba(0, 230, 118, 0.25)',
+                background: isLight ? 'rgba(16, 185, 129, 0.04)' : 'rgba(0, 230, 118, 0.04)',
+                border: isLight ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(0, 230, 118, 0.25)',
                 display: 'flex', flexDirection: 'column'
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                   <Box sx={{
                     px: 1, py: 0.2, borderRadius: 1,
-                    bgcolor: 'rgba(0, 230, 118, 0.2)', color: '#00E676',
+                    bgcolor: isLight ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0, 230, 118, 0.2)', color: isLight ? '#059669' : '#00E676',
                     fontWeight: 800, fontSize: '0.75rem'
                   }}>
                     STEP 3
                   </Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#00E676', display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: isLight ? '#059669' : '#00E676', display: 'flex', alignItems: 'center', gap: 0.8 }}>
                     <TrendingUp sx={{ fontSize: 18 }} /> What It Gives (Outputs)
                   </Typography>
                 </Box>
 
-                <Typography variant="body2" sx={{ color: '#CBD5E1', fontSize: '0.82rem', mb: 1.5, lineHeight: 1.5 }}>
+                <Typography variant="body2" sx={{ color: isLight ? '#334155' : '#CBD5E1', fontSize: '0.82rem', mb: 1.5, lineHeight: 1.5 }}>
                   Concrete forecasts and risk metrics so management can plan security resources:
                 </Typography>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, mt: 'auto' }}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
-                    <CheckCircle sx={{ color: '#00E676', fontSize: 15, mt: 0.3 }} />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                    <CheckCircle sx={{ color: isLight ? '#059669' : '#00E676', fontSize: 15, mt: 0.3 }} />
+                    <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
                       <strong>Future Defect Forecasts:</strong> Expected finding volume for the next 3, 6, or 12 months with 80% & 95% safety confidence bands.
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
-                    <CheckCircle sx={{ color: '#00E676', fontSize: 15, mt: 0.3 }} />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                    <CheckCircle sx={{ color: isLight ? '#059669' : '#00E676', fontSize: 15, mt: 0.3 }} />
+                    <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
                       <strong>Early Spike Warnings:</strong> Projects upcoming Critical and High flaw spikes before they hit production systems.
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.8 }}>
-                    <CheckCircle sx={{ color: '#00E676', fontSize: 15, mt: 0.3 }} />
-                    <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                    <CheckCircle sx={{ color: isLight ? '#059669' : '#00E676', fontSize: 15, mt: 0.3 }} />
+                    <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
                       <strong>Remediation Health:</strong> Compares closure velocity against incoming findings to prevent team overload.
                     </Typography>
                   </Box>

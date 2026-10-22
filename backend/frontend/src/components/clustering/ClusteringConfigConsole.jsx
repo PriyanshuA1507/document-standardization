@@ -21,6 +21,7 @@ import {
   Paper,
   Alert,
   CircularProgress,
+  useTheme,
 } from '@mui/material';
 import {
   Tune,
@@ -224,15 +225,18 @@ export default function ClusteringConfigConsole({
     onTriggerRun(payload);
   };
 
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   return (
     <Card
       sx={{
-        bgcolor: '#0B1220',
-        border: '1px solid rgba(0, 212, 255, 0.25)',
+        bgcolor: isLight ? '#FFFFFF' : '#0B1220',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.25)',
         borderRadius: 3,
         mb: 3,
         overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        boxShadow: isLight ? '0 4px 20px -2px rgba(15, 23, 42, 0.05)' : '0 8px 32px rgba(0,0,0,0.3)',
       }}
     >
       {/* Console Header Bar */}
@@ -244,8 +248,8 @@ export default function ClusteringConfigConsole({
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 2,
-          background: 'linear-gradient(90deg, rgba(13,21,39,0.95) 0%, rgba(15,23,42,0.95) 100%)',
-          borderBottom: expanded ? '1px solid rgba(255,255,255,0.08)' : 'none',
+          background: isLight ? 'linear-gradient(90deg, #F8FAFC 0%, #FFFFFF 100%)' : 'linear-gradient(90deg, rgba(13,21,39,0.95) 0%, rgba(15,23,42,0.95) 100%)',
+          borderBottom: expanded ? (isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)') : 'none',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -401,8 +405,10 @@ export default function ClusteringConfigConsole({
                     onClick={() => setSelectedAlgo(algo.id)}
                     sx={{
                       p: 2,
-                      bgcolor: isSelected ? 'rgba(13, 21, 39, 0.95)' : 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${isSelected ? algo.color : 'rgba(255,255,255,0.08)'}`,
+                      bgcolor: isSelected 
+                        ? (isLight ? '#F0F9FF' : 'rgba(13, 21, 39, 0.95)') 
+                        : (isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)'),
+                      border: `1px solid ${isSelected ? algo.color : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)')}`,
                       borderRadius: 2.5,
                       cursor: 'pointer',
                       height: '100%',
@@ -411,14 +417,14 @@ export default function ClusteringConfigConsole({
                       boxShadow: isSelected ? `0 0 20px ${algo.color}25` : 'none',
                       '&:hover': {
                         borderColor: algo.color,
-                        bgcolor: 'rgba(13, 21, 39, 0.8)',
+                        bgcolor: isLight ? '#F1F5F9' : 'rgba(13, 21, 39, 0.8)',
                       },
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ color: algo.color, display: 'flex' }}>{algo.icon}</Box>
-                        <Typography variant="subtitle2" fontWeight={800} sx={{ color: isSelected ? '#FFFFFF' : '#CBD5E1' }}>
+                        <Typography variant="subtitle2" fontWeight={800} sx={{ color: isSelected ? (isLight ? '#0F172A' : '#FFFFFF') : (isLight ? '#334155' : '#CBD5E1') }}>
                           {algo.name}
                         </Typography>
                       </Box>
@@ -718,15 +724,15 @@ export default function ClusteringConfigConsole({
               sx={{
                 mt: 3,
                 p: 2.5,
-                bgcolor: 'rgba(10, 14, 23, 0.95)',
-                border: '1px solid rgba(0, 212, 255, 0.3)',
+                bgcolor: isLight ? '#F8FAFC' : 'rgba(10, 14, 23, 0.95)',
+                border: isLight ? '1px solid rgba(2, 132, 199, 0.25)' : '1px solid rgba(0, 212, 255, 0.3)',
                 borderRadius: 2.5,
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AutoAwesome sx={{ color: '#00D4FF', fontSize: 20 }} />
-                  <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#F8FAFC' }}>
+                  <AutoAwesome sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 20 }} />
+                  <Typography variant="subtitle2" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#F8FAFC' }}>
                     Optimal k Auto-Optimizer (Elbow & Silhouette Sweep)
                   </Typography>
                   <Chip

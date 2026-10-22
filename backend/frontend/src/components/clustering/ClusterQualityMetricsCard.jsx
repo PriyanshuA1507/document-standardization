@@ -17,6 +17,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  useTheme,
 } from '@mui/material';
 import {
   AutoGraph,
@@ -106,16 +107,19 @@ export default function ClusterQualityMetricsCard({
   const totalCount = (nClustered || 0) + nNoise;
   const coveragePercent = totalCount > 0 ? (((nClustered || 0) / totalCount) * 100).toFixed(1) : 100;
 
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   return (
     <Card
       sx={{
-        bgcolor: '#0B1220',
-        border: '1px solid rgba(0, 212, 255, 0.25)',
+        bgcolor: isLight ? '#FFFFFF' : '#0B1220',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.25)',
         borderRadius: 3,
         mb: 3,
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+        boxShadow: isLight ? '0 4px 20px -2px rgba(15, 23, 42, 0.05)' : '0 8px 32px rgba(0, 0, 0, 0.4)',
       }}
     >
       {/* Decorative accent top stripe */}
@@ -142,8 +146,8 @@ export default function ClusterQualityMetricsCard({
         >
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <AutoGraph sx={{ color: '#00D4FF', fontSize: 26 }} />
-              <Typography variant="h6" fontWeight={800} sx={{ color: '#F1F5F9', letterSpacing: -0.2 }}>
+              <AutoGraph sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 26 }} />
+              <Typography variant="h6" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#F1F5F9', letterSpacing: -0.2 }}>
                 Cluster Quality & Separation Validation
               </Typography>
             </Box>
@@ -265,15 +269,15 @@ export default function ClusterQualityMetricsCard({
               elevation={0}
               sx={{
                 p: 3,
-                bgcolor: 'rgba(13, 21, 39, 0.9)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                bgcolor: isLight ? '#F8FAFC' : 'rgba(13, 21, 39, 0.9)',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: 2.5,
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 transition: 'all 0.2s',
-                '&:hover': { borderColor: 'rgba(0, 212, 255, 0.4)', bgcolor: 'rgba(13, 21, 39, 0.98)' },
+                '&:hover': { borderColor: isLight ? '#0284C7' : 'rgba(0, 212, 255, 0.4)', bgcolor: isLight ? '#F1F5F9' : 'rgba(13, 21, 39, 0.98)' },
               }}
             >
               <Box>
@@ -344,15 +348,15 @@ export default function ClusterQualityMetricsCard({
               elevation={0}
               sx={{
                 p: 3,
-                bgcolor: 'rgba(13, 21, 39, 0.9)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                bgcolor: isLight ? '#F8FAFC' : 'rgba(13, 21, 39, 0.9)',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: 2.5,
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 transition: 'all 0.2s',
-                '&:hover': { borderColor: 'rgba(0, 212, 255, 0.4)', bgcolor: 'rgba(13, 21, 39, 0.98)' },
+                '&:hover': { borderColor: isLight ? '#0284C7' : 'rgba(0, 212, 255, 0.4)', bgcolor: isLight ? '#F1F5F9' : 'rgba(13, 21, 39, 0.98)' },
               }}
             >
               <Box>
@@ -423,9 +427,9 @@ export default function ClusterQualityMetricsCard({
           sx={{
             mt: 2.5,
             p: 2,
-            bgcolor: 'rgba(13, 21, 39, 0.6)',
+            bgcolor: isLight ? '#F8FAFC' : 'rgba(13, 21, 39, 0.6)',
             borderRadius: 2,
-            border: '1px solid rgba(255, 255, 255, 0.06)',
+            border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
             justifyContent: 'space-between',
@@ -435,26 +439,26 @@ export default function ClusterQualityMetricsCard({
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
             <Box>
-              <Typography variant="caption" color="text.secondary">Clustered Coverage</Typography>
-              <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#00E676' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : 'text.secondary' }}>Clustered Coverage</Typography>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ color: isLight ? '#059669' : '#00E676' }}>
                 {coveragePercent}% ({nClustered !== null ? nClustered.toLocaleString() : '—'} items)
               </Typography>
             </Box>
 
-            <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', display: { xs: 'none', sm: 'block' } }} />
+            <Divider orientation="vertical" flexItem sx={{ borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.1)', display: { xs: 'none', sm: 'block' } }} />
 
             <Box>
-              <Typography variant="caption" color="text.secondary">Outlier / Noise Ratio</Typography>
-              <Typography variant="subtitle2" fontWeight={800} sx={{ color: noiseRatio > 0.2 ? '#FF9100' : '#38BDF8' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : 'text.secondary' }}>Outlier / Noise Ratio</Typography>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ color: noiseRatio > 0.2 ? '#FF9100' : isLight ? '#0284C7' : '#38BDF8' }}>
                 {(noiseRatio * 100).toFixed(1)}% ({nNoise.toLocaleString()} items)
               </Typography>
             </Box>
 
-            <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', display: { xs: 'none', sm: 'block' } }} />
+            <Divider orientation="vertical" flexItem sx={{ borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.1)', display: { xs: 'none', sm: 'block' } }} />
 
             <Box>
-              <Typography variant="caption" color="text.secondary">Discovered Partitions</Typography>
-              <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#E2E8F0' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : 'text.secondary' }}>Discovered Partitions</Typography>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#E2E8F0' }}>
                 {nClusters} Discovered Clusters
               </Typography>
             </Box>
@@ -522,14 +526,14 @@ export default function ClusterQualityMetricsCard({
             sx={{
               mt: 2.5,
               p: 2.5,
-              bgcolor: 'rgba(10, 14, 23, 0.95)',
+              bgcolor: isLight ? '#F8FAFC' : 'rgba(10, 14, 23, 0.95)',
               borderRadius: 2.5,
-              border: '1px solid rgba(124, 77, 255, 0.3)',
+              border: isLight ? '1px solid rgba(124, 77, 255, 0.2)' : '1px solid rgba(124, 77, 255, 0.3)',
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-              <Science sx={{ color: '#B388FF', fontSize: 22 }} />
-              <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#E2E8F0' }}>
+              <Science sx={{ color: isLight ? '#7C4DFF' : '#B388FF', fontSize: 22 }} />
+              <Typography variant="subtitle1" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#E2E8F0' }}>
                 Clustering Validation Metrics & Separation Reference Guide
               </Typography>
             </Box>

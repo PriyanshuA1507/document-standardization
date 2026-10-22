@@ -26,7 +26,8 @@ import {
   Divider,
   IconButton,
   Tooltip,
-  LinearProgress
+  LinearProgress,
+  useTheme
 } from '@mui/material';
 import {
   ErrorOutline,
@@ -63,6 +64,8 @@ const TIER_COLORS = {
 };
 
 export default function ReportAnomalyDetectionModule() {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -284,7 +287,7 @@ export default function ReportAnomalyDetectionModule() {
             <AutoAwesome sx={{ color: '#00D4FF', fontSize: 28 }} />
           </Box>
           <Box>
-            <Typography variant="h5" fontWeight={800} color="#F1F5F9">
+            <Typography variant="h5" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'}>
               Report Anomaly Detection Suite
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -299,8 +302,8 @@ export default function ReportAnomalyDetectionModule() {
             onClick={() => setCompareModalOpen(true)}
             startIcon={<CompareArrows />}
             sx={{
-              borderColor: 'rgba(255,255,255,0.15)',
-              color: '#F1F5F9',
+              borderColor: isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255,255,255,0.15)',
+              color: isLight ? '#0F172A' : '#F1F5F9',
               fontWeight: 700,
               borderRadius: 2,
               '&:hover': { borderColor: '#00D4FF', color: '#00D4FF' }
@@ -313,8 +316,8 @@ export default function ReportAnomalyDetectionModule() {
             onClick={loadInitialData}
             startIcon={<Refresh />}
             sx={{
-              borderColor: 'rgba(255,255,255,0.15)',
-              color: '#F1F5F9',
+              borderColor: isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255,255,255,0.15)',
+              color: isLight ? '#0F172A' : '#F1F5F9',
               fontWeight: 700,
               borderRadius: 2,
               '&:hover': { borderColor: '#00D4FF', color: '#00D4FF' }
@@ -332,8 +335,9 @@ export default function ReportAnomalyDetectionModule() {
             mb: 2.5,
             p: 1.5,
             borderRadius: 2,
-            bgcolor: '#0B1120',
-            border: '1px solid rgba(255,255,255,0.06)',
+            bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+            border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+            boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -430,12 +434,17 @@ export default function ReportAnomalyDetectionModule() {
       </Grid>
 
       {/* 4. Filterable Anomaly Reports Table */}
-      <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2 }}>
+      <Card sx={{
+        bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+        borderRadius: 2,
+        boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none'
+      }}>
         <CardContent sx={{ p: 2.5, pb: 1.5 }}>
           {/* Table Toolbar */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Typography variant="h6" fontWeight={800} color="#F1F5F9" sx={{ fontSize: '1rem' }}>
+              <Typography variant="h6" fontWeight={800} color={isLight ? '#0F172A' : '#F1F5F9'} sx={{ fontSize: '1rem' }}>
                 Monitored Audit Reports ({filteredRecords.length})
               </Typography>
               <Chip
@@ -461,8 +470,8 @@ export default function ReportAnomalyDetectionModule() {
                 sx={{
                   width: { xs: 180, sm: 240 },
                   '& .MuiOutlinedInput-root': {
-                    bgcolor: '#0F172A',
-                    color: '#F1F5F9',
+                    bgcolor: isLight ? '#F8FAFC' : '#0F172A',
+                    color: isLight ? '#0F172A' : '#F1F5F9',
                     fontSize: '0.85rem',
                     borderRadius: 1.5
                   }
@@ -475,7 +484,7 @@ export default function ReportAnomalyDetectionModule() {
                   value={tierFilter}
                   label="Tier Filter"
                   onChange={(e) => { setTierFilter(e.target.value); setPage(0); }}
-                  sx={{ bgcolor: '#0F172A', color: '#F1F5F9', fontSize: '0.85rem' }}
+                  sx={{ bgcolor: isLight ? '#F8FAFC' : '#0F172A', color: isLight ? '#0F172A' : '#F1F5F9', fontSize: '0.85rem' }}
                 >
                   <MenuItem value="ALL">All Tiers</MenuItem>
                   <MenuItem value="CRITICAL_OUTLIER">Critical Outliers</MenuItem>
@@ -492,7 +501,7 @@ export default function ReportAnomalyDetectionModule() {
                   value={empanelledFilter}
                   label="Agency Status"
                   onChange={(e) => { setEmpanelledFilter(e.target.value); setPage(0); }}
-                  sx={{ bgcolor: '#0F172A', color: '#F1F5F9', fontSize: '0.85rem' }}
+                  sx={{ bgcolor: isLight ? '#F8FAFC' : '#0F172A', color: isLight ? '#0F172A' : '#F1F5F9', fontSize: '0.85rem' }}
                 >
                   <MenuItem value="ALL">All Agencies</MenuItem>
                   <MenuItem value="EMPANELLED">CERT-In Empanelled</MenuItem>
@@ -505,15 +514,15 @@ export default function ReportAnomalyDetectionModule() {
           {/* Table */}
           <TableContainer component={Paper} sx={{ bgcolor: 'transparent', boxShadow: 'none' }}>
             <Table size="small">
-              <TableHead>
-                <TableRow sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Audit Report Document</TableCell>
-                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Auditing Agency</TableCell>
-                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Anomaly Tier</TableCell>
-                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Consensus Score</TableCell>
-                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Detector Breakdown</TableCell>
-                  <TableCell sx={{ color: 'text.secondary', fontWeight: 800 }}>Primary Root Cause</TableCell>
-                  <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 800 }}>Action</TableCell>
+              <TableHead sx={{ bgcolor: isLight ? '#F1F5F9' : 'transparent' }}>
+                <TableRow sx={{ borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)' }}>
+                  <TableCell sx={{ color: isLight ? '#334155' : 'text.secondary', fontWeight: 800 }}>Audit Report Document</TableCell>
+                  <TableCell sx={{ color: isLight ? '#334155' : 'text.secondary', fontWeight: 800 }}>Auditing Agency</TableCell>
+                  <TableCell sx={{ color: isLight ? '#334155' : 'text.secondary', fontWeight: 800 }}>Anomaly Tier</TableCell>
+                  <TableCell sx={{ color: isLight ? '#334155' : 'text.secondary', fontWeight: 800 }}>Consensus Score</TableCell>
+                  <TableCell sx={{ color: isLight ? '#334155' : 'text.secondary', fontWeight: 800 }}>Detector Breakdown</TableCell>
+                  <TableCell sx={{ color: isLight ? '#334155' : 'text.secondary', fontWeight: 800 }}>Primary Root Cause</TableCell>
+                  <TableCell align="right" sx={{ color: isLight ? '#334155' : 'text.secondary', fontWeight: 800 }}>Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -535,13 +544,13 @@ export default function ReportAnomalyDetectionModule() {
                           key={rec.record_id}
                           hover
                           sx={{
-                            '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' },
-                            borderBottom: '1px solid rgba(255,255,255,0.04)'
+                            '&:hover': { bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)' },
+                            borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255,255,255,0.04)'
                           }}
                         >
                           {/* Report title */}
                           <TableCell sx={{ maxWidth: 220 }}>
-                            <Typography noWrap variant="body2" fontWeight={700} color="#F1F5F9" title={meta.report_title}>
+                            <Typography noWrap variant="body2" fontWeight={700} color={isLight ? '#0F172A' : '#F1F5F9'} title={meta.report_title}>
                               {meta.report_title}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
@@ -551,7 +560,7 @@ export default function ReportAnomalyDetectionModule() {
 
                           {/* Agency */}
                           <TableCell sx={{ maxWidth: 160 }}>
-                            <Typography noWrap variant="body2" color="#E2E8F0" title={meta.agency_name}>
+                            <Typography noWrap variant="body2" color={isLight ? '#334155' : '#E2E8F0'} title={meta.agency_name}>
                               {meta.agency_name}
                             </Typography>
                             <Typography variant="caption" color={meta.cert_in_empanelled ? '#00D4FF' : 'text.secondary'}>

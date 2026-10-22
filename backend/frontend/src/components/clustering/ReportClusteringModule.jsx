@@ -18,6 +18,7 @@ import {
   TableRow,
   Paper,
   Divider,
+  useTheme,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -37,8 +38,15 @@ import ClusteringConfigConsole from './ClusteringConfigConsole';
 import ClusterScatterPlot from './ClusterScatterPlot';
 
 function StatCard({ title, value, subtitle, icon, color = '#00E676' }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   return (
-    <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2 }}>
+    <Card sx={{
+      bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+      border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+      boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
+      borderRadius: 2
+    }}>
       <CardContent sx={{ p: 2.5 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
@@ -64,6 +72,9 @@ function StatCard({ title, value, subtitle, icon, color = '#00E676' }) {
 }
 
 export default function ReportClusteringModule() {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
   const [activeRun, setActiveRun] = useState(null);
@@ -171,7 +182,7 @@ export default function ReportClusteringModule() {
 
       {/* Active Job Progress Banner */}
       {activeRun && (
-        <Card sx={{ bgcolor: '#0D1527', border: '1px solid rgba(0,230,118,0.3)', borderRadius: 3, mb: 3 }}>
+        <Card sx={{ bgcolor: isLight ? '#F0FDF4' : '#0D1527', border: isLight ? '1px solid rgba(0,230,118,0.4)' : '1px solid rgba(0,230,118,0.3)', borderRadius: 3, mb: 3 }}>
           <CardContent sx={{ p: 2.5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -249,9 +260,16 @@ export default function ReportClusteringModule() {
           <CircularProgress sx={{ color: '#00E676' }} />
         </Box>
       ) : !completedRun ? (
-        <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', p: 6, textAlign: 'center', borderRadius: 3 }}>
+        <Card sx={{
+          bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+          p: 6,
+          textAlign: 'center',
+          borderRadius: 3,
+          boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none'
+        }}>
           <Description sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-          <Typography variant="h6" fontWeight={700}>
+          <Typography variant="h6" fontWeight={700} sx={{ color: isLight ? '#0F172A' : '#F1F5F9' }}>
             No Report Clustering Results Available
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 500, mx: 'auto', mt: 1, mb: 3 }}>
@@ -275,7 +293,7 @@ export default function ReportClusteringModule() {
             algorithm={completedRun?.parameters?.algorithm || summary?.algorithm || 'HDBSCAN'}
           />
 
-          <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: isLight ? '#0F172A' : '#F1F5F9' }}>
             <BubbleChart sx={{ color: '#00E676', fontSize: 22 }} />
             Discovered Audit Report Cohorts ({clusters.length})
           </Typography>
@@ -285,8 +303,9 @@ export default function ReportClusteringModule() {
               <Grid item xs={12} md={6} lg={4} key={c.cluster_id}>
                 <Card
                   sx={{
-                    bgcolor: '#0B1120',
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+                    border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                    boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
                     borderRadius: 2.5,
                     height: '100%',
                     display: 'flex',
@@ -321,12 +340,12 @@ export default function ReportClusteringModule() {
                     </Box>
 
                     {/* Profile Title */}
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#E2E8F0', mb: 1, minHeight: 48, lineHeight: 1.3 }}>
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ color: isLight ? '#0F172A' : '#E2E8F0', mb: 1, minHeight: 48, lineHeight: 1.3 }}>
                       {c.profile_type}
                     </Typography>
 
                     {/* Metrics Bar */}
-                    <Box sx={{ bgcolor: 'rgba(255,255,255,0.02)', p: 1.5, borderRadius: 2, mb: 2 }}>
+                    <Box sx={{ bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)', p: 1.5, borderRadius: 2, mb: 2, border: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : 'none' }}>
                       <Grid container spacing={1}>
                         <Grid item xs={6}>
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
@@ -348,14 +367,14 @@ export default function ReportClusteringModule() {
                     </Box>
 
                     {/* Representative Reports */}
-                    <Box sx={{ flex: 1, borderTop: '1px solid rgba(255,255,255,0.06)', pt: 1.5, mb: 2 }}>
+                    <Box sx={{ flex: 1, borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', pt: 1.5, mb: 2 }}>
                       <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                         Representative Reports:
                       </Typography>
                       <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
                         {(c.representative_reports || []).slice(0, 2).map((rr, idx) => (
-                          <Box key={idx} sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 1.5 }}>
-                            <Typography variant="caption" fontWeight={600} noWrap sx={{ display: 'block', color: '#CBD5E1' }} title={rr.filename}>
+                          <Box key={idx} sx={{ p: 1, bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)', borderRadius: 1.5, border: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : 'none' }}>
+                            <Typography variant="caption" fontWeight={600} noWrap sx={{ display: 'block', color: isLight ? '#1E293B' : '#CBD5E1' }} title={rr.filename}>
                               {rr.filename}
                             </Typography>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
@@ -395,7 +414,12 @@ export default function ReportClusteringModule() {
 
           {/* Noise / Outlier Section */}
           <Box sx={{ mt: 4 }}>
-            <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,145,0,0.2)', borderRadius: 2.5 }}>
+            <Card sx={{
+              bgcolor: isLight ? '#FFFBEB' : '#0B1120',
+              border: isLight ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(255,145,0,0.2)',
+              borderRadius: 2.5,
+              boxShadow: isLight ? '0 4px 16px -2px rgba(245, 158, 11, 0.08)' : 'none'
+            }}>
               <CardContent sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
                   <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#FF9100', display: 'flex', alignItems: 'center', gap: 1 }}>

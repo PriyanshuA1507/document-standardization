@@ -18,6 +18,7 @@ import {
   TableHead,
   TableRow,
   Button,
+  useTheme,
 } from '@mui/material';
 import {
   AutoGraph,
@@ -66,6 +67,8 @@ export default function ForecastQualityMetricsCard({
   parameters = {},
   summary = {},
 }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [guideOpen, setGuideOpen] = useState(false);
 
   const targets = forecastResults?.targets || {};
@@ -93,38 +96,38 @@ export default function ForecastQualityMetricsCard({
   return (
     <Card
       sx={{
-        bgcolor: '#0B1220',
-        border: '1px solid rgba(0, 212, 255, 0.25)',
+        bgcolor: isLight ? '#FFFFFF' : '#0B1220',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.25)',
         borderRadius: 3,
         mb: 3,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        boxShadow: isLight ? '0 4px 20px -2px rgba(15, 23, 42, 0.05)' : '0 8px 32px rgba(0,0,0,0.3)',
       }}
     >
       <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
         {/* Header Bar */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(0, 212, 255, 0.1)', color: '#00D4FF', display: 'flex' }}>
+            <Box sx={{ p: 1, borderRadius: 2, bgcolor: isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0, 212, 255, 0.1)', color: isLight ? '#0284C7' : '#00D4FF', display: 'flex' }}>
               <AutoGraph />
             </Box>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="subtitle1" fontWeight={800} color="#F8FAFC">
+                <Typography variant="subtitle1" fontWeight={800} color={isLight ? '#0F172A' : '#F8FAFC'}>
                   Forecast Quality & Backtesting Telemetry
                 </Typography>
                 <Chip
                   size="small"
                   label={engineName}
                   sx={{
-                    bgcolor: 'rgba(0, 230, 118, 0.15)',
-                    color: '#00E676',
-                    border: '1px solid rgba(0, 230, 118, 0.35)',
+                    bgcolor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(0, 230, 118, 0.15)',
+                    color: isLight ? '#059669' : '#00E676',
+                    border: isLight ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(0, 230, 118, 0.35)',
                     fontWeight: 700,
                     fontSize: '0.72rem',
                   }}
                 />
               </Box>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : 'text.secondary' }}>
                 Validated via chronological rolling-origin backtesting without future-data lookahead bias
               </Typography>
             </Box>
@@ -135,14 +138,14 @@ export default function ForecastQualityMetricsCard({
               size="small"
               icon={<Memory sx={{ fontSize: 14 }} />}
               label="Hardware: CUDA GPU Accelerated"
-              sx={{ bgcolor: 'rgba(255,255,255,0.05)', color: '#94A3B8', fontSize: '0.7rem' }}
+              sx={{ bgcolor: isLight ? 'rgba(15, 23, 42, 0.04)' : 'rgba(255,255,255,0.05)', color: isLight ? '#64748B' : '#94A3B8', fontSize: '0.7rem' }}
             />
             <Button
               size="small"
               variant="text"
               onClick={() => setGuideOpen(!guideOpen)}
               startIcon={<HelpOutline />}
-              sx={{ color: '#00D4FF', fontSize: '0.75rem', fontWeight: 700, textTransform: 'none' }}
+              sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: '0.75rem', fontWeight: 700, textTransform: 'none' }}
             >
               {guideOpen ? 'Hide Guide' : 'Metric Interpretations'}
             </Button>
@@ -157,14 +160,14 @@ export default function ForecastQualityMetricsCard({
               elevation={0}
               sx={{
                 p: 2,
-                bgcolor: 'rgba(255,255,255,0.02)',
+                bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)',
                 border: `1px solid ${wapeInfo.color}35`,
                 borderRadius: 2,
                 height: '100%',
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase' }}>
+                <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 800, textTransform: 'uppercase' }}>
                   Backtest WAPE
                 </Typography>
                 <Tooltip title="Weighted Absolute Percentage Error: total absolute errors divided by total historical observations. Lower is better.">
@@ -180,7 +183,7 @@ export default function ForecastQualityMetricsCard({
                 sx={{
                   height: 6,
                   borderRadius: 3,
-                  bgcolor: 'rgba(255,255,255,0.08)',
+                  bgcolor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.08)',
                   mb: 1,
                   '& .MuiLinearProgress-bar': { bgcolor: wapeInfo.color },
                 }}
@@ -197,27 +200,27 @@ export default function ForecastQualityMetricsCard({
               elevation={0}
               sx={{
                 p: 2,
-                bgcolor: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(0, 212, 255, 0.25)',
+                bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)',
+                border: isLight ? '1px solid rgba(2, 132, 199, 0.25)' : '1px solid rgba(0, 212, 255, 0.25)',
                 borderRadius: 2,
                 height: '100%',
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase' }}>
+                <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 800, textTransform: 'uppercase' }}>
                   Mean Absolute Error (MAE)
                 </Typography>
                 <Tooltip title="Average absolute deviation between forecasted and realized vulnerability counts.">
                   <InfoOutlined sx={{ fontSize: 16, color: '#64748B' }} />
                 </Tooltip>
               </Box>
-              <Typography variant="h4" fontWeight={900} sx={{ color: '#00D4FF', my: 0.5 }}>
+              <Typography variant="h4" fontWeight={900} sx={{ color: isLight ? '#0284C7' : '#00D4FF', my: 0.5 }}>
                 {mae !== null && mae !== undefined ? `±${mae}` : '—'}
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : 'text.secondary', display: 'block', mb: 0.5 }}>
                 RMSE: <strong>{rmse !== null && rmse !== undefined ? rmse : '—'}</strong> observations
               </Typography>
-              <Typography variant="caption" sx={{ color: '#00D4FF', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontWeight: 600 }}>
                 Low deviation on {horizon}-step {frequency.toLowerCase()} horizon
               </Typography>
             </Paper>
@@ -229,14 +232,14 @@ export default function ForecastQualityMetricsCard({
               elevation={0}
               sx={{
                 p: 2,
-                bgcolor: 'rgba(255,255,255,0.02)',
+                bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)',
                 border: `1px solid ${maseInfo.color}35`,
                 borderRadius: 2,
                 height: '100%',
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase' }}>
+                <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 800, textTransform: 'uppercase' }}>
                   Scaled Error (MASE)
                 </Typography>
                 <Tooltip title="Mean Absolute Scaled Error: MAE scaled by in-sample naive forecast error. Value < 1.0 proves superior to random walk.">
@@ -246,7 +249,7 @@ export default function ForecastQualityMetricsCard({
               <Typography variant="h4" fontWeight={900} sx={{ color: maseInfo.color, my: 0.5 }}>
                 {mase !== null && mase !== undefined ? mase : '—'}
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : 'text.secondary', display: 'block', mb: 0.5 }}>
                 Baseline: <strong>{baseline.baseline_name || 'Rolling Average'}</strong>
               </Typography>
               <Typography variant="caption" sx={{ color: maseInfo.color, fontWeight: 700 }}>
@@ -261,27 +264,27 @@ export default function ForecastQualityMetricsCard({
               elevation={0}
               sx={{
                 p: 2,
-                bgcolor: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(179, 136, 255, 0.25)',
+                bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)',
+                border: isLight ? '1px solid rgba(124, 77, 255, 0.25)' : '1px solid rgba(179, 136, 255, 0.25)',
                 borderRadius: 2,
                 height: '100%',
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase' }}>
+                <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', fontWeight: 800, textTransform: 'uppercase' }}>
                   Interval Sharpness
                 </Typography>
                 <Tooltip title="Width of the 80% and 95% uncertainty cones. Narrower cones with high empirical coverage represent sharper confidence.">
                   <InfoOutlined sx={{ fontSize: 16, color: '#64748B' }} />
                 </Tooltip>
               </Box>
-              <Typography variant="h4" fontWeight={900} sx={{ color: '#B388FF', my: 0.5 }}>
+              <Typography variant="h4" fontWeight={900} sx={{ color: isLight ? '#7C4DFF' : '#B388FF', my: 0.5 }}>
                 {sharpness80 ? `±${(sharpness80 / 2).toFixed(1)}` : '—'}
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : 'text.secondary', display: 'block', mb: 0.5 }}>
                 95% Bound Width: <strong>{sharpness95 || '—'}</strong>
               </Typography>
-              <Typography variant="caption" sx={{ color: '#B388FF', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#7C4DFF' : '#B388FF', fontWeight: 600 }}>
                 Calibrated foundation quantiles
               </Typography>
             </Paper>
@@ -290,41 +293,41 @@ export default function ForecastQualityMetricsCard({
 
         {/* Collapsible Plain English Metric Interpretation Guide */}
         <Collapse in={guideOpen}>
-          <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2 }}>
-            <Typography variant="subtitle2" fontWeight={800} color="#00D4FF" sx={{ mb: 1 }}>
+          <Box sx={{ mt: 2, p: 2, bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)', borderRadius: 2 }}>
+            <Typography variant="subtitle2" fontWeight={800} color={isLight ? '#0284C7' : '#00D4FF'} sx={{ mb: 1 }}>
               Understanding Time-Series Quality Metrics & Validation
             </Typography>
             <TableContainer>
               <Table size="small">
                 <TableHead>
-                  <TableRow sx={{ '& th': { borderColor: 'rgba(255,255,255,0.08)', color: '#94A3B8', fontWeight: 700 } }}>
+                  <TableRow sx={{ '& th': { borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 } }}>
                     <TableCell>Metric</TableCell>
                     <TableCell>Target Range</TableCell>
                     <TableCell>What It Measures</TableCell>
                     <TableCell>Actionable Interpretation</TableCell>
                   </TableRow>
                 </TableHead>
-                <TableBody sx={{ '& td': { borderColor: 'rgba(255,255,255,0.04)', fontSize: '0.8rem', color: '#CBD5E1' } }}>
+                <TableBody sx={{ '& td': { borderColor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.04)', fontSize: '0.8rem', color: isLight ? '#334155' : '#CBD5E1' } }}>
                   <TableRow>
-                    <TableCell sx={{ color: '#00E676', fontWeight: 700 }}>WAPE</TableCell>
+                    <TableCell sx={{ color: isLight ? '#059669' : '#00E676', fontWeight: 700 }}>WAPE</TableCell>
                     <TableCell>0% to 100% (Lower is better)</TableCell>
                     <TableCell>Total absolute forecast error normalized by overall audit observation volume.</TableCell>
                     <TableCell>Values below 25% indicate robust capacity planning reliability.</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell sx={{ color: '#00D4FF', fontWeight: 700 }}>MAE / RMSE</TableCell>
+                    <TableCell sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontWeight: 700 }}>MAE / RMSE</TableCell>
                     <TableCell>0 to ∞ (Lower is better)</TableCell>
                     <TableCell>Average finding count deviation from actual recorded security findings.</TableCell>
                     <TableCell>Provides tangible buffer counts for security operations hiring and remediation triage.</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell sx={{ color: '#FFD600', fontWeight: 700 }}>MASE</TableCell>
+                    <TableCell sx={{ color: isLight ? '#D97706' : '#FFD600', fontWeight: 700 }}>MASE</TableCell>
                     <TableCell>&lt; 1.0 is superior to baseline</TableCell>
                     <TableCell>Scale-free comparison against simple historical repetition.</TableCell>
                     <TableCell>Mathematically guarantees AI foundation model adds genuine predictive value beyond simple naivety.</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell sx={{ color: '#B388FF', fontWeight: 700 }}>Prediction Intervals</TableCell>
+                    <TableCell sx={{ color: isLight ? '#7C4DFF' : '#B388FF', fontWeight: 700 }}>Prediction Intervals</TableCell>
                     <TableCell>80% and 95% quantiles</TableCell>
                     <TableCell>Probabilistic uncertainty envelope for risk tolerance.</TableCell>
                     <TableCell>Upper 95% bound is the worst-case scenario for CERT-In SLA capacity planning.</TableCell>

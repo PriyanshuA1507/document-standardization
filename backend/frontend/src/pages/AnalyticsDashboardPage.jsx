@@ -140,17 +140,19 @@ const CHART_COLORS = [
 
 /* ─────────────────── Custom Recharts Tooltip ─────────────────── */
 function GlassTooltip({ active, payload, label }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   if (!active || !payload?.length) return null;
   return (
     <Box
       sx={{
-        backgroundColor: 'rgba(17, 24, 39, 0.92)',
+        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(17, 24, 39, 0.92)',
         backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255,255,255,0.1)',
         borderRadius: 2,
         px: 2,
         py: 1.2,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.1)' : '0 8px 32px rgba(0,0,0,0.4)',
       }}
     >
       {label && (
@@ -159,7 +161,7 @@ function GlassTooltip({ active, payload, label }) {
         </Typography>
       )}
       {payload.map((entry, idx) => (
-        <Typography key={idx} variant="body2" sx={{ color: entry.color || '#E2E8F0', fontWeight: 600 }}>
+        <Typography key={idx} variant="body2" sx={{ color: entry.color || (isLight ? '#0F172A' : '#E2E8F0'), fontWeight: 600 }}>
           {formatEnumLabel(entry.name)}: {entry.value}
         </Typography>
       ))}
@@ -247,20 +249,22 @@ function KpiCard({ title, value, icon, color, delay = 0 }) {
 
 /* ─────────────────── Chart Card Wrapper ─────────────────── */
 function ChartCard({ title, icon, children, delay = 0, sx: sxProp = {}, onExpand, dragHandleProps = {} }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   return (
     <Card className="fade-in-up" sx={{ animationDelay: `${delay}ms`, minHeight: 380, height: '100%', display: 'flex', flexDirection: 'column', ...sxProp }}>
-      <CardContent sx={{ p: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <CardContent sx={{ p: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.05)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Box className="drag-handle" {...dragHandleProps} sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'text.secondary', '&:active': { cursor: 'grabbing' } }}>
             <DragIndicator sx={{ fontSize: 20 }} />
           </Box>
-          {icon && React.cloneElement(icon, { sx: { color: '#00D4FF', fontSize: 20 } })}
+          {icon && React.cloneElement(icon, { sx: { color: isLight ? '#0284C7' : '#00D4FF', fontSize: 20 } })}
           <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '0.9rem' }}>
             {title}
           </Typography>
         </Box>
         {onExpand && (
-          <IconButton size="small" onClick={onExpand} sx={{ color: 'text.secondary', '&:hover': { color: '#00D4FF', bgcolor: 'rgba(0,212,255,0.1)' } }}>
+          <IconButton size="small" onClick={onExpand} sx={{ color: 'text.secondary', '&:hover': { color: isLight ? '#0284C7' : '#00D4FF', bgcolor: isLight ? 'rgba(2,132,199,0.08)' : 'rgba(0,212,255,0.1)' } }}>
             <OpenInFull sx={{ fontSize: 18 }} />
           </IconButton>
         )}
@@ -343,6 +347,8 @@ function renderDonutLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent 
    MAIN PAGE COMPONENT
    ═══════════════════════════════════════════════════════════════ */
 export default function AnalyticsDashboardPage() {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [viewMode, setViewMode] = useState('GLOBAL');
   const [selectedAgencyId, setSelectedAgencyId] = useState('');
   const [selectedFileId, setSelectedFileId] = useState('');
@@ -955,16 +961,18 @@ const columns = [
                 color: 'text.primary',
               },
               '& .MuiDataGrid-cell': {
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255,255,255,0.05)',
                 display: 'flex',
                 alignItems: 'center',
               },
               '& .MuiDataGrid-columnHeaders': {
-                borderBottom: '1px solid rgba(255,255,255,0.1)',
-                backgroundColor: 'rgba(17, 24, 39, 0.4)',
+                borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.1)',
+                backgroundColor: isLight ? '#F1F5F9' : 'rgba(17, 24, 39, 0.4)',
+                color: isLight ? '#475569' : '#94A3B8',
               },
               '& .MuiDataGrid-footerContainer': {
-                borderTop: '1px solid rgba(255,255,255,0.1)',
+                borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.1)',
+                backgroundColor: isLight ? '#F8FAFC' : 'transparent',
               },
               '& .MuiTablePagination-root': {
                 color: 'text.secondary',
@@ -1015,20 +1023,20 @@ const columns = [
             startIcon={<Download />}
             onClick={handleExportCsv}
             sx={{
-              bgcolor: 'rgba(255, 255, 255, 0.05)',
-              color: 'text.primary',
-              border: '1px solid rgba(255,255,255,0.1)',
+              bgcolor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(255, 255, 255, 0.05)',
+              color: isLight ? '#0284C7' : 'text.primary',
+              border: isLight ? '1px solid rgba(2, 132, 199, 0.25)' : '1px solid rgba(255,255,255,0.1)',
               textTransform: 'none',
               fontWeight: 600,
               px: 2,
               '&:hover': {
-                bgcolor: 'rgba(255, 255, 255, 0.1)',
+                bgcolor: isLight ? 'rgba(2, 132, 199, 0.16)' : 'rgba(255, 255, 255, 0.1)',
               }
             }}
           >
             Export CSV
           </Button>
-          <Box sx={{ bgcolor: 'rgba(17, 24, 39, 0.4)', borderRadius: 2, p: 0.5, border: '1px solid rgba(255,255,255,0.05)' }}>
+          <Box sx={{ bgcolor: isLight ? '#F1F5F9' : 'rgba(17, 24, 39, 0.4)', borderRadius: 2, p: 0.5, border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.05)' }}>
           <Tabs 
             value={viewMode} 
             onChange={handleTabChange}
@@ -1048,7 +1056,7 @@ const columns = [
     </Box>
 
       {/* ── Filter Controls ── */}
-      <Card sx={{ mb: 3.5, background: 'rgba(17, 24, 39, 0.4)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <Card sx={{ mb: 3.5, background: isLight ? '#FFFFFF' : 'rgba(17, 24, 39, 0.4)', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.05)', boxShadow: isLight ? '0 4px 20px -2px rgba(15, 23, 42, 0.05)' : undefined }}>
         <CardContent sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
           
           {/* Global Advanced Filters */}
@@ -1101,7 +1109,7 @@ const columns = [
           {/* Scope Filters */}
           {(viewMode === 'AGENCY' || viewMode === 'FILE') && (
             <>
-              <Box sx={{ borderLeft: '1px solid rgba(255,255,255,0.1)', height: 32, mx: 1 }} />
+              <Box sx={{ borderLeft: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255,255,255,0.1)', height: 32, mx: 1 }} />
               <FormControl size="small" sx={{ minWidth: 240 }}>
                 <InputLabel>Select Agency</InputLabel>
                 <Select
@@ -1220,8 +1228,8 @@ const columns = [
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: '#0B1120',
-            border: '1px solid rgba(255,255,255,0.1)',
+            bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+            border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255,255,255,0.1)',
             backgroundImage: 'none',
             height: '80vh',
             display: 'flex',
@@ -1229,7 +1237,7 @@ const columns = [
           }
         }}
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', p: 2 }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.05)', p: 2 }}>
           <Typography variant="h6" fontWeight={700}>Expanded View</Typography>
           <IconButton onClick={() => setExpandedWidget(null)} sx={{ color: 'text.secondary' }}>
             <Close />
@@ -1408,8 +1416,8 @@ const columns = [
           {expandedWidget === 'table' && (
             <Box sx={{ height: '100%', width: '100%', 
               '& .MuiDataGrid-root': { border: 'none', color: 'text.primary' },
-              '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(255,255,255,0.05)' },
-              '& .MuiDataGrid-columnHeaders': { backgroundColor: 'rgba(17, 24, 39, 0.4)', borderBottom: '1px solid rgba(255,255,255,0.1)' },
+              '& .MuiDataGrid-cell': { borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255,255,255,0.05)' },
+              '& .MuiDataGrid-columnHeaders': { backgroundColor: isLight ? '#F1F5F9' : 'rgba(17, 24, 39, 0.4)', borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.1)', color: isLight ? '#475569' : '#94A3B8' },
             }}>
               <DataGrid rows={tableVulns || []} columns={columns} pageSizeOptions={[10, 25, 50]} />
             </Box>

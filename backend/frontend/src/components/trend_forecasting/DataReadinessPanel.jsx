@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Box, Card, CardContent, Typography, Grid, Chip, LinearProgress,
-  Tooltip, Collapse, IconButton, Alert
+  Tooltip, Collapse, IconButton, Alert, useTheme
 } from '@mui/material';
 import {
   CheckCircle, Cancel, HelpOutline, ExpandMore, ExpandLess,
@@ -9,6 +9,8 @@ import {
 } from '@mui/icons-material';
 
 export default function DataReadinessPanel({ readiness }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [expanded, setExpanded] = useState(false);
 
   if (!readiness) return null;
@@ -39,12 +41,17 @@ export default function DataReadinessPanel({ readiness }) {
   } = readiness;
 
   return (
-    <Card sx={{ mb: 3, border: '1px solid rgba(0, 212, 255, 0.2)', background: 'rgba(10, 14, 23, 0.75)' }}>
+    <Card sx={{
+      mb: 3,
+      border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.2)',
+      background: isLight ? '#FFFFFF' : 'rgba(10, 14, 23, 0.75)',
+      boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : undefined
+    }}>
       <CardContent sx={{ pb: 1 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Assessment sx={{ color: '#00D4FF', fontSize: 24 }} />
-            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem', color: '#E2E8F0' }}>
+            <Assessment sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 24 }} />
+            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem', color: isLight ? '#0F172A' : '#E2E8F0' }}>
               Historical Data Readiness & Quality Assessment
             </Typography>
             <Chip
@@ -54,72 +61,72 @@ export default function DataReadinessPanel({ readiness }) {
               sx={{ fontWeight: 600, fontSize: '0.75rem' }}
             />
           </Box>
-          <IconButton size="small" onClick={() => setExpanded(!expanded)} sx={{ color: '#94A3B8' }}>
+          <IconButton size="small" onClick={() => setExpanded(!expanded)} sx={{ color: isLight ? '#475569' : '#94A3B8' }}>
             {expanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Box>
 
-        <Typography variant="body2" sx={{ color: '#94A3B8', mb: 2 }}>
+        <Typography variant="body2" sx={{ color: isLight ? '#475569' : '#94A3B8', mb: 2 }}>
           Ground-truth audit evidence evaluation across <strong>{total_reports}</strong> standardized reports and <strong>{total_findings.toLocaleString()}</strong> distinct findings.
         </Typography>
 
         <Grid container spacing={2}>
           {/* Usable Dates */}
           <Grid item xs={12} sm={6} md={4}>
-            <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <DateRange sx={{ fontSize: 14, color: '#00D4FF' }} /> Observation Dates
+            <Box sx={{ p: 1.5, borderRadius: 2, background: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.03)', border: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255,255,255,0.06)' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <DateRange sx={{ fontSize: 14, color: isLight ? '#0284C7' : '#00D4FF' }} /> Observation Dates
               </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#00D4FF', mt: 0.5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: isLight ? '#0284C7' : '#00D4FF', mt: 0.5 }}>
                 {effective_dates_pct}%
               </Typography>
-              <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8' }}>
                 {effective_dates_count.toLocaleString()} of {total_findings.toLocaleString()} dated ({min_effective_date || 'N/A'} to {max_effective_date || 'N/A'})
               </Typography>
               <LinearProgress
                 variant="determinate"
                 value={effective_dates_pct}
-                sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: '#00D4FF' } }}
+                sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: isLight ? '#0284C7' : '#00D4FF' } }}
               />
             </Box>
           </Grid>
 
           {/* Time Buckets */}
           <Grid item xs={12} sm={6} md={4}>
-            <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Storage sx={{ fontSize: 14, color: '#00E676' }} /> Populated Buckets
+            <Box sx={{ p: 1.5, borderRadius: 2, background: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.03)', border: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255,255,255,0.06)' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Storage sx={{ fontSize: 14, color: isLight ? '#059669' : '#00E676' }} /> Populated Buckets
               </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#00E676', mt: 0.5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: isLight ? '#059669' : '#00E676', mt: 0.5 }}>
                 {populated_monthly_buckets_count} Months
               </Typography>
-              <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8' }}>
                 {populated_weekly_buckets_count} populated weekly periods
               </Typography>
               <LinearProgress
                 variant="determinate"
                 value={Math.min(100, (populated_monthly_buckets_count / 12) * 100)}
-                sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: '#00E676' } }}
+                sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: isLight ? '#059669' : '#00E676' } }}
               />
             </Box>
           </Grid>
 
           {/* CVSS Coverage */}
           <Grid item xs={12} sm={6} md={4}>
-            <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Security sx={{ fontSize: 14, color: '#FF9100' }} /> CVSS Score Coverage
+            <Box sx={{ p: 1.5, borderRadius: 2, background: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.03)', border: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255,255,255,0.06)' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Security sx={{ fontSize: 14, color: isLight ? '#D97706' : '#FF9100' }} /> CVSS Score Coverage
               </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#FF9100', mt: 0.5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: isLight ? '#D97706' : '#FF9100', mt: 0.5 }}>
                 {cvss_coverage_pct}%
               </Typography>
-              <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8' }}>
                 {cvss_coverage_count.toLocaleString()} scored findings
               </Typography>
               <LinearProgress
                 variant="determinate"
                 value={cvss_coverage_pct}
-                sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: '#FF9100' } }}
+                sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: isLight ? '#D97706' : '#FF9100' } }}
               />
             </Box>
           </Grid>
@@ -127,8 +134,8 @@ export default function DataReadinessPanel({ readiness }) {
 
         {/* Collapsible Details: Metric Eligibility */}
         <Collapse in={expanded} timeout="auto" unmountOnExit>
-          <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0', mb: 1.5 }}>
+          <Box sx={{ mt: 2.5, pt: 2, borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: isLight ? '#0F172A' : '#E2E8F0', mb: 1.5 }}>
               Target Metric Forecasting Feasibility & Constraint Audit
             </Typography>
             <Grid container spacing={1.5}>
@@ -141,22 +148,22 @@ export default function DataReadinessPanel({ readiness }) {
                   <Grid item xs={12} md={6} key={key}>
                     <Box sx={{
                       p: 1.5, borderRadius: 1.5,
-                      background: isEligible ? 'rgba(0, 230, 118, 0.05)' : isLabeled ? 'rgba(255, 145, 0, 0.05)' : 'rgba(255, 23, 68, 0.05)',
-                      border: `1px solid ${isEligible ? 'rgba(0, 230, 118, 0.2)' : isLabeled ? 'rgba(255, 145, 0, 0.2)' : 'rgba(255, 23, 68, 0.2)'}`,
+                      background: isEligible ? (isLight ? 'rgba(5, 150, 105, 0.06)' : 'rgba(0, 230, 118, 0.05)') : isLabeled ? (isLight ? 'rgba(217, 119, 6, 0.06)' : 'rgba(255, 145, 0, 0.05)') : (isLight ? 'rgba(220, 38, 38, 0.06)' : 'rgba(255, 23, 68, 0.05)'),
+                      border: `1px solid ${isEligible ? (isLight ? 'rgba(5, 150, 105, 0.25)' : 'rgba(0, 230, 118, 0.2)') : isLabeled ? (isLight ? 'rgba(217, 119, 6, 0.25)' : 'rgba(255, 145, 0, 0.2)') : (isLight ? 'rgba(220, 38, 38, 0.25)' : 'rgba(255, 23, 68, 0.2)')}`,
                       display: 'flex', alignItems: 'flex-start', gap: 1
                     }}>
                       {isEligible ? (
-                        <CheckCircle sx={{ color: '#00E676', fontSize: 18, mt: 0.2 }} />
+                        <CheckCircle sx={{ color: isLight ? '#059669' : '#00E676', fontSize: 18, mt: 0.2 }} />
                       ) : isLabeled ? (
-                        <InfoOutlined sx={{ color: '#FF9100', fontSize: 18, mt: 0.2 }} />
+                        <InfoOutlined sx={{ color: isLight ? '#D97706' : '#FF9100', fontSize: 18, mt: 0.2 }} />
                       ) : (
-                        <Cancel sx={{ color: '#FF1744', fontSize: 18, mt: 0.2 }} />
+                        <Cancel sx={{ color: isLight ? '#DC2626' : '#FF1744', fontSize: 18, mt: 0.2 }} />
                       )}
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#E2E8F0', fontSize: '0.8rem' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: isLight ? '#0F172A' : '#E2E8F0', fontSize: '0.8rem' }}>
                           {label}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mt: 0.3 }}>
+                        <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8', display: 'block', mt: 0.3 }}>
                           {val.reason}
                         </Typography>
                       </Box>
@@ -167,7 +174,7 @@ export default function DataReadinessPanel({ readiness }) {
             </Grid>
 
             {epss_coverage_pct === 0 && (
-              <Alert severity="info" sx={{ mt: 2, background: 'rgba(124, 77, 255, 0.1)', color: '#E2E8F0', border: '1px solid rgba(124, 77, 255, 0.3)' }}>
+              <Alert severity="info" sx={{ mt: 2, background: isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(124, 77, 255, 0.1)', color: isLight ? '#312E81' : '#E2E8F0', border: isLight ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid rgba(124, 77, 255, 0.3)' }}>
                 <strong>EPSS Quality Disclosure:</strong> Reported EPSS coverage is currently 0.0% in source PDF audit extractions. The EPSS trend chart provides coverage tracking but forecasting is safely halted to avoid ungrounded synthetic estimates.
               </Alert>
             )}

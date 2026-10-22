@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Grid, Card, CardContent, Typography, Box, Chip, Tooltip
+  Grid, Card, CardContent, Typography, Box, Chip, Tooltip, useTheme
 } from '@mui/material';
 import {
   TrendingUp, TrendingDown, TrendingFlat, BugReport,
@@ -8,11 +8,14 @@ import {
 } from '@mui/icons-material';
 
 function KpiCard({ title, value, subtitle, changePct, color, icon, priorMissing, tooltip }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   const renderTrend = () => {
     if (priorMissing) {
       return (
         <Tooltip title="Prior period data is missing or incomparable for baseline delta.">
-          <Chip label="Baseline N/A" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(255,255,255,0.06)', color: '#94A3B8' }} />
+          <Chip label="Baseline N/A" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.06)', color: isLight ? '#475569' : '#94A3B8' }} />
         </Tooltip>
       );
     }
@@ -31,7 +34,7 @@ function KpiCard({ title, value, subtitle, changePct, color, icon, priorMissing,
           fontSize: '0.7rem',
           fontWeight: 700,
           bgcolor: isPositive ? 'rgba(255, 23, 68, 0.15)' : 'rgba(0, 230, 118, 0.15)',
-          color: isPositive ? '#FF1744' : '#00E676',
+          color: isPositive ? '#FF1744' : (isLight ? '#059669' : '#00E676'),
           border: `1px solid ${isPositive ? 'rgba(255, 23, 68, 0.3)' : 'rgba(0, 230, 118, 0.3)'}`,
         }}
       />
@@ -41,36 +44,37 @@ function KpiCard({ title, value, subtitle, changePct, color, icon, priorMissing,
   return (
     <Card sx={{
       height: '100%',
-      background: 'rgba(10, 14, 23, 0.75)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
+      background: isLight ? '#FFFFFF' : 'rgba(10, 14, 23, 0.75)',
+      border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+      boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
       position: 'relative',
       overflow: 'hidden',
     }}>
       <Box sx={{
         position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-        bgcolor: color || '#00D4FF'
+        bgcolor: color || (isLight ? '#0284C7' : '#00D4FF')
       }} />
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
           <Tooltip title={tooltip || ''}>
-            <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               {title}
             </Typography>
           </Tooltip>
-          <Box sx={{ color: color || '#00D4FF', opacity: 0.8 }}>
+          <Box sx={{ color: color || (isLight ? '#0284C7' : '#00D4FF'), opacity: 0.9 }}>
             {icon}
           </Box>
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, my: 0.5 }}>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: '#E2E8F0', fontSize: '1.75rem', letterSpacing: '-0.02em' }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: isLight ? '#0F172A' : '#E2E8F0', fontSize: '1.75rem', letterSpacing: '-0.02em' }}>
             {value !== undefined && value !== null ? value : '--'}
           </Typography>
           {renderTrend()}
         </Box>
 
         {subtitle && (
-          <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.72rem', display: 'block', mt: 0.5 }}>
+          <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8', fontSize: '0.72rem', display: 'block', mt: 0.5 }}>
             {subtitle}
           </Typography>
         )}

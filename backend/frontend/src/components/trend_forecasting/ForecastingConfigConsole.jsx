@@ -19,6 +19,7 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
+  useTheme,
 } from '@mui/material';
 import {
   Tune,
@@ -127,6 +128,8 @@ export default function ForecastingConfigConsole({
   currentParams = {},
   onOpenCompare = null,
 }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   const [expanded, setExpanded] = useState(false);
   const [selectedModel, setSelectedModel] = useState(currentParams.model || 'TIMEFM_3');
 
@@ -233,12 +236,12 @@ export default function ForecastingConfigConsole({
   return (
     <Card
       sx={{
-        bgcolor: '#0B1220',
-        border: `1px solid ${activeModelMeta.color}35`,
+        bgcolor: isLight ? '#FFFFFF' : '#0B1220',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : `1px solid ${activeModelMeta.color}35`,
         borderRadius: 3,
         mb: 3,
         overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+        boxShadow: isLight ? '0 4px 20px -2px rgba(15, 23, 42, 0.06)' : '0 8px 32px rgba(0,0,0,0.35)',
       }}
     >
       {/* ════════ HEADER BAR ════════ */}
@@ -250,8 +253,8 @@ export default function ForecastingConfigConsole({
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 2,
-          background: 'linear-gradient(90deg, rgba(13,21,39,0.95) 0%, rgba(15,23,42,0.95) 100%)',
-          borderBottom: expanded ? '1px solid rgba(255,255,255,0.08)' : 'none',
+          background: isLight ? 'linear-gradient(90deg, #FFFFFF 0%, #F8FAFC 100%)' : 'linear-gradient(90deg, rgba(13,21,39,0.95) 0%, rgba(15,23,42,0.95) 100%)',
+          borderBottom: expanded ? (isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)') : 'none',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -268,7 +271,7 @@ export default function ForecastingConfigConsole({
           </Box>
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#F8FAFC' }}>
+              <Typography variant="subtitle1" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#F8FAFC' }}>
                 Forecasting Engine & Model Console
               </Typography>
               <Chip
@@ -286,8 +289,8 @@ export default function ForecastingConfigConsole({
                 size="small"
                 label={`${selectedTargets.length} target streams`}
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  color: '#94A3B8',
+                  bgcolor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.05)',
+                  color: isLight ? '#475569' : '#94A3B8',
                   fontSize: '0.72rem',
                 }}
               />
@@ -295,8 +298,8 @@ export default function ForecastingConfigConsole({
                 size="small"
                 label={`${currentModelParams.horizon || 6} Steps`}
                 sx={{
-                  bgcolor: 'rgba(0, 212, 255, 0.1)',
-                  color: '#00D4FF',
+                  bgcolor: isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0, 212, 255, 0.1)',
+                  color: isLight ? '#0284C7' : '#00D4FF',
                   fontSize: '0.72rem',
                   fontWeight: 600,
                 }}
@@ -448,8 +451,8 @@ export default function ForecastingConfigConsole({
                     onClick={() => setSelectedModel(m.id)}
                     sx={{
                       p: 2,
-                      bgcolor: isSelected ? 'rgba(13, 21, 39, 0.95)' : 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${isSelected ? m.color : 'rgba(255,255,255,0.08)'}`,
+                      bgcolor: isSelected ? (isLight ? '#F0F9FF' : 'rgba(13, 21, 39, 0.95)') : (isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)'),
+                      border: `1px solid ${isSelected ? m.color : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)')}`,
                       borderRadius: 2.5,
                       cursor: 'pointer',
                       height: '100%',
@@ -458,14 +461,14 @@ export default function ForecastingConfigConsole({
                       boxShadow: isSelected ? `0 0 20px ${m.color}25` : 'none',
                       '&:hover': {
                         borderColor: m.color,
-                        bgcolor: 'rgba(13, 21, 39, 0.8)',
+                        bgcolor: isLight ? '#F1F5F9' : 'rgba(13, 21, 39, 0.8)',
                       },
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ color: m.color, display: 'flex' }}>{m.icon}</Box>
-                        <Typography variant="subtitle2" fontWeight={800} sx={{ color: isSelected ? '#FFFFFF' : '#CBD5E1' }}>
+                        <Typography variant="subtitle2" fontWeight={800} sx={{ color: isSelected ? (isLight ? '#0F172A' : '#FFFFFF') : (isLight ? '#334155' : '#CBD5E1') }}>
                           {m.name}
                         </Typography>
                       </Box>

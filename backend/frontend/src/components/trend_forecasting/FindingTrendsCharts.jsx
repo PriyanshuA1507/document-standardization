@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Grid, Card, CardContent, Typography, Box, Chip, Tooltip as MuiTooltip
+  Grid, Card, CardContent, Typography, Box, Chip, Tooltip as MuiTooltip, useTheme
 } from '@mui/material';
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line, BarChart, Bar,
@@ -11,42 +11,44 @@ import {
 } from '@mui/icons-material';
 
 const GlassTooltip = ({ active, payload, label, unit = '', modelLabel = 'AI Forecast' }) => {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   if (active && payload && payload.length) {
     const isForecast = payload[0]?.payload?.isForecast;
     return (
       <Box sx={{
-        background: 'rgba(10, 14, 23, 0.94)',
+        background: isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(10, 14, 23, 0.94)',
         backdropFilter: 'blur(16px)',
-        border: `1px solid ${isForecast ? 'rgba(0, 230, 118, 0.4)' : 'rgba(0, 212, 255, 0.25)'}`,
+        border: `1px solid ${isForecast ? (isLight ? 'rgba(5, 150, 105, 0.4)' : 'rgba(0, 230, 118, 0.4)') : (isLight ? 'rgba(2, 132, 199, 0.3)' : 'rgba(0, 212, 255, 0.25)')}`,
         borderRadius: 2,
         p: 1.5,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        boxShadow: isLight ? '0 8px 24px rgba(15,23,42,0.12)' : '0 8px 32px rgba(0,0,0,0.5)',
         minWidth: 170,
       }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.8, gap: 1 }}>
-          <Typography variant="caption" sx={{ color: isForecast ? '#00E676' : '#00D4FF', fontWeight: 700 }}>
+          <Typography variant="caption" sx={{ color: isForecast ? (isLight ? '#059669' : '#00E676') : (isLight ? '#0284C7' : '#00D4FF'), fontWeight: 700 }}>
             Period: {label}
           </Typography>
           {isForecast && (
             <Chip
               label={`${modelLabel} Projected`}
               size="small"
-              sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(0, 230, 118, 0.2)', color: '#00E676', fontWeight: 700 }}
+              sx={{ height: 18, fontSize: '0.6rem', bgcolor: isLight ? 'rgba(5, 150, 105, 0.12)' : 'rgba(0, 230, 118, 0.2)', color: isLight ? '#059669' : '#00E676', fontWeight: 700 }}
             />
           )}
         </Box>
         {payload.map((entry, idx) => (
           <Box key={idx} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 0.3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: entry.color || entry.stroke || '#00D4FF' }} />
-              <Typography variant="caption" sx={{ color: '#94A3B8' }}>{entry.name}:</Typography>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: entry.color || entry.stroke || (isLight ? '#0284C7' : '#00D4FF') }} />
+              <Typography variant="caption" sx={{ color: isLight ? '#475569' : '#94A3B8' }}>{entry.name}:</Typography>
             </Box>
-            <Typography variant="caption" sx={{ color: '#E2E8F0', fontWeight: 700 }}>
+            <Typography variant="caption" sx={{ color: isLight ? '#0F172A' : '#E2E8F0', fontWeight: 700 }}>
               {entry.value !== null && entry.value !== undefined ? `${entry.value}${unit}` : '--'}
             </Typography>
           </Box>
         ))}
-        <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.65rem', display: 'block', mt: 0.8, fontStyle: 'italic' }}>
+        <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#64748B', fontSize: '0.65rem', display: 'block', mt: 0.8, fontStyle: 'italic' }}>
           Click point to drill down into underlying audit findings
         </Typography>
       </Box>
@@ -56,20 +58,23 @@ const GlassTooltip = ({ active, payload, label, unit = '', modelLabel = 'AI Fore
 };
 
 function ChartWrapper({ title, icon, modelInfo, horizonBadge, helpText, children }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   return (
     <Card sx={{
       height: '100%',
       minHeight: 400,
-      background: 'rgba(10, 14, 23, 0.85)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
+      background: isLight ? '#FFFFFF' : 'rgba(10, 14, 23, 0.85)',
+      border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+      boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none',
       display: 'flex',
       flexDirection: 'column',
     }}>
-      <CardContent sx={{ p: 2, pb: 1, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <CardContent sx={{ p: 2, pb: 1, borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.06)' : '1px solid rgba(255,255,255,0.06)' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: helpText ? 0.6 : 0, flexWrap: 'wrap', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {icon && React.cloneElement(icon, { sx: { color: '#00D4FF', fontSize: 20 } })}
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#E2E8F0' }}>
+            {icon && React.cloneElement(icon, { sx: { color: isLight ? '#0284C7' : '#00D4FF', fontSize: 20 } })}
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: isLight ? '#0F172A' : '#E2E8F0' }}>
               {title}
             </Typography>
           </Box>

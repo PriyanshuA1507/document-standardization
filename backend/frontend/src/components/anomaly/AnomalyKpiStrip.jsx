@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Grid, Card, CardContent, Typography } from '@mui/material';
+import { Box, Grid, Card, CardContent, Typography, useTheme } from '@mui/material';
 import {
   Shield,
   Warning,
@@ -12,8 +12,16 @@ import {
 } from '@mui/icons-material';
 
 function KpiCard({ title, value, subtitle, icon, color = '#00D4FF', badgeText }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
   return (
-    <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2, height: '100%' }}>
+    <Card sx={{
+      bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+      border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+      borderRadius: 2,
+      height: '100%',
+      boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none'
+    }}>
       <CardContent sx={{ p: 2.2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>

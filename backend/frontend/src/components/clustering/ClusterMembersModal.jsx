@@ -19,7 +19,8 @@ import {
   Chip,
   CircularProgress,
   InputAdornment,
-  Alert
+  Alert,
+  useTheme
 } from '@mui/material';
 import { Close, Search, Description, BugReport } from '@mui/icons-material';
 import api from '../../api/axios';
@@ -33,6 +34,9 @@ const SEVERITY_COLORS = {
 };
 
 export default function ClusterMembersModal({ open, onClose, runId, clusterId, clusterLabel, clusteringType }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState({ items: [], total: 0 });
   const [page, setPage] = useState(0);
@@ -99,18 +103,18 @@ export default function ClusterMembersModal({ open, onClose, runId, clusterId, c
       fullWidth
       PaperProps={{
         sx: {
-          bgcolor: '#0B1120',
-          border: '1px solid rgba(0, 212, 255, 0.2)',
+          bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(0, 212, 255, 0.2)',
           backgroundImage: 'none',
           maxHeight: '85vh',
         }
       }}
     >
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', p: 2 }}>
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', p: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {isVuln ? <BugReport sx={{ color: '#00D4FF' }} /> : <Description sx={{ color: '#00E676' }} />}
           <Box>
-            <Typography variant="h6" fontWeight={700}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: isLight ? '#0F172A' : '#F1F5F9' }}>
               {clusterId === -1 ? 'Unassigned / Noise Records' : (clusterLabel || `Cluster #${clusterId}`)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -118,7 +122,7 @@ export default function ClusterMembersModal({ open, onClose, runId, clusterId, c
             </Typography>
           </Box>
         </Box>
-        <IconButton onClick={onClose} sx={{ color: 'text.secondary' }}>
+        <IconButton onClick={onClose} sx={{ color: isLight ? '#64748B' : 'text.secondary' }}>
           <Close />
         </IconButton>
       </DialogTitle>
@@ -146,27 +150,27 @@ export default function ClusterMembersModal({ open, onClose, runId, clusterId, c
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        <TableContainer sx={{ minHeight: 300, maxHeight: 450, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 2 }}>
+        <TableContainer sx={{ minHeight: 300, maxHeight: 450, border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.05)', borderRadius: 2 }}>
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
                 {isVuln ? (
                   <>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Finding Title</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Severity</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>CVSS</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>CWE Categories</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Source Report</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Affinity Strength</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Finding Title</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Severity</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>CVSS</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>CWE Categories</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Source Report</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Affinity Strength</TableCell>
                   </>
                 ) : (
                   <>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Report Filename</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Audit Type</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Total Findings</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Avg CVSS</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Critical Findings</TableCell>
-                    <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Affinity Strength</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Report Filename</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Audit Type</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Total Findings</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Avg CVSS</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Critical Findings</TableCell>
+                    <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Affinity Strength</TableCell>
                   </>
                 )}
               </TableRow>
@@ -188,7 +192,7 @@ export default function ClusterMembersModal({ open, onClose, runId, clusterId, c
                 data.items?.map((item) => {
                   const meta = item.metadata || {};
                   return (
-                    <TableRow key={item.member_id} hover sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
+                    <TableRow key={item.member_id} hover sx={{ '&:hover': { bgcolor: isLight ? 'rgba(15, 23, 42, 0.02)' : 'rgba(255,255,255,0.02)' } }}>
                       {isVuln ? (
                         <>
                           <TableCell sx={{ maxWidth: 300 }}>
@@ -280,8 +284,8 @@ export default function ClusterMembersModal({ open, onClose, runId, clusterId, c
         />
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Button onClick={onClose} variant="outlined" sx={{ color: 'text.secondary', borderColor: 'rgba(255,255,255,0.1)' }}>
+      <DialogActions sx={{ p: 2, borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)' }}>
+        <Button onClick={onClose} variant="outlined" sx={{ color: 'text.secondary', borderColor: isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255,255,255,0.1)' }}>
           Close
         </Button>
       </DialogActions>

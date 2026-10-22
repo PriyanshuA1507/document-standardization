@@ -20,6 +20,7 @@ import {
   TableHead,
   TableRow,
   Divider,
+  useTheme,
 } from '@mui/material';
 import {
   Close,
@@ -115,6 +116,9 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
     );
   };
 
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   return (
     <Dialog
       open={open}
@@ -123,20 +127,20 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
       fullWidth
       PaperProps={{
         sx: {
-          bgcolor: '#0B1120',
-          border: '1px solid rgba(0, 212, 255, 0.3)',
+          bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(0, 212, 255, 0.3)',
           borderRadius: 3,
-          boxShadow: '0 16px 48px rgba(0,0,0,0.8)',
+          boxShadow: isLight ? '0 16px 48px rgba(0,0,0,0.15)' : '0 16px 48px rgba(0,0,0,0.8)',
           backgroundImage: 'none',
         },
       }}
     >
-      <DialogTitle sx={{ p: 2.5, borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <DialogTitle sx={{ p: 2.5, borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <CompareArrows sx={{ color: '#00D4FF', fontSize: 28 }} />
+          <CompareArrows sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 28 }} />
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-              <Typography variant="h6" fontWeight={800} sx={{ color: '#F8FAFC' }}>
+              <Typography variant="h6" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#F8FAFC' }}>
                 Clustering Run Comparison & Benchmark Matrix
               </Typography>
               {comparison?.clustering_type && (
@@ -207,14 +211,14 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
                 <Paper
                   sx={{
                     p: 2.5,
-                    bgcolor: 'rgba(13, 21, 39, 0.85)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    bgcolor: isLight ? '#F8FAFC' : 'rgba(13, 21, 39, 0.85)',
+                    border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)',
                     borderRadius: 2.5,
                     height: '100%',
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                    <Typography variant="caption" sx={{ color: '#00D4FF', fontWeight: 800, textTransform: 'uppercase' }}>
+                    <Typography variant="caption" sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontWeight: 800, textTransform: 'uppercase' }}>
                       Baseline Model (Run A)
                     </Typography>
                     <Typography variant="caption" fontFamily="monospace" sx={{ color: '#94A3B8' }}>
@@ -222,13 +226,13 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
                     </Typography>
                   </Box>
 
-                  <Typography variant="h6" fontWeight={800} sx={{ color: '#FFFFFF', mb: 1 }}>
+                  <Typography variant="h6" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#FFFFFF', mb: 1 }}>
                     {comparison.run_1.algorithm}
                   </Typography>
 
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                    <Chip size="small" label={`${comparison.run_1.input_records} records`} sx={{ bgcolor: 'rgba(255,255,255,0.05)', fontSize: '0.72rem' }} />
-                    <Chip size="small" label={`${comparison.run_1.clusters_count} clusters`} sx={{ bgcolor: 'rgba(0, 230, 118, 0.1)', color: '#00E676', fontSize: '0.72rem' }} />
+                    <Chip size="small" label={`${comparison.run_1.input_records} records`} sx={{ bgcolor: isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255,255,255,0.05)', color: isLight ? '#334155' : undefined, fontSize: '0.72rem' }} />
+                    <Chip size="small" label={`${comparison.run_1.clusters_count} clusters`} sx={{ bgcolor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(0, 230, 118, 0.1)', color: isLight ? '#059669' : '#00E676', fontSize: '0.72rem' }} />
                     <Chip size="small" label={`${comparison.run_1.noise_count} noise`} sx={{ bgcolor: 'rgba(255, 145, 0, 0.1)', color: '#FF9100', fontSize: '0.72rem' }} />
                   </Box>
 
@@ -237,7 +241,7 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 0.6, flexWrap: 'wrap' }}>
                     {comparison.run_1.selected_features.map((f) => (
-                      <Chip key={f} size="small" label={f} sx={{ bgcolor: 'rgba(0,212,255,0.08)', color: '#38BDF8', fontSize: '0.68rem' }} />
+                      <Chip key={f} size="small" label={f} sx={{ bgcolor: isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0,212,255,0.08)', color: isLight ? '#0284C7' : '#38BDF8', fontSize: '0.68rem' }} />
                     ))}
                   </Box>
                 </Paper>
@@ -248,14 +252,14 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
                 <Paper
                   sx={{
                     p: 2.5,
-                    bgcolor: 'rgba(13, 21, 39, 0.85)',
-                    border: '1px solid rgba(0, 230, 118, 0.3)',
+                    bgcolor: isLight ? '#F8FAFC' : 'rgba(13, 21, 39, 0.85)',
+                    border: isLight ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(0, 230, 118, 0.3)',
                     borderRadius: 2.5,
                     height: '100%',
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                    <Typography variant="caption" sx={{ color: '#00E676', fontWeight: 800, textTransform: 'uppercase' }}>
+                    <Typography variant="caption" sx={{ color: isLight ? '#059669' : '#00E676', fontWeight: 800, textTransform: 'uppercase' }}>
                       Comparison Target (Run B)
                     </Typography>
                     <Typography variant="caption" fontFamily="monospace" sx={{ color: '#94A3B8' }}>
@@ -263,7 +267,7 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
                     </Typography>
                   </Box>
 
-                  <Typography variant="h6" fontWeight={800} sx={{ color: '#FFFFFF', mb: 1 }}>
+                  <Typography variant="h6" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#FFFFFF', mb: 1 }}>
                     {comparison.run_2.algorithm}
                   </Typography>
 
@@ -287,15 +291,15 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
 
             {/* Metrics Delta Comparative Table */}
             <Box>
-              <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#E2E8F0', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Speed sx={{ color: '#00D4FF', fontSize: 20 }} />
+              <Typography variant="subtitle2" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#E2E8F0', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Speed sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 20 }} />
                 Mathematical Validation Metrics & Delta Performance
               </Typography>
 
-              <TableContainer component={Paper} sx={{ bgcolor: 'rgba(13, 21, 39, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 2 }}>
+              <TableContainer component={Paper} sx={{ bgcolor: isLight ? '#FFFFFF' : 'rgba(13, 21, 39, 0.6)', border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)', borderRadius: 2 }}>
                 <Table size="small">
                   <TableHead>
-                    <TableRow sx={{ '& th': { bgcolor: '#0D1527', color: '#94A3B8', fontWeight: 700, fontSize: '0.8rem' } }}>
+                    <TableRow sx={{ '& th': { bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700, fontSize: '0.8rem', borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : undefined } }}>
                       <TableCell>Metric</TableCell>
                       <TableCell>Direction</TableCell>
                       <TableCell align="right">Run A</TableCell>
@@ -303,7 +307,7 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
                       <TableCell align="right">Performance Delta (B − A)</TableCell>
                     </TableRow>
                   </TableHead>
-                  <TableBody sx={{ '& td': { borderColor: 'rgba(255,255,255,0.06)', color: '#CBD5E1', fontSize: '0.85rem' } }}>
+                  <TableBody sx={{ '& td': { borderColor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.06)', color: isLight ? '#334155' : '#CBD5E1', fontSize: '0.85rem' } }}>
                     {/* Silhouette */}
                     <TableRow>
                       <TableCell sx={{ fontWeight: 700, color: '#00D4FF !important' }}>1. Silhouette Score</TableCell>
@@ -386,15 +390,15 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
             {/* Cluster Size Distribution Dual Bar Chart */}
             {comparison.distribution_comparison?.length > 0 && (
               <Box>
-                <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#E2E8F0', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Layers sx={{ color: '#B388FF', fontSize: 20 }} />
+                <Typography variant="subtitle2" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#E2E8F0', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Layers sx={{ color: isLight ? '#7C4DFF' : '#B388FF', fontSize: 20 }} />
                   Cluster Size Cohort Distribution (Run A vs Run B)
                 </Typography>
 
-                <Box sx={{ height: 260, bgcolor: 'rgba(13, 21, 39, 0.6)', p: 2, borderRadius: 2, border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Box sx={{ height: 260, bgcolor: isLight ? '#FFFFFF' : 'rgba(13, 21, 39, 0.6)', p: 2, borderRadius: 2, border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.08)' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={comparison.distribution_comparison} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.06)'} />
                       <XAxis dataKey="index" stroke="#64748B" fontSize={11} tickFormatter={(val) => `Cluster ${val}`} />
                       <YAxis
                         stroke="#64748B"
@@ -408,7 +412,7 @@ export default function ClusterComparisonModal({ open, onClose, runId1, runId2 }
                         }}
                       />
                       <RechartsTooltip
-                        contentStyle={{ backgroundColor: '#0D1527', borderColor: 'rgba(255,255,255,0.1)', borderRadius: 8 }}
+                        contentStyle={{ backgroundColor: isLight ? '#FFFFFF' : '#0D1527', borderColor: isLight ? 'rgba(15, 23, 42, 0.1)' : 'rgba(255,255,255,0.1)', color: isLight ? '#0F172A' : '#FFFFFF', borderRadius: 8 }}
                         formatter={(val, name) => [val, name === 'run_1_size' ? 'Run A (Baseline)' : 'Run B (Comparison)']}
                       />
                       <Legend wrapperStyle={{ fontSize: '0.8rem', paddingTop: '6px' }} />

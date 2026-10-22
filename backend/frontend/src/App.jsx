@@ -24,8 +24,8 @@ const MLAnalyticsDashboardPage = React.lazy(() => import('./pages/MLAnalyticsDas
 const TrendAnalysisDashboardPage = React.lazy(() => import('./pages/TrendAnalysisDashboardPage'));
 
 const GlobalLoader = () => (
-  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0A0E17' }}>
-    <CircularProgress sx={{ color: '#00D4FF' }} size={48} />
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'transparent' }}>
+    <CircularProgress sx={{ color: 'primary.main' }} size={48} />
   </Box>
 );
 

@@ -26,6 +26,7 @@ import {
   DialogContent,
   DialogActions,
   Checkbox,
+  useTheme,
 } from '@mui/material';
 import {
   History,
@@ -52,6 +53,9 @@ const STATUS_CHIPS = {
 };
 
 export default function ClusteringHistoryModule({ onSelectRun }) {
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState({ items: [], total: 0 });
   const [filterType, setFilterType] = useState('ALL');
@@ -140,11 +144,17 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
 
   return (
     <Box>
-      <Card sx={{ bgcolor: '#0D1527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3, mb: 3 }}>
+      <Card sx={{
+        bgcolor: isLight ? '#FFFFFF' : '#0D1527',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+        borderRadius: 3,
+        mb: 3,
+        boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none'
+      }}>
         <CardContent sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
             <Box>
-              <Typography variant="h5" fontWeight={800} sx={{ color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography variant="h5" fontWeight={800} sx={{ color: isLight ? '#0F172A' : '#E2E8F0', display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <History sx={{ color: '#00D4FF' }} />
                 Clustering Execution History & Audit Trail
               </Typography>
@@ -165,8 +175,9 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                   label="Type"
                   onChange={handleFilterChange}
                   sx={{
-                    color: '#fff',
-                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' }
+                    color: isLight ? '#0F172A' : '#fff',
+                    bgcolor: isLight ? '#F8FAFC' : 'transparent',
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255,255,255,0.1)' }
                   }}
                 >
                   <MenuItem value="ALL">All Types</MenuItem>
@@ -192,8 +203,8 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
             mb: 2,
             p: 1.5,
             px: 2.5,
-            bgcolor: 'rgba(0, 212, 255, 0.1)',
-            border: '1px solid rgba(0, 212, 255, 0.3)',
+            bgcolor: isLight ? '#F0F9FF' : 'rgba(0, 212, 255, 0.1)',
+            border: isLight ? '1px solid rgba(0, 212, 255, 0.4)' : '1px solid rgba(0, 212, 255, 0.3)',
             borderRadius: 2,
             display: 'flex',
             justifyContent: 'space-between',
@@ -206,7 +217,7 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
             <CompareArrows sx={{ color: '#00D4FF' }} />
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="body2" sx={{ color: '#E2E8F0', fontWeight: 700 }}>
+                <Typography variant="body2" sx={{ color: isLight ? '#0F172A' : '#E2E8F0', fontWeight: 700 }}>
                   {selectedRunIds.length === 1
                     ? `1 ${activeSelectedType === 'VULNERABILITY' ? 'Vulnerability' : 'Report'} run selected. Select a 2nd ${activeSelectedType === 'VULNERABILITY' ? 'Vulnerability' : 'Report'} run to compare.`
                     : `2 ${activeSelectedType === 'VULNERABILITY' ? 'Vulnerability' : 'Report'} runs selected for benchmark matrix.`}
@@ -224,7 +235,7 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                   />
                 )}
               </Box>
-              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mt: 0.3 }}>
+              <Typography variant="caption" sx={{ color: isLight ? '#64748B' : '#94A3B8', display: 'block', mt: 0.3 }}>
                 *Comparison is strictly isolated by type: Vulnerabilities compare against Vulnerabilities, and Reports against Reports.
               </Typography>
             </Box>
@@ -235,7 +246,7 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
               size="small"
               variant="text"
               onClick={() => setSelectedRunIds([])}
-              sx={{ color: '#94A3B8', fontSize: '0.75rem' }}
+              sx={{ color: isLight ? '#64748B' : '#94A3B8', fontSize: '0.75rem' }}
             >
               Clear
             </Button>
@@ -259,26 +270,31 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
         </Box>
       )}
 
-      <Card sx={{ bgcolor: '#0B1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2.5 }}>
+      <Card sx={{
+        bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+        border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+        borderRadius: 2.5,
+        boxShadow: isLight ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)' : 'none'
+      }}>
         <TableContainer>
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ bgcolor: '#0D1527', width: 44, p: 0.5 }} align="center">
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', width: 44, p: 0.5 }} align="center">
                   <Tooltip title="Select up to 2 runs to compare">
                     <CompareArrows sx={{ fontSize: 16, color: '#64748B' }} />
                   </Tooltip>
                 </TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Run ID</TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Type</TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Algorithm</TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Status</TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Records Analyzed</TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Clusters Found</TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Noise Points</TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Duration</TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }}>Timestamp</TableCell>
-                <TableCell sx={{ bgcolor: '#0D1527', fontWeight: 700 }} align="right">Actions</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Run ID</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Type</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Algorithm</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Status</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Records Analyzed</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Clusters Found</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Noise Points</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Duration</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }}>Timestamp</TableCell>
+                <TableCell sx={{ bgcolor: isLight ? '#F1F5F9' : '#0D1527', color: isLight ? '#475569' : '#94A3B8', fontWeight: 700 }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -317,7 +333,7 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                   const isChecked = selectedRunIds.includes(r.run_id);
 
                   return (
-                    <TableRow key={r.run_id} hover sx={{ bgcolor: isChecked ? 'rgba(0,212,255,0.04)' : 'transparent', '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
+                    <TableRow key={r.run_id} hover sx={{ bgcolor: isChecked ? (isLight ? 'rgba(0,212,255,0.08)' : 'rgba(0,212,255,0.04)') : 'transparent', '&:hover': { bgcolor: isLight ? 'rgba(15, 23, 42, 0.02)' : 'rgba(255,255,255,0.02)' } }}>
                       <TableCell align="center" sx={{ p: 0.5, width: 44 }}>
                         <Tooltip
                           title={
@@ -333,7 +349,7 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                             checked={isChecked}
                             onChange={() => handleToggleSelectRun(r)}
                             sx={{
-                              color: activeSelectedType && r.clustering_type !== activeSelectedType ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.2)',
+                              color: activeSelectedType && r.clustering_type !== activeSelectedType ? (isLight ? 'rgba(15,23,42,0.15)' : 'rgba(255,255,255,0.08)') : (isLight ? 'rgba(15,23,42,0.3)' : 'rgba(255,255,255,0.2)'),
                               p: 0.5,
                               '&.Mui-checked': { color: '#00D4FF' },
                             }}
@@ -452,17 +468,17 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: '#0B1120',
-            border: '1px solid rgba(255,255,255,0.1)',
+            bgcolor: isLight ? '#FFFFFF' : '#0B1120',
+            border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255,255,255,0.1)',
             backgroundImage: 'none',
           }
         }}
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', p: 2 }}>
-          <Typography variant="h6" fontWeight={700}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)', p: 2 }}>
+          <Typography variant="h6" fontWeight={700} sx={{ color: isLight ? '#0F172A' : '#F1F5F9' }}>
             Clustering Run Details & Validation Metrics
           </Typography>
-          <IconButton onClick={() => setDetailsModal({ open: false, run: null })} sx={{ color: 'text.secondary' }}>
+          <IconButton onClick={() => setDetailsModal({ open: false, run: null })} sx={{ color: isLight ? '#64748B' : 'text.secondary' }}>
             <Close />
           </IconButton>
         </DialogTitle>
@@ -470,7 +486,7 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
         <DialogContent sx={{ p: 3 }}>
           {detailsModal.run && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, p: 2, bgcolor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.02)', borderRadius: 2, border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)' }}>
                 <Box>
                   <Typography variant="caption" color="text.secondary">Run ID</Typography>
                   <Typography variant="body2" fontFamily="monospace" fontWeight={700} color="#00D4FF">
@@ -479,13 +495,13 @@ export default function ClusteringHistoryModule({ onSelectRun }) {
                 </Box>
                 <Box>
                   <Typography variant="caption" color="text.secondary">Clustering Type</Typography>
-                  <Typography variant="body2" fontWeight={700}>
+                  <Typography variant="body2" fontWeight={700} sx={{ color: isLight ? '#0F172A' : '#F1F5F9' }}>
                     {detailsModal.run.clustering_type}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography variant="caption" color="text.secondary">Status</Typography>
-                  <Typography variant="body2" fontWeight={700}>
+                  <Typography variant="body2" fontWeight={700} sx={{ color: isLight ? '#0F172A' : '#F1F5F9' }}>
                     {detailsModal.run.status} ({detailsModal.run.current_stage})
                   </Typography>
                 </Box>

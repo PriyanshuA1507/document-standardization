@@ -24,7 +24,7 @@ import {
   LinearProgress,
   Drawer,
   Avatar,
-  InputAdornment,
+  useTheme,
 } from '@mui/material';
 import {
   Description,
@@ -48,7 +48,6 @@ import {
   Check,
   ExpandMore,
   ExpandLess,
-  FilterList,
   Timeline,
   Speed,
   Download,
@@ -62,9 +61,7 @@ import {
   PersonAdd,
   Layers,
   BugReport,
-  Sync,
   Close,
-  Lan,
   History,
 } from '@mui/icons-material';
 import {
@@ -93,19 +90,135 @@ const muiStatusColor = {
   FAILED: 'error',
 };
 
-const statusPalette = {
-  VALIDATED: { color: '#00E676', label: 'Validated', bg: 'rgba(0, 230, 118, 0.1)' },
-  UPLOADED: { color: '#00D4FF', label: 'Uploaded', bg: 'rgba(0, 212, 255, 0.1)' },
-  PIPELINE_RUNNING: { color: '#7C4DFF', label: 'Processing', bg: 'rgba(124, 77, 255, 0.1)' },
-  QUARANTINED: { color: '#FF9100', label: 'Quarantined', bg: 'rgba(255, 145, 0, 0.1)' },
-  REJECTED: { color: '#FF1744', label: 'Rejected', bg: 'rgba(255, 23, 68, 0.1)' },
-  FAILED: { color: '#FF1744', label: 'Failed', bg: 'rgba(255, 23, 68, 0.1)' },
+const getActionMeta = (action, isLight = false) => {
+  const map = {
+    USER_LOGIN: {
+      color: isLight ? '#059669' : '#00E676',
+      bg: isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(0, 230, 118, 0.12)',
+      border: isLight ? 'rgba(5, 150, 105, 0.25)' : 'rgba(0, 230, 118, 0.3)',
+      icon: <VpnKey sx={{ fontSize: 13 }} />,
+      label: 'User Login',
+    },
+    USER_LOGOUT: {
+      color: isLight ? '#475569' : '#94A3B8',
+      bg: isLight ? 'rgba(71, 85, 105, 0.08)' : 'rgba(148, 163, 184, 0.12)',
+      border: isLight ? 'rgba(71, 85, 105, 0.2)' : 'rgba(148, 163, 184, 0.3)',
+      icon: <Lock sx={{ fontSize: 13 }} />,
+      label: 'User Logout',
+    },
+    USER_LOGIN_FAILED: {
+      color: isLight ? '#DC2626' : '#FF1744',
+      bg: isLight ? 'rgba(220, 38, 38, 0.1)' : 'rgba(255, 23, 68, 0.15)',
+      border: isLight ? 'rgba(220, 38, 38, 0.3)' : 'rgba(255, 23, 68, 0.4)',
+      icon: <Warning sx={{ fontSize: 13 }} />,
+      label: 'Login Failed',
+    },
+    FILE_UPLOAD: {
+      color: isLight ? '#0284C7' : '#00D4FF',
+      bg: isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0, 212, 255, 0.12)',
+      border: isLight ? 'rgba(2, 132, 199, 0.25)' : 'rgba(0, 212, 255, 0.3)',
+      icon: <CloudUpload sx={{ fontSize: 13 }} />,
+      label: 'File Upload',
+    },
+    FILE_DELETE: {
+      color: isLight ? '#DC2626' : '#FF1744',
+      bg: isLight ? 'rgba(220, 38, 38, 0.1)' : 'rgba(255, 23, 68, 0.12)',
+      border: isLight ? 'rgba(220, 38, 38, 0.25)' : 'rgba(255, 23, 68, 0.3)',
+      icon: <DeleteOutline sx={{ fontSize: 13 }} />,
+      label: 'File Delete',
+    },
+    REPORT_DOWNLOAD: {
+      color: isLight ? '#059669' : '#00E676',
+      bg: isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(0, 230, 118, 0.12)',
+      border: isLight ? 'rgba(5, 150, 105, 0.25)' : 'rgba(0, 230, 118, 0.3)',
+      icon: <Download sx={{ fontSize: 13 }} />,
+      label: 'Download',
+    },
+    PIPELINE_START: {
+      color: isLight ? '#6366F1' : '#7C4DFF',
+      bg: isLight ? 'rgba(99, 102, 241, 0.1)' : 'rgba(124, 77, 255, 0.12)',
+      border: isLight ? 'rgba(99, 102, 241, 0.25)' : 'rgba(124, 77, 255, 0.3)',
+      icon: <Memory sx={{ fontSize: 13 }} />,
+      label: 'Pipeline Start',
+    },
+    PIPELINE_SUCCESS: {
+      color: isLight ? '#059669' : '#00E676',
+      bg: isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(0, 230, 118, 0.12)',
+      border: isLight ? 'rgba(5, 150, 105, 0.25)' : 'rgba(0, 230, 118, 0.3)',
+      icon: <CheckCircle sx={{ fontSize: 13 }} />,
+      label: 'Pipeline Done',
+    },
+    PIPELINE_FAILED: {
+      color: isLight ? '#DC2626' : '#FF1744',
+      bg: isLight ? 'rgba(220, 38, 38, 0.1)' : 'rgba(255, 23, 68, 0.15)',
+      border: isLight ? 'rgba(220, 38, 38, 0.3)' : 'rgba(255, 23, 68, 0.4)',
+      icon: <Warning sx={{ fontSize: 13 }} />,
+      label: 'Pipeline Failed',
+    },
+    USER_CREATE: {
+      color: isLight ? '#0284C7' : '#00D4FF',
+      bg: isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0, 212, 255, 0.12)',
+      border: isLight ? 'rgba(2, 132, 199, 0.25)' : 'rgba(0, 212, 255, 0.3)',
+      icon: <PersonAdd sx={{ fontSize: 13 }} />,
+      label: 'User Created',
+    },
+    BATCH_CREATE: {
+      color: isLight ? '#0284C7' : '#00D4FF',
+      bg: isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0, 212, 255, 0.12)',
+      border: isLight ? 'rgba(2, 132, 199, 0.25)' : 'rgba(0, 212, 255, 0.3)',
+      icon: <Layers sx={{ fontSize: 13 }} />,
+      label: 'Batch Created',
+    },
+    ANOMALY_RUN: {
+      color: isLight ? '#D97706' : '#FF9100',
+      bg: isLight ? 'rgba(217, 119, 6, 0.1)' : 'rgba(255, 145, 0, 0.12)',
+      border: isLight ? 'rgba(217, 119, 6, 0.25)' : 'rgba(255, 145, 0, 0.3)',
+      icon: <BugReport sx={{ fontSize: 13 }} />,
+      label: 'Anomaly Run',
+    },
+    CLUSTERING_RUN: {
+      color: isLight ? '#6366F1' : '#7C4DFF',
+      bg: isLight ? 'rgba(99, 102, 241, 0.1)' : 'rgba(124, 77, 255, 0.12)',
+      border: isLight ? 'rgba(99, 102, 241, 0.25)' : 'rgba(124, 77, 255, 0.3)',
+      icon: <AutoAwesome sx={{ fontSize: 13 }} />,
+      label: 'Clustering',
+    },
+  };
+  return (
+    map[action] || {
+      color: isLight ? '#64748B' : '#94A3B8',
+      bg: isLight ? 'rgba(100, 116, 139, 0.08)' : 'rgba(148, 163, 184, 0.1)',
+      border: isLight ? 'rgba(100, 116, 139, 0.2)' : 'rgba(148, 163, 184, 0.25)',
+      icon: <Security sx={{ fontSize: 13 }} />,
+      label: action?.replace(/_/g, ' ') || 'Action',
+    }
+  );
+};
+
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return '';
+  const diff = Math.floor((new Date() - new Date(dateStr)) / 1000);
+  if (diff < 60) return `${Math.max(1, diff)}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 };
 
 /* ───────────────────────────────────────────────────────────
    1. Interactive KPI Stat Card
 ─────────────────────────────────────────────────────────── */
-function StatCard({ title, value, icon, color, delta, sparkData, isSelected, onClick, delay = 0 }) {
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+  delta,
+  sparkData,
+  isSelected,
+  onClick,
+  delay = 0,
+  isLight = false,
+}) {
   return (
     <Card
       className="fade-in-up"
@@ -115,17 +228,33 @@ function StatCard({ title, value, icon, color, delta, sparkData, isSelected, onC
         position: 'relative',
         overflow: 'hidden',
         height: '100%',
-        backgroundColor: isSelected ? 'rgba(16, 28, 54, 0.95)' : 'rgba(13, 21, 39, 0.7)',
+        backgroundColor: isSelected
+          ? isLight
+            ? 'rgba(2, 132, 199, 0.07)'
+            : 'rgba(16, 28, 54, 0.95)'
+          : isLight
+          ? '#FFFFFF'
+          : 'rgba(13, 21, 39, 0.7)',
         backdropFilter: 'blur(16px)',
-        border: isSelected ? `1.5px solid ${color}` : '1px solid rgba(255, 255, 255, 0.07)',
+        border: isSelected
+          ? `1.5px solid ${color}`
+          : isLight
+          ? '1px solid rgba(15, 23, 42, 0.08)'
+          : '1px solid rgba(255, 255, 255, 0.07)',
         boxShadow: isSelected
-          ? `0 12px 36px rgba(0, 0, 0, 0.5), 0 0 24px ${color}30`
+          ? isLight
+            ? '0 8px 24px rgba(15, 23, 42, 0.08)'
+            : `0 12px 36px rgba(0, 0, 0, 0.5), 0 0 24px ${color}30`
+          : isLight
+          ? '0 4px 16px -2px rgba(15, 23, 42, 0.05)'
           : '0 8px 30px rgba(0, 0, 0, 0.35)',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         '&:hover': {
-          borderColor: isSelected ? color : `${color}60`,
-          boxShadow: `0 12px 36px rgba(0, 0, 0, 0.5), 0 0 20px ${color}20`,
+          borderColor: isSelected ? color : `${color}80`,
+          boxShadow: isLight
+            ? '0 10px 24px -4px rgba(15, 23, 42, 0.1)'
+            : `0 12px 36px rgba(0, 0, 0, 0.5), 0 0 20px ${color}20`,
           transform: 'translateY(-2px)',
         },
       }}
@@ -136,8 +265,8 @@ function StatCard({ title, value, icon, color, delta, sparkData, isSelected, onC
             <Typography
               variant="caption"
               sx={{
-                color: '#94A3B8',
-                fontWeight: 600,
+                color: isLight ? '#64748B' : '#94A3B8',
+                fontWeight: 700,
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 display: 'block',
@@ -150,7 +279,7 @@ function StatCard({ title, value, icon, color, delta, sparkData, isSelected, onC
               variant="h3"
               sx={{
                 fontWeight: 800,
-                color: '#F1F5F9',
+                color: isLight ? '#0F172A' : '#F1F5F9',
                 fontVariantNumeric: 'tabular-nums',
                 letterSpacing: '-0.02em',
                 lineHeight: 1.1,
@@ -206,48 +335,19 @@ function StatCard({ title, value, icon, color, delta, sparkData, isSelected, onC
           left: 0,
           right: 0,
           height: isSelected ? 4 : 3,
-          background: isSelected
-            ? color
-            : `linear-gradient(90deg, ${color}, transparent 80%)`,
+          background: isSelected ? color : `linear-gradient(90deg, ${color}, transparent 80%)`,
         }}
       />
     </Card>
   );
 }
 
-const getFileIcon = (filename) => {
+const getFileIcon = (filename, isLight = false) => {
   const ext = filename?.split('.').pop()?.toLowerCase();
-  if (ext === 'pdf') return <PictureAsPdf sx={{ color: '#FF1744', fontSize: 22 }} />;
-  if (ext === 'docx' || ext === 'doc') return <Article sx={{ color: '#00D4FF', fontSize: 22 }} />;
-  return <InsertDriveFile sx={{ color: '#94A3B8', fontSize: 22 }} />;
-};
-
-const getActionMeta = (action) => {
-  const map = {
-    USER_LOGIN: { color: '#00E676', bg: 'rgba(0, 230, 118, 0.12)', border: 'rgba(0, 230, 118, 0.3)', icon: <VpnKey sx={{ fontSize: 13 }} />, label: 'User Login' },
-    USER_LOGOUT: { color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.3)', icon: <Lock sx={{ fontSize: 13 }} />, label: 'User Logout' },
-    USER_LOGIN_FAILED: { color: '#FF1744', bg: 'rgba(255, 23, 68, 0.15)', border: 'rgba(255, 23, 68, 0.4)', icon: <Warning sx={{ fontSize: 13 }} />, label: 'Login Failed' },
-    FILE_UPLOAD: { color: '#00D4FF', bg: 'rgba(0, 212, 255, 0.12)', border: 'rgba(0, 212, 255, 0.3)', icon: <CloudUpload sx={{ fontSize: 13 }} />, label: 'File Upload' },
-    FILE_DELETE: { color: '#FF1744', bg: 'rgba(255, 23, 68, 0.12)', border: 'rgba(255, 23, 68, 0.3)', icon: <DeleteOutline sx={{ fontSize: 13 }} />, label: 'File Delete' },
-    REPORT_DOWNLOAD: { color: '#00E676', bg: 'rgba(0, 230, 118, 0.12)', border: 'rgba(0, 230, 118, 0.3)', icon: <Download sx={{ fontSize: 13 }} />, label: 'Download' },
-    PIPELINE_START: { color: '#7C4DFF', bg: 'rgba(124, 77, 255, 0.12)', border: 'rgba(124, 77, 255, 0.3)', icon: <Memory sx={{ fontSize: 13 }} />, label: 'Pipeline Start' },
-    PIPELINE_SUCCESS: { color: '#00E676', bg: 'rgba(0, 230, 118, 0.12)', border: 'rgba(0, 230, 118, 0.3)', icon: <CheckCircle sx={{ fontSize: 13 }} />, label: 'Pipeline Done' },
-    PIPELINE_FAILED: { color: '#FF1744', bg: 'rgba(255, 23, 68, 0.15)', border: 'rgba(255, 23, 68, 0.4)', icon: <Warning sx={{ fontSize: 13 }} />, label: 'Pipeline Failed' },
-    USER_CREATE: { color: '#00D4FF', bg: 'rgba(0, 212, 255, 0.12)', border: 'rgba(0, 212, 255, 0.3)', icon: <PersonAdd sx={{ fontSize: 13 }} />, label: 'User Created' },
-    BATCH_CREATE: { color: '#00D4FF', bg: 'rgba(0, 212, 255, 0.12)', border: 'rgba(0, 212, 255, 0.3)', icon: <Layers sx={{ fontSize: 13 }} />, label: 'Batch Created' },
-    ANOMALY_RUN: { color: '#FF9100', bg: 'rgba(255, 145, 0, 0.12)', border: 'rgba(255, 145, 0, 0.3)', icon: <BugReport sx={{ fontSize: 13 }} />, label: 'Anomaly Run' },
-    CLUSTERING_RUN: { color: '#7C4DFF', bg: 'rgba(124, 77, 255, 0.12)', border: 'rgba(124, 77, 255, 0.3)', icon: <AutoAwesome sx={{ fontSize: 13 }} />, label: 'Clustering' },
-  };
-  return map[action] || { color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.1)', border: 'rgba(148, 163, 184, 0.25)', icon: <Security sx={{ fontSize: 13 }} />, label: action?.replace(/_/g, ' ') || 'Action' };
-};
-
-const formatTimeAgo = (dateStr) => {
-  if (!dateStr) return '';
-  const diff = Math.floor((new Date() - new Date(dateStr)) / 1000);
-  if (diff < 60) return `${Math.max(1, diff)}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  if (ext === 'pdf') return <PictureAsPdf sx={{ color: isLight ? '#DC2626' : '#FF1744', fontSize: 22 }} />;
+  if (ext === 'docx' || ext === 'doc')
+    return <Article sx={{ color: isLight ? '#0284C7' : '#00D4FF', fontSize: 22 }} />;
+  return <InsertDriveFile sx={{ color: isLight ? '#64748B' : '#94A3B8', fontSize: 22 }} />;
 };
 
 /* ───────────────────────────────────────────────────────────
@@ -255,6 +355,32 @@ const formatTimeAgo = (dateStr) => {
 ─────────────────────────────────────────────────────────── */
 function DashboardPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
+  // Theme-adaptive color tokens
+  const primaryColor = isLight ? '#0284C7' : '#00D4FF';
+  const successColor = isLight ? '#059669' : '#00E676';
+  const warningColor = isLight ? '#D97706' : '#FF9100';
+  const errorColor = isLight ? '#DC2626' : '#FF1744';
+  const textPrimary = isLight ? '#0F172A' : '#F1F5F9';
+  const textSecondary = isLight ? '#475569' : '#94A3B8';
+  const cardBg = isLight ? '#FFFFFF' : 'rgba(13, 21, 39, 0.7)';
+  const cardBorder = isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.07)';
+  const cardShadow = isLight ? '0 4px 18px -2px rgba(15, 23, 42, 0.05)' : '0 8px 30px rgba(0, 0, 0, 0.35)';
+
+  const statusPalette = useMemo(
+    () => ({
+      VALIDATED: { color: isLight ? '#059669' : '#00E676', label: 'Validated', bg: isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(0, 230, 118, 0.1)' },
+      UPLOADED: { color: isLight ? '#0284C7' : '#00D4FF', label: 'Uploaded', bg: isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0, 212, 255, 0.1)' },
+      PIPELINE_RUNNING: { color: isLight ? '#6366F1' : '#7C4DFF', label: 'Processing', bg: isLight ? 'rgba(99, 102, 241, 0.1)' : 'rgba(124, 77, 255, 0.1)' },
+      QUARANTINED: { color: isLight ? '#D97706' : '#FF9100', label: 'Quarantined', bg: isLight ? 'rgba(217, 119, 6, 0.1)' : 'rgba(255, 145, 0, 0.1)' },
+      REJECTED: { color: isLight ? '#DC2626' : '#FF1744', label: 'Rejected', bg: isLight ? 'rgba(220, 38, 38, 0.1)' : 'rgba(255, 23, 68, 0.1)' },
+      FAILED: { color: isLight ? '#DC2626' : '#FF1744', label: 'Failed', bg: isLight ? 'rgba(220, 38, 38, 0.1)' : 'rgba(255, 23, 68, 0.1)' },
+    }),
+    [isLight]
+  );
+
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -264,7 +390,6 @@ function DashboardPage() {
   const [activeDonutSlice, setActiveDonutSlice] = useState(null);
   const [donutUnit, setDonutUnit] = useState('count'); // 'count' | 'percent'
   const [expandedRowId, setExpandedRowId] = useState(null);
-  const [copiedHash, setCopiedHash] = useState(null);
   const [velocityTimeRange, setVelocityTimeRange] = useState('7d'); // '7d' | '30d'
 
   // Operations hub tab ('REPORTS' | 'AUDIT_LOGS' | 'COMBINED')
@@ -291,13 +416,6 @@ function DashboardPage() {
   useEffect(() => {
     fetchStats();
   }, []);
-
-  const handleCopyHash = (hash, e) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(hash);
-    setCopiedHash(hash);
-    setTimeout(() => setCopiedHash(null), 2000);
-  };
 
   const handleDownload = async (reportId, filename, e) => {
     if (e) e.stopPropagation();
@@ -329,12 +447,12 @@ function DashboardPage() {
         key,
         name: statusPalette[key]?.label || key,
         value: stats.reports_by_status[key] || 0,
-        color: statusPalette[key]?.color || '#94A3B8',
+        color: statusPalette[key]?.color || (isLight ? '#64748B' : '#94A3B8'),
       }))
       .filter((item) => item.value > 0);
-  }, [stats]);
+  }, [stats, statusPalette, isLight]);
 
-  // Dynamic Ingestion Timeline mock-actuals based on existing report count
+  // Dynamic Ingestion Timeline
   const velocityData = useMemo(() => {
     if (velocityTimeRange === '7d') {
       return [
@@ -359,11 +477,9 @@ function DashboardPage() {
   const filteredUploads = useMemo(() => {
     if (!stats?.recent_uploads) return [];
     return stats.recent_uploads.filter((report) => {
-      // Status filter
       if (statusFilter !== 'ALL' && report.upload_status !== statusFilter) {
         return false;
       }
-      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesName = report.original_filename?.toLowerCase().includes(q);
@@ -383,7 +499,8 @@ function DashboardPage() {
       if (activityCategory === 'FILES') return act.action.includes('FILE') || act.action.includes('REPORT');
       if (activityCategory === 'AUTH') return act.action.includes('USER_LOGIN') || act.action.includes('USER_LOGOUT');
       if (activityCategory === 'PIPELINE') return act.action.includes('PIPELINE');
-      if (activityCategory === 'SECURITY') return act.status === 'FAILED' || act.action.includes('FAIL') || act.action.includes('ALERT');
+      if (activityCategory === 'SECURITY')
+        return act.status === 'FAILED' || act.action.includes('FAIL') || act.action.includes('ALERT');
       return true;
     });
   }, [stats?.recent_activity, activityCategory]);
@@ -392,12 +509,15 @@ function DashboardPage() {
     return (
       <Box>
         <Grid container spacing={2.5} sx={{ mb: 3 }}>
-          {[1, 2, 3, 4].map((i) => (
-            <Grid item xs={12} sm={6} md={3} key={i}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Grid item xs={12} sm={6} md={2.4} key={i}>
               <Skeleton
                 variant="rounded"
                 height={125}
-                sx={{ borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.03)' }}
+                sx={{
+                  borderRadius: 3,
+                  backgroundColor: isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255,255,255,0.03)',
+                }}
               />
             </Grid>
           ))}
@@ -407,14 +527,20 @@ function DashboardPage() {
             <Skeleton
               variant="rounded"
               height={360}
-              sx={{ borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.03)' }}
+              sx={{
+                borderRadius: 3,
+                backgroundColor: isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255,255,255,0.03)',
+              }}
             />
           </Grid>
           <Grid item xs={12} md={5}>
             <Skeleton
               variant="rounded"
               height={360}
-              sx={{ borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.03)' }}
+              sx={{
+                borderRadius: 3,
+                backgroundColor: isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255,255,255,0.03)',
+              }}
             />
           </Grid>
         </Grid>
@@ -444,7 +570,9 @@ function DashboardPage() {
               variant="h4"
               sx={{
                 fontWeight: 800,
-                background: 'linear-gradient(135deg, #00D4FF 0%, #00E676 100%)',
+                background: isLight
+                  ? 'linear-gradient(135deg, #0284C7 0%, #059669 100%)'
+                  : 'linear-gradient(135deg, #00D4FF 0%, #00E676 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 letterSpacing: '-0.02em',
@@ -458,14 +586,14 @@ function DashboardPage() {
               sx={{
                 height: 22,
                 fontSize: '0.65rem',
-                fontWeight: 600,
-                backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                color: '#00D4FF',
-                border: '1px solid rgba(0, 212, 255, 0.25)',
+                fontWeight: 700,
+                backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.1)',
+                color: primaryColor,
+                border: isLight ? '1px solid rgba(2, 132, 199, 0.25)' : '1px solid rgba(0, 212, 255, 0.25)',
               }}
             />
           </Box>
-          <Typography variant="body2" sx={{ color: '#94A3B8', maxWidth: 700 }}>
+          <Typography variant="body2" sx={{ color: textSecondary, maxWidth: 700 }}>
             Unified view of security audit ingestion, VLM schema normalization, and ML vulnerability forecasting.
           </Typography>
         </Box>
@@ -476,10 +604,11 @@ function DashboardPage() {
               size="small"
               onClick={fetchStats}
               sx={{
-                color: '#94A3B8',
-                bgcolor: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                '&:hover': { color: '#00D4FF', borderColor: '#00D4FF' },
+                color: textSecondary,
+                bgcolor: isLight ? '#FFFFFF' : 'rgba(255,255,255,0.03)',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.12)' : '1px solid rgba(255,255,255,0.08)',
+                boxShadow: isLight ? '0 1px 3px rgba(15, 23, 42, 0.05)' : 'none',
+                '&:hover': { color: primaryColor, borderColor: primaryColor },
               }}
             >
               <Refresh sx={{ fontSize: 18 }} />
@@ -495,11 +624,14 @@ function DashboardPage() {
               px: 2,
               py: 0.85,
               fontSize: '0.8rem',
-              borderColor: 'rgba(255, 255, 255, 0.12)',
-              color: '#F1F5F9',
+              fontWeight: 650,
+              borderColor: isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255, 255, 255, 0.12)',
+              color: textPrimary,
+              bgcolor: isLight ? '#FFFFFF' : 'transparent',
+              boxShadow: isLight ? '0 1px 3px rgba(15, 23, 42, 0.04)' : 'none',
               '&:hover': {
-                borderColor: '#00D4FF',
-                backgroundColor: 'rgba(0, 212, 255, 0.08)',
+                borderColor: primaryColor,
+                backgroundColor: isLight ? 'rgba(2, 132, 199, 0.06)' : 'rgba(0, 212, 255, 0.08)',
               },
             }}
           >
@@ -515,10 +647,12 @@ function DashboardPage() {
               px: 2.5,
               py: 0.85,
               fontSize: '0.8rem',
-              background: 'linear-gradient(135deg, #00D4FF 0%, #0099CC 100%)',
-              color: '#070B12',
+              background: isLight
+                ? 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)'
+                : 'linear-gradient(135deg, #00D4FF 0%, #0099CC 100%)',
+              color: isLight ? '#FFFFFF' : '#070B12',
               fontWeight: 700,
-              boxShadow: '0 4px 18px rgba(0, 212, 255, 0.35)',
+              boxShadow: isLight ? '0 4px 14px rgba(2, 132, 199, 0.28)' : '0 4px 18px rgba(0, 212, 255, 0.35)',
             }}
           >
             Upload New Report
@@ -533,7 +667,7 @@ function DashboardPage() {
             title="Total Audits Ingested"
             value={totalReports}
             icon={<Description />}
-            color="#00D4FF"
+            color={primaryColor}
             delta="+100% Ingested"
             sparkData={[1, 1, 2, 2, 3, 3, totalReports || 1]}
             isSelected={activeHubTab === 'REPORTS' && statusFilter === 'ALL'}
@@ -542,6 +676,7 @@ function DashboardPage() {
               setStatusFilter('ALL');
             }}
             delay={0}
+            isLight={isLight}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
@@ -549,7 +684,7 @@ function DashboardPage() {
             title="Validated Reports"
             value={validatedCount}
             icon={<CheckCircle />}
-            color="#00E676"
+            color={successColor}
             delta={`${validationRate}% Pass Rate`}
             sparkData={[0, 0, 1, 1, 1, 1, validatedCount || 1]}
             isSelected={activeHubTab === 'REPORTS' && statusFilter === 'VALIDATED'}
@@ -558,6 +693,7 @@ function DashboardPage() {
               setStatusFilter(statusFilter === 'VALIDATED' ? 'ALL' : 'VALIDATED');
             }}
             delay={60}
+            isLight={isLight}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
@@ -565,7 +701,7 @@ function DashboardPage() {
             title="Flagged / Rejected"
             value={rejectedCount}
             icon={<Warning />}
-            color="#FF1744"
+            color={errorColor}
             delta="0 Anomalies"
             sparkData={[0, 0, 0, 0, 0, 0, rejectedCount || 0]}
             isSelected={activeHubTab === 'REPORTS' && statusFilter === 'REJECTED'}
@@ -574,6 +710,7 @@ function DashboardPage() {
               setStatusFilter(statusFilter === 'REJECTED' ? 'ALL' : 'REJECTED');
             }}
             delay={120}
+            isLight={isLight}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
@@ -581,7 +718,7 @@ function DashboardPage() {
             title="Live Audit Events"
             value={stats?.audit_summary?.total_events || stats?.recent_activity?.length || 0}
             icon={<History />}
-            color="#38BDF8"
+            color={isLight ? '#0284C7' : '#38BDF8'}
             delta={`${stats?.audit_summary?.success_rate ?? 100}% Integrity`}
             sparkData={[15, 30, 45, 75, 120, 170, stats?.audit_summary?.total_events || 200]}
             isSelected={activeHubTab === 'AUDIT_LOGS'}
@@ -591,6 +728,7 @@ function DashboardPage() {
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
             delay={180}
+            isLight={isLight}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
@@ -598,27 +736,28 @@ function DashboardPage() {
             title="Security Alerts"
             value={stats?.audit_summary?.security_alerts || 0}
             icon={<Security />}
-            color="#FF9100"
+            color={warningColor}
             delta="Active Guard"
             sparkData={[5, 10, 15, 25, 40, 80, stats?.audit_summary?.security_alerts || 260]}
             onClick={() => navigate('/audit-logs')}
             delay={240}
+            isLight={isLight}
           />
         </Grid>
       </Grid>
 
-      {/* ── 1.5 Real-Time Forensic Audit & Compliance Health Bar with First-View Stream Ticker ── */}
+      {/* ── 1.5 Real-Time Forensic Audit & Compliance Health Bar ── */}
       <Card
         className="fade-in-up"
         sx={{
           mb: 3.5,
-          backgroundColor: 'rgba(13, 21, 39, 0.75)',
+          backgroundColor: cardBg,
           backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(0, 212, 255, 0.22)',
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.22)',
           borderRadius: 2.5,
           position: 'relative',
           overflow: 'hidden',
-          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4)',
+          boxShadow: cardShadow,
         }}
       >
         <Box
@@ -638,20 +777,20 @@ function DashboardPage() {
                 width: 38,
                 height: 38,
                 borderRadius: 2,
-                backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                border: '1px solid rgba(0, 212, 255, 0.35)',
+                backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.1)',
+                border: isLight ? '1px solid rgba(2, 132, 199, 0.3)' : '1px solid rgba(0, 212, 255, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#00D4FF',
-                boxShadow: '0 0 12px rgba(0, 212, 255, 0.2)',
+                color: primaryColor,
+                boxShadow: isLight ? '0 0 10px rgba(2, 132, 199, 0.15)' : '0 0 12px rgba(0, 212, 255, 0.2)',
               }}
             >
               <Security sx={{ fontSize: 22 }} />
             </Box>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#F1F5F9', fontSize: '0.88rem' }}>
+                <Typography variant="subtitle2" fontWeight={800} sx={{ color: textPrimary, fontSize: '0.88rem' }}>
                   Forensic Compliance & Audit Defense Active
                 </Typography>
                 <Chip
@@ -661,13 +800,13 @@ function DashboardPage() {
                     height: 20,
                     fontSize: '0.62rem',
                     fontWeight: 700,
-                    bgcolor: 'rgba(0, 230, 118, 0.12)',
-                    color: '#00E676',
-                    border: '1px solid rgba(0, 230, 118, 0.3)',
+                    bgcolor: isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(0, 230, 118, 0.12)',
+                    color: successColor,
+                    border: isLight ? '1px solid rgba(5, 150, 105, 0.25)' : '1px solid rgba(0, 230, 118, 0.3)',
                   }}
                 />
               </Box>
-              <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+              <Typography variant="caption" sx={{ color: textSecondary }}>
                 Every report ingestion, model execution, operator access, and deletion is cryptographically tracked.
               </Typography>
             </Box>
@@ -676,32 +815,54 @@ function DashboardPage() {
           {/* Quick Stats Pills */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: textSecondary, fontWeight: 700 }}>
                 AUDIT LOGS:
               </Typography>
-              <Typography variant="body2" sx={{ color: '#00D4FF', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+              <Typography variant="body2" sx={{ color: primaryColor, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
                 {stats?.audit_summary?.total_events || stats?.recent_activity?.length || 0} Events
               </Typography>
             </Box>
 
-            <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.08)', height: 20, alignSelf: 'center' }} />
+            <Divider
+              orientation="vertical"
+              flexItem
+              sx={{
+                borderColor: isLight ? 'rgba(15, 23, 42, 0.1)' : 'rgba(255,255,255,0.08)',
+                height: 20,
+                alignSelf: 'center',
+              }}
+            />
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: textSecondary, fontWeight: 700 }}>
                 SYSTEM HEALTH:
               </Typography>
-              <Typography variant="body2" sx={{ color: '#00E676', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+              <Typography variant="body2" sx={{ color: successColor, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
                 {stats?.audit_summary?.success_rate ?? 100}%
               </Typography>
             </Box>
 
-            <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.08)', height: 20, alignSelf: 'center' }} />
+            <Divider
+              orientation="vertical"
+              flexItem
+              sx={{
+                borderColor: isLight ? 'rgba(15, 23, 42, 0.1)' : 'rgba(255,255,255,0.08)',
+                height: 20,
+                alignSelf: 'center',
+              }}
+            />
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: textSecondary, fontWeight: 700 }}>
                 SECURITY ALERTS:
               </Typography>
-              <Typography variant="body2" sx={{ color: (stats?.audit_summary?.security_alerts || 0) > 0 ? '#FF1744' : '#00E676', fontWeight: 800 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: (stats?.audit_summary?.security_alerts || 0) > 0 ? errorColor : successColor,
+                  fontWeight: 800,
+                }}
+              >
                 {stats?.audit_summary?.security_alerts || 0}
               </Typography>
             </Box>
@@ -712,9 +873,9 @@ function DashboardPage() {
               endIcon={<ArrowForward sx={{ fontSize: 13 }} />}
               onClick={() => navigate('/audit-logs')}
               sx={{
-                color: '#00D4FF',
-                borderColor: 'rgba(0, 212, 255, 0.4)',
-                bgcolor: 'rgba(0, 212, 255, 0.08)',
+                color: primaryColor,
+                borderColor: isLight ? 'rgba(2, 132, 199, 0.4)' : 'rgba(0, 212, 255, 0.4)',
+                bgcolor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.08)',
                 fontSize: '0.74rem',
                 fontWeight: 700,
                 py: 0.4,
@@ -722,8 +883,8 @@ function DashboardPage() {
                 borderRadius: 2,
                 ml: 1,
                 '&:hover': {
-                  borderColor: '#00D4FF',
-                  bgcolor: 'rgba(0, 212, 255, 0.18)',
+                  borderColor: primaryColor,
+                  bgcolor: isLight ? 'rgba(2, 132, 199, 0.15)' : 'rgba(0, 212, 255, 0.18)',
                 },
               }}
             >
@@ -732,13 +893,13 @@ function DashboardPage() {
           </Box>
         </Box>
 
-        {/* ── LIVE AUDIT TELEMETRY STREAM TICKER (FIRST VIEW) ── */}
+        {/* ── LIVE AUDIT TELEMETRY STREAM TICKER ── */}
         <Box
           sx={{
             px: 2,
             py: 1.25,
-            backgroundColor: 'rgba(7, 11, 18, 0.8)',
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+            backgroundColor: isLight ? '#F8FAFC' : 'rgba(7, 11, 18, 0.8)',
+            borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
             alignItems: { xs: 'flex-start', md: 'center' },
@@ -753,18 +914,21 @@ function DashboardPage() {
                   width: 7,
                   height: 7,
                   borderRadius: '50%',
-                  bgcolor: '#00E676',
-                  boxShadow: '0 0 8px #00E676',
+                  bgcolor: successColor,
+                  boxShadow: `0 0 8px ${successColor}`,
                 }}
               />
-              <Typography variant="caption" sx={{ color: '#00E676', fontWeight: 800, fontSize: '0.68rem', letterSpacing: '0.05em' }}>
+              <Typography
+                variant="caption"
+                sx={{ color: successColor, fontWeight: 800, fontSize: '0.68rem', letterSpacing: '0.05em' }}
+              >
                 LIVE STREAM:
               </Typography>
             </Box>
 
             {/* Latest 3 Events Ribbon */}
             {(stats?.recent_activity || []).slice(0, 3).map((item) => {
-              const meta = getActionMeta(item.action);
+              const meta = getActionMeta(item.action, isLight);
               const isFailed = item.status === 'FAILED';
               return (
                 <Box
@@ -777,22 +941,24 @@ function DashboardPage() {
                     px: 1.25,
                     py: 0.35,
                     borderRadius: 1.5,
-                    backgroundColor: isFailed ? 'rgba(255, 23, 68, 0.12)' : meta.bg,
-                    border: `1px solid ${isFailed ? 'rgba(255, 23, 68, 0.35)' : meta.border}`,
+                    backgroundColor: isFailed ? (isLight ? 'rgba(220, 38, 38, 0.1)' : 'rgba(255, 23, 68, 0.12)') : meta.bg,
+                    border: `1px solid ${isFailed ? (isLight ? 'rgba(220, 38, 38, 0.3)' : 'rgba(255, 23, 68, 0.35)') : meta.border}`,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     '&:hover': {
                       transform: 'translateY(-1px)',
-                      filter: 'brightness(1.25)',
                       boxShadow: `0 0 10px ${meta.color}40`,
                     },
                   }}
                 >
                   {meta.icon}
-                  <Typography variant="caption" sx={{ color: isFailed ? '#FF1744' : meta.color, fontWeight: 700, fontSize: '0.7rem' }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: isFailed ? errorColor : meta.color, fontWeight: 700, fontSize: '0.7rem' }}
+                  >
                     {meta.label}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.68rem', fontFamily: 'monospace' }}>
+                  <Typography variant="caption" sx={{ color: textSecondary, fontSize: '0.68rem', fontFamily: 'monospace' }}>
                     {item.username || 'System'}
                   </Typography>
                   <Chip
@@ -801,9 +967,9 @@ function DashboardPage() {
                     sx={{
                       height: 16,
                       fontSize: '0.6rem',
-                      fontWeight: 600,
-                      backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                      color: '#CBD5E1',
+                      fontWeight: 700,
+                      backgroundColor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.06)',
+                      color: isLight ? '#475569' : '#CBD5E1',
                     }}
                   />
                 </Box>
@@ -818,16 +984,20 @@ function DashboardPage() {
               startIcon={miniStreamOpen ? <ExpandLess sx={{ fontSize: 14 }} /> : <ExpandMore sx={{ fontSize: 14 }} />}
               onClick={() => setMiniStreamOpen(!miniStreamOpen)}
               sx={{
-                color: '#94A3B8',
+                color: textSecondary,
                 fontSize: '0.7rem',
-                fontWeight: 600,
+                fontWeight: 650,
                 textTransform: 'none',
                 py: 0.2,
                 px: 1.25,
                 borderRadius: 1.5,
-                bgcolor: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                '&:hover': { color: '#00D4FF', bgcolor: 'rgba(0, 212, 255, 0.08)', borderColor: 'rgba(0, 212, 255, 0.3)' },
+                bgcolor: isLight ? '#FFFFFF' : 'rgba(255, 255, 255, 0.03)',
+                border: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255, 255, 255, 0.08)',
+                '&:hover': {
+                  color: primaryColor,
+                  bgcolor: isLight ? 'rgba(2, 132, 199, 0.06)' : 'rgba(0, 212, 255, 0.08)',
+                  borderColor: primaryColor,
+                },
               }}
             >
               {miniStreamOpen ? 'Hide Quick Stream' : 'Quick Stream (5)'}
@@ -835,25 +1005,37 @@ function DashboardPage() {
           </Box>
         </Box>
 
-        {/* Collapsible Mini Quick Stream (Visible directly in First View) */}
+        {/* Collapsible Mini Quick Stream */}
         <Collapse in={miniStreamOpen} timeout="auto" unmountOnExit>
-          <Box sx={{ p: 2, backgroundColor: 'rgba(5, 8, 14, 0.95)', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+          <Box
+            sx={{
+              p: 2,
+              backgroundColor: isLight ? '#FFFFFF' : 'rgba(5, 8, 14, 0.95)',
+              borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
+            }}
+          >
             <Table size="small">
               <TableHead>
-                <TableRow>
-                  <TableCell sx={{ color: '#64748B', fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>ACTION</TableCell>
-                  <TableCell sx={{ color: '#64748B', fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>OPERATOR</TableCell>
-                  <TableCell sx={{ color: '#64748B', fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>STATUS</TableCell>
-                  <TableCell sx={{ color: '#64748B', fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>TARGET RESOURCE</TableCell>
-                  <TableCell sx={{ color: '#64748B', fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>TIME</TableCell>
-                  <TableCell align="right" sx={{ color: '#64748B', fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>INSPECT</TableCell>
+                <TableRow sx={{ backgroundColor: isLight ? '#F8FAFC' : 'transparent' }}>
+                  <TableCell sx={{ color: textSecondary, fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>ACTION</TableCell>
+                  <TableCell sx={{ color: textSecondary, fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>OPERATOR</TableCell>
+                  <TableCell sx={{ color: textSecondary, fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>STATUS</TableCell>
+                  <TableCell sx={{ color: textSecondary, fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>TARGET RESOURCE</TableCell>
+                  <TableCell sx={{ color: textSecondary, fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>TIME</TableCell>
+                  <TableCell align="right" sx={{ color: textSecondary, fontSize: '0.68rem', fontWeight: 700, py: 0.75 }}>INSPECT</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {(stats?.recent_activity || []).slice(0, 5).map((log) => {
-                  const meta = getActionMeta(log.action);
+                  const meta = getActionMeta(log.action, isLight);
                   const isSuccess = log.status === 'SUCCESS';
-                  const res = log.details?.filename || log.details?.resource || log.details?.target_username || log.details?.created_username || log.report_id || 'System Operation';
+                  const res =
+                    log.details?.filename ||
+                    log.details?.resource ||
+                    log.details?.target_username ||
+                    log.details?.created_username ||
+                    log.report_id ||
+                    'System Operation';
                   return (
                     <TableRow key={log.log_id} hover onClick={() => setSelectedAuditLog(log)} sx={{ cursor: 'pointer' }}>
                       <TableCell sx={{ py: 0.85 }}>
@@ -862,7 +1044,9 @@ function DashboardPage() {
                           {meta.label}
                         </Box>
                       </TableCell>
-                      <TableCell sx={{ py: 0.85, color: '#F1F5F9', fontSize: '0.75rem', fontWeight: 600 }}>{log.username || 'System'}</TableCell>
+                      <TableCell sx={{ py: 0.85, color: textPrimary, fontSize: '0.75rem', fontWeight: 650 }}>
+                        {log.username || 'System'}
+                      </TableCell>
                       <TableCell sx={{ py: 0.85 }}>
                         <Chip
                           label={log.status}
@@ -871,13 +1055,23 @@ function DashboardPage() {
                             height: 18,
                             fontSize: '0.62rem',
                             fontWeight: 700,
-                            bgcolor: isSuccess ? 'rgba(0, 230, 118, 0.12)' : 'rgba(255, 23, 68, 0.15)',
-                            color: isSuccess ? '#00E676' : '#FF1744',
+                            bgcolor: isSuccess
+                              ? isLight
+                                ? 'rgba(5, 150, 105, 0.1)'
+                                : 'rgba(0, 230, 118, 0.12)'
+                              : isLight
+                              ? 'rgba(220, 38, 38, 0.1)'
+                              : 'rgba(255, 23, 68, 0.15)',
+                            color: isSuccess ? successColor : errorColor,
                           }}
                         />
                       </TableCell>
-                      <TableCell sx={{ py: 0.85, color: '#94A3B8', fontSize: '0.72rem', fontFamily: 'monospace' }}>{res}</TableCell>
-                      <TableCell sx={{ py: 0.85, color: '#64748B', fontSize: '0.72rem' }}>{formatTimeAgo(log.created_at)}</TableCell>
+                      <TableCell sx={{ py: 0.85, color: textSecondary, fontSize: '0.72rem', fontFamily: 'monospace' }}>
+                        {res}
+                      </TableCell>
+                      <TableCell sx={{ py: 0.85, color: textSecondary, fontSize: '0.72rem' }}>
+                        {formatTimeAgo(log.created_at)}
+                      </TableCell>
                       <TableCell align="right" sx={{ py: 0.85 }}>
                         <Button
                           size="small"
@@ -890,8 +1084,8 @@ function DashboardPage() {
                             fontSize: '0.68rem',
                             py: 0.2,
                             px: 1,
-                            color: '#00D4FF',
-                            borderColor: 'rgba(0, 212, 255, 0.3)',
+                            color: primaryColor,
+                            borderColor: isLight ? 'rgba(2, 132, 199, 0.35)' : 'rgba(0, 212, 255, 0.3)',
                           }}
                         >
                           Inspect
@@ -915,34 +1109,46 @@ function DashboardPage() {
             sx={{
               animationDelay: '300ms',
               height: '100%',
-              backgroundColor: 'rgba(13, 21, 39, 0.7)',
+              backgroundColor: cardBg,
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255, 255, 255, 0.07)',
+              border: cardBorder,
+              boxShadow: cardShadow,
             }}
           >
             <CardContent sx={{ p: 3 }}>
               {/* Card Header & Controls */}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box>
-                  <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1rem', color: '#F1F5F9' }}>
+                  <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1rem', color: textPrimary }}>
                     Standardization Processing Pipeline
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                  <Typography variant="caption" sx={{ color: textSecondary }}>
                     Click any segment to filter audits by validation state
                   </Typography>
                 </Box>
 
                 {/* Donut Metric Mode Switcher */}
-                <ButtonGroup size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.03)', borderRadius: 1.5 }}>
+                <ButtonGroup
+                  size="small"
+                  sx={{
+                    bgcolor: isLight ? '#F1F5F9' : 'rgba(255, 255, 255, 0.03)',
+                    borderRadius: 1.5,
+                  }}
+                >
                   <Button
                     onClick={() => setDonutUnit('count')}
                     sx={{
                       fontSize: '0.7rem',
                       py: 0.3,
                       px: 1,
-                      color: donutUnit === 'count' ? '#00D4FF' : '#94A3B8',
-                      bgcolor: donutUnit === 'count' ? 'rgba(0, 212, 255, 0.12)' : 'transparent',
-                      borderColor: 'rgba(255,255,255,0.08) !important',
+                      color: donutUnit === 'count' ? primaryColor : textSecondary,
+                      bgcolor:
+                        donutUnit === 'count'
+                          ? isLight
+                            ? 'rgba(2, 132, 199, 0.12)'
+                            : 'rgba(0, 212, 255, 0.12)'
+                          : 'transparent',
+                      borderColor: isLight ? 'rgba(15, 23, 42, 0.08) !important' : 'rgba(255,255,255,0.08) !important',
                       fontWeight: donutUnit === 'count' ? 700 : 500,
                     }}
                   >
@@ -954,9 +1160,14 @@ function DashboardPage() {
                       fontSize: '0.7rem',
                       py: 0.3,
                       px: 1,
-                      color: donutUnit === 'percent' ? '#00D4FF' : '#94A3B8',
-                      bgcolor: donutUnit === 'percent' ? 'rgba(0, 212, 255, 0.12)' : 'transparent',
-                      borderColor: 'rgba(255,255,255,0.08) !important',
+                      color: donutUnit === 'percent' ? primaryColor : textSecondary,
+                      bgcolor:
+                        donutUnit === 'percent'
+                          ? isLight
+                            ? 'rgba(2, 132, 199, 0.12)'
+                            : 'rgba(0, 212, 255, 0.12)'
+                          : 'transparent',
+                      borderColor: isLight ? 'rgba(15, 23, 42, 0.08) !important' : 'rgba(255,255,255,0.08) !important',
                       fontWeight: donutUnit === 'percent' ? 700 : 500,
                     }}
                   >
@@ -965,7 +1176,12 @@ function DashboardPage() {
                 </ButtonGroup>
               </Box>
 
-              <Divider sx={{ mb: 2.5, borderColor: 'rgba(255, 255, 255, 0.06)' }} />
+              <Divider
+                sx={{
+                  mb: 2.5,
+                  borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.06)',
+                }}
+              />
 
               <Grid container alignItems="center" spacing={2}>
                 {/* Donut Visualization */}
@@ -1004,7 +1220,7 @@ function DashboardPage() {
                                 <Cell
                                   key={`cell-${index}`}
                                   fill={entry.color}
-                                  stroke={isSelected ? '#FFFFFF' : 'rgba(11, 19, 43, 0.6)'}
+                                  stroke={isSelected ? primaryColor : isLight ? '#FFFFFF' : 'rgba(11, 19, 43, 0.6)'}
                                   strokeWidth={isSelected ? 3 : 1.5}
                                   style={{
                                     filter: isSelected ? `drop-shadow(0 0 10px ${entry.color})` : 'none',
@@ -1036,7 +1252,7 @@ function DashboardPage() {
                         variant="h4"
                         sx={{
                           fontWeight: 800,
-                          color: highlightedData ? highlightedData.color : '#00E676',
+                          color: highlightedData ? highlightedData.color : successColor,
                           lineHeight: 1,
                           fontVariantNumeric: 'tabular-nums',
                           transition: 'color 0.2s',
@@ -1053,7 +1269,7 @@ function DashboardPage() {
                       <Typography
                         variant="caption"
                         sx={{
-                          color: '#94A3B8',
+                          color: textSecondary,
                           fontWeight: 700,
                           fontSize: '0.62rem',
                           textTransform: 'uppercase',
@@ -1081,12 +1297,20 @@ function DashboardPage() {
                           sx={{
                             p: 1.25,
                             borderRadius: 2,
-                            backgroundColor: isFilterActive ? `${item.color}15` : 'rgba(255, 255, 255, 0.02)',
-                            border: isFilterActive ? `1px solid ${item.color}60` : '1px solid rgba(255, 255, 255, 0.05)',
+                            backgroundColor: isFilterActive
+                              ? `${item.color}18`
+                              : isLight
+                              ? '#F8FAFC'
+                              : 'rgba(255, 255, 255, 0.02)',
+                            border: isFilterActive
+                              ? `1px solid ${item.color}60`
+                              : isLight
+                              ? '1px solid rgba(15, 23, 42, 0.06)'
+                              : '1px solid rgba(255, 255, 255, 0.05)',
                             cursor: 'pointer',
                             transition: 'all 0.2s',
                             '&:hover': {
-                              backgroundColor: `${item.color}10`,
+                              backgroundColor: `${item.color}12`,
                               borderColor: `${item.color}40`,
                               transform: 'translateX(2px)',
                             },
@@ -1103,15 +1327,26 @@ function DashboardPage() {
                                   boxShadow: `0 0 6px ${item.color}`,
                                 }}
                               />
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: '#E2E8F0', fontSize: '0.78rem' }}>
+                              <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 650, color: textPrimary, fontSize: '0.78rem' }}
+                              >
                                 {item.name}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums', fontSize: '0.8rem' }}>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 750,
+                                  color: textPrimary,
+                                  fontVariantNumeric: 'tabular-nums',
+                                  fontSize: '0.8rem',
+                                }}
+                              >
                                 {item.value}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: '#64748B', fontSize: '0.68rem' }}>
+                              <Typography variant="caption" sx={{ color: textSecondary, fontSize: '0.68rem' }}>
                                 ({pct}%)
                               </Typography>
                             </Box>
@@ -1124,7 +1359,7 @@ function DashboardPage() {
                             sx={{
                               height: 4,
                               borderRadius: 2,
-                              backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                              backgroundColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.06)',
                               '& .MuiLinearProgress-bar': {
                                 backgroundColor: item.color,
                                 borderRadius: 2,
@@ -1139,16 +1374,16 @@ function DashboardPage() {
                       sx={{
                         p: 1.2,
                         borderRadius: 2,
-                        backgroundColor: 'rgba(0, 212, 255, 0.04)',
-                        border: '1px solid rgba(0, 212, 255, 0.12)',
+                        backgroundColor: isLight ? 'rgba(2, 132, 199, 0.04)' : 'rgba(0, 212, 255, 0.04)',
+                        border: isLight ? '1px solid rgba(2, 132, 199, 0.15)' : '1px solid rgba(0, 212, 255, 0.12)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 1,
                         mt: 0.5,
                       }}
                     >
-                      <CheckCircleOutline sx={{ color: '#00E676', fontSize: 18, flexShrink: 0 }} />
-                      <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.7rem' }}>
+                      <CheckCircleOutline sx={{ color: successColor, fontSize: 18, flexShrink: 0 }} />
+                      <Typography variant="caption" sx={{ color: textSecondary, fontSize: '0.7rem' }}>
                         Malware gate active. ISO 27001 & CERT-In standard schemas validated.
                       </Typography>
                     </Box>
@@ -1166,33 +1401,45 @@ function DashboardPage() {
             sx={{
               animationDelay: '400ms',
               height: '100%',
-              backgroundColor: 'rgba(13, 21, 39, 0.7)',
+              backgroundColor: cardBg,
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255, 255, 255, 0.07)',
+              border: cardBorder,
+              boxShadow: cardShadow,
             }}
           >
             <CardContent sx={{ p: 3 }}>
               {/* Header */}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box>
-                  <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1rem', color: '#F1F5F9' }}>
+                  <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1rem', color: textPrimary }}>
                     Ingestion Velocity & Throughput
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                  <Typography variant="caption" sx={{ color: textSecondary }}>
                     Audit report processing volume over time
                   </Typography>
                 </Box>
 
-                <ButtonGroup size="small" sx={{ bgcolor: 'rgba(255, 255, 255, 0.03)', borderRadius: 1.5 }}>
+                <ButtonGroup
+                  size="small"
+                  sx={{
+                    bgcolor: isLight ? '#F1F5F9' : 'rgba(255, 255, 255, 0.03)',
+                    borderRadius: 1.5,
+                  }}
+                >
                   <Button
                     onClick={() => setVelocityTimeRange('7d')}
                     sx={{
                       fontSize: '0.7rem',
                       py: 0.3,
                       px: 1,
-                      color: velocityTimeRange === '7d' ? '#00D4FF' : '#94A3B8',
-                      bgcolor: velocityTimeRange === '7d' ? 'rgba(0, 212, 255, 0.12)' : 'transparent',
-                      borderColor: 'rgba(255,255,255,0.08) !important',
+                      color: velocityTimeRange === '7d' ? primaryColor : textSecondary,
+                      bgcolor:
+                        velocityTimeRange === '7d'
+                          ? isLight
+                            ? 'rgba(2, 132, 199, 0.12)'
+                            : 'rgba(0, 212, 255, 0.12)'
+                          : 'transparent',
+                      borderColor: isLight ? 'rgba(15, 23, 42, 0.08) !important' : 'rgba(255,255,255,0.08) !important',
                       fontWeight: velocityTimeRange === '7d' ? 700 : 500,
                     }}
                   >
@@ -1204,9 +1451,14 @@ function DashboardPage() {
                       fontSize: '0.7rem',
                       py: 0.3,
                       px: 1,
-                      color: velocityTimeRange === '30d' ? '#00D4FF' : '#94A3B8',
-                      bgcolor: velocityTimeRange === '30d' ? 'rgba(0, 212, 255, 0.12)' : 'transparent',
-                      borderColor: 'rgba(255,255,255,0.08) !important',
+                      color: velocityTimeRange === '30d' ? primaryColor : textSecondary,
+                      bgcolor:
+                        velocityTimeRange === '30d'
+                          ? isLight
+                            ? 'rgba(2, 132, 199, 0.12)'
+                            : 'rgba(0, 212, 255, 0.12)'
+                          : 'transparent',
+                      borderColor: isLight ? 'rgba(15, 23, 42, 0.08) !important' : 'rgba(255,255,255,0.08) !important',
                       fontWeight: velocityTimeRange === '30d' ? 700 : 500,
                     }}
                   >
@@ -1215,23 +1467,32 @@ function DashboardPage() {
                 </ButtonGroup>
               </Box>
 
-              <Divider sx={{ mb: 2.5, borderColor: 'rgba(255, 255, 255, 0.06)' }} />
+              <Divider
+                sx={{
+                  mb: 2.5,
+                  borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.06)',
+                }}
+              />
 
               {/* Area Timeline Chart */}
               <Box sx={{ height: 215, width: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={velocityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <GradientDefs />
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.05)'}
+                      vertical={false}
+                    />
                     <XAxis
                       dataKey="date"
-                      stroke="#64748B"
+                      stroke={textSecondary}
                       fontSize={11}
                       tickLine={false}
-                      axisLine={{ stroke: 'rgba(255, 255, 255, 0.08)' }}
+                      axisLine={{ stroke: isLight ? 'rgba(15, 23, 42, 0.1)' : 'rgba(255, 255, 255, 0.08)' }}
                     />
                     <YAxis
-                      stroke="#64748B"
+                      stroke={textSecondary}
                       fontSize={11}
                       tickLine={false}
                       axisLine={false}
@@ -1241,18 +1502,18 @@ function DashboardPage() {
                     <Area
                       type="monotone"
                       dataKey="Ingested"
-                      stroke="#00D4FF"
+                      stroke={primaryColor}
                       strokeWidth={2}
                       fillOpacity={1}
-                      fill="url(#cyberCyanGradient)"
+                      fill={isLight ? 'url(#cyberCyanGradientLight)' : 'url(#cyberCyanGradient)'}
                     />
                     <Area
                       type="monotone"
                       dataKey="Validated"
-                      stroke="#00E676"
+                      stroke={successColor}
                       strokeWidth={2}
                       fillOpacity={1}
-                      fill="url(#cyberMintGradient)"
+                      fill={isLight ? 'url(#cyberMintGradientLight)' : 'url(#cyberMintGradient)'}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -1266,19 +1527,19 @@ function DashboardPage() {
                   justifyContent: 'space-between',
                   pt: 2,
                   mt: 1,
-                  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.05)',
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Speed sx={{ color: '#00D4FF', fontSize: 18 }} />
-                  <Typography variant="caption" sx={{ color: '#E2E8F0', fontWeight: 600 }}>
-                    VLM OCR Latency: <span style={{ color: '#00E676' }}>1.8s / page</span>
+                  <Speed sx={{ color: primaryColor, fontSize: 18 }} />
+                  <Typography variant="caption" sx={{ color: textPrimary, fontWeight: 650 }}>
+                    VLM OCR Latency: <span style={{ color: successColor, fontWeight: 700 }}>1.8s / page</span>
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Timeline sx={{ color: '#7C4DFF', fontSize: 18 }} />
-                  <Typography variant="caption" sx={{ color: '#E2E8F0', fontWeight: 600 }}>
-                    Success Rate: <span style={{ color: '#00D4FF' }}>100%</span>
+                  <Timeline sx={{ color: isLight ? '#6366F1' : '#7C4DFF', fontSize: 18 }} />
+                  <Typography variant="caption" sx={{ color: textPrimary, fontWeight: 650 }}>
+                    Success Rate: <span style={{ color: primaryColor, fontWeight: 700 }}>100%</span>
                   </Typography>
                 </Box>
               </Box>
@@ -1302,12 +1563,12 @@ function DashboardPage() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <ButtonGroup
             sx={{
-              backgroundColor: 'rgba(13, 21, 39, 0.7)',
+              backgroundColor: cardBg,
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: 2.5,
               p: 0.5,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+              boxShadow: cardShadow,
             }}
           >
             <Button
@@ -1319,13 +1580,18 @@ function DashboardPage() {
                 py: 0.8,
                 fontSize: '0.8rem',
                 fontWeight: activeHubTab === 'REPORTS' ? 700 : 500,
-                color: activeHubTab === 'REPORTS' ? '#00D4FF' : '#94A3B8',
-                backgroundColor: activeHubTab === 'REPORTS' ? 'rgba(0, 212, 255, 0.12)' : 'transparent',
+                color: activeHubTab === 'REPORTS' ? primaryColor : textSecondary,
+                backgroundColor:
+                  activeHubTab === 'REPORTS'
+                    ? isLight
+                      ? 'rgba(2, 132, 199, 0.1)'
+                      : 'rgba(0, 212, 255, 0.12)'
+                    : 'transparent',
                 borderColor: 'transparent !important',
                 textTransform: 'none',
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 212, 255, 0.08)',
-                  color: '#00D4FF',
+                  backgroundColor: isLight ? 'rgba(2, 132, 199, 0.06)' : 'rgba(0, 212, 255, 0.08)',
+                  color: primaryColor,
                 },
               }}
             >
@@ -1341,13 +1607,18 @@ function DashboardPage() {
                 py: 0.8,
                 fontSize: '0.8rem',
                 fontWeight: activeHubTab === 'AUDIT_LOGS' ? 700 : 500,
-                color: activeHubTab === 'AUDIT_LOGS' ? '#00E676' : '#94A3B8',
-                backgroundColor: activeHubTab === 'AUDIT_LOGS' ? 'rgba(0, 230, 118, 0.12)' : 'transparent',
+                color: activeHubTab === 'AUDIT_LOGS' ? successColor : textSecondary,
+                backgroundColor:
+                  activeHubTab === 'AUDIT_LOGS'
+                    ? isLight
+                      ? 'rgba(5, 150, 105, 0.1)'
+                      : 'rgba(0, 230, 118, 0.12)'
+                    : 'transparent',
                 borderColor: 'transparent !important',
                 textTransform: 'none',
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 230, 118, 0.08)',
-                  color: '#00E676',
+                  backgroundColor: isLight ? 'rgba(5, 150, 105, 0.06)' : 'rgba(0, 230, 118, 0.08)',
+                  color: successColor,
                 },
               }}
             >
@@ -1362,8 +1633,13 @@ function DashboardPage() {
                 py: 0.8,
                 fontSize: '0.75rem',
                 fontWeight: activeHubTab === 'COMBINED' ? 700 : 500,
-                color: activeHubTab === 'COMBINED' ? '#7C4DFF' : '#64748B',
-                backgroundColor: activeHubTab === 'COMBINED' ? 'rgba(124, 77, 255, 0.12)' : 'transparent',
+                color: activeHubTab === 'COMBINED' ? (isLight ? '#6366F1' : '#7C4DFF') : textSecondary,
+                backgroundColor:
+                  activeHubTab === 'COMBINED'
+                    ? isLight
+                      ? 'rgba(99, 102, 241, 0.1)'
+                      : 'rgba(124, 77, 255, 0.12)'
+                    : 'transparent',
                 borderColor: 'transparent !important',
                 textTransform: 'none',
                 display: { xs: 'none', md: 'inline-flex' },
@@ -1379,9 +1655,9 @@ function DashboardPage() {
             label={`${stats?.audit_summary?.total_events || 0} Total Events Logged`}
             size="small"
             sx={{
-              bgcolor: 'rgba(0, 212, 255, 0.08)',
-              color: '#00D4FF',
-              border: '1px solid rgba(0, 212, 255, 0.25)',
+              bgcolor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.08)',
+              color: primaryColor,
+              border: isLight ? '1px solid rgba(2, 132, 199, 0.25)' : '1px solid rgba(0, 212, 255, 0.25)',
               fontSize: '0.72rem',
               fontWeight: 700,
             }}
@@ -1395,427 +1671,457 @@ function DashboardPage() {
           className="fade-in-up"
           sx={{
             animationDelay: '500ms',
-            backgroundColor: 'rgba(13, 21, 39, 0.7)',
+            backgroundColor: cardBg,
             backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.07)',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
+            border: cardBorder,
+            boxShadow: cardShadow,
             mb: activeHubTab === 'COMBINED' ? 3.5 : 0,
           }}
         >
           <CardContent sx={{ p: 0 }}>
-          {/* Table Header with Search & Filter Bar */}
-          <Box
-            sx={{
-              p: 2.5,
-              display: 'flex',
-              flexDirection: { xs: 'column', md: 'row' },
-              justifyContent: 'space-between',
-              alignItems: { xs: 'flex-start', md: 'center' },
-              gap: 2,
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-              <Shield sx={{ color: '#00D4FF', fontSize: 24 }} />
-              <Box>
-                <Typography variant="h6" fontWeight={700} sx={{ fontSize: '0.98rem', color: '#F1F5F9' }}>
-                  Recent Audit Ingestions
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-                  {filteredUploads.length} of {stats?.recent_uploads?.length || 0} reports shown • Click row to expand inspection details
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* Filter controls & Search */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' } }}>
-              {/* Quick status tabs */}
-              <Box sx={{ display: 'flex', gap: 0.5 }}>
-                {['ALL', 'VALIDATED', 'UPLOADED', 'REJECTED'].map((st) => {
-                  const isActive = statusFilter === st;
-                  const label = st === 'ALL' ? 'All' : statusPalette[st]?.label || st;
-                  return (
-                    <Chip
-                      key={st}
-                      label={label}
-                      size="small"
-                      onClick={() => setStatusFilter(st)}
-                      sx={{
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        height: 26,
-                        cursor: 'pointer',
-                        backgroundColor: isActive ? 'rgba(0, 212, 255, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                        color: isActive ? '#00D4FF' : '#94A3B8',
-                        border: isActive ? '1px solid rgba(0, 212, 255, 0.4)' : '1px solid rgba(255, 255, 255, 0.06)',
-                        '&:hover': {
-                          backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                          color: '#00D4FF',
-                        },
-                      }}
-                    />
-                  );
-                })}
+            {/* Table Header with Search & Filter Bar */}
+            <Box
+              sx={{
+                p: 2.5,
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                justifyContent: 'space-between',
+                alignItems: { xs: 'flex-start', md: 'center' },
+                gap: 2,
+                borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                <Shield sx={{ color: primaryColor, fontSize: 24 }} />
+                <Box>
+                  <Typography variant="h6" fontWeight={700} sx={{ fontSize: '0.98rem', color: textPrimary }}>
+                    Recent Audit Ingestions
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: textSecondary }}>
+                    {filteredUploads.length} of {stats?.recent_uploads?.length || 0} reports shown • Click row to expand inspection details
+                  </Typography>
+                </Box>
               </Box>
 
-              {/* Search Box */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  backgroundColor: 'rgba(7, 11, 18, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: 2,
-                  px: 1.25,
-                  py: 0.35,
-                  width: { xs: '100%', sm: 220 },
-                  transition: 'all 0.2s',
-                  '&:focus-within': {
-                    borderColor: '#00D4FF',
-                    boxShadow: '0 0 10px rgba(0, 212, 255, 0.15)',
-                  },
-                }}
-              >
-                <Search sx={{ color: '#64748B', fontSize: 16, mr: 0.75 }} />
-                <InputBase
-                  placeholder="Filter table..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  sx={{
-                    color: '#F1F5F9',
-                    fontSize: '0.78rem',
-                    width: '100%',
-                    '& input::placeholder': { color: '#64748B' },
-                  }}
-                />
-                {searchQuery && (
-                  <IconButton size="small" onClick={() => setSearchQuery('')} sx={{ p: 0.25, color: '#64748B' }}>
-                    <Clear sx={{ fontSize: 14 }} />
-                  </IconButton>
-                )}
-              </Box>
-
-              <Button
-                size="small"
-                endIcon={<ArrowForward sx={{ fontSize: 14 }} />}
-                onClick={() => navigate('/reports')}
-                sx={{
-                  color: '#00D4FF',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  whiteSpace: 'nowrap',
-                  '&:hover': { backgroundColor: 'rgba(0, 212, 255, 0.08)' },
-                }}
-              >
-                View Explorer
-              </Button>
-            </Box>
-          </Box>
-
-          {/* Table Content */}
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ width: 48 }}></TableCell>
-                  <TableCell>Report File & Agency</TableCell>
-                  <TableCell>Size</TableCell>
-                  <TableCell>Validation State</TableCell>
-                  <TableCell>Ingestion Timestamp</TableCell>
-                  <TableCell align="right">Quick Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredUploads.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <InsertDriveFile sx={{ fontSize: 44, mb: 1, color: '#64748B', opacity: 0.6 }} />
-                        <Typography variant="body2" sx={{ color: '#94A3B8', fontWeight: 600 }}>
-                          No audit reports match your current filter
-                        </Typography>
-                        {(statusFilter !== 'ALL' || searchQuery) && (
-                          <Button
-                            size="small"
-                            onClick={() => {
-                              setStatusFilter('ALL');
-                              setSearchQuery('');
-                            }}
-                            sx={{ mt: 1.5, color: '#00D4FF', fontSize: '0.75rem', textTransform: 'none' }}
-                          >
-                            Clear all filters
-                          </Button>
-                        )}
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredUploads.map((report) => {
-                    const isExpanded = expandedRowId === report.report_id;
-                    const format = report.original_filename?.split('.').pop()?.toUpperCase() || 'FILE';
-
+              {/* Filter controls & Search */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' } }}>
+                {/* Quick status tabs */}
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  {['ALL', 'VALIDATED', 'UPLOADED', 'REJECTED'].map((st) => {
+                    const isActive = statusFilter === st;
+                    const label = st === 'ALL' ? 'All' : statusPalette[st]?.label || st;
                     return (
-                      <React.Fragment key={report.report_id}>
-                        <TableRow
-                          onClick={() => setExpandedRowId(isExpanded ? null : report.report_id)}
-                          sx={{
-                            cursor: 'pointer',
-                            backgroundColor: isExpanded ? 'rgba(0, 212, 255, 0.03)' : 'transparent',
-                            transition: 'background-color 0.18s ease',
-                            '&:hover': { backgroundColor: 'rgba(0, 212, 255, 0.05)' },
-                          }}
-                        >
-                          {/* Accordion Expand Arrow */}
-                          <TableCell sx={{ pl: 2, pr: 0 }}>
-                            <IconButton size="small" sx={{ color: '#94A3B8' }}>
-                              {isExpanded ? <ExpandLess sx={{ fontSize: 18 }} /> : <ExpandMore sx={{ fontSize: 18 }} />}
-                            </IconButton>
-                          </TableCell>
-
-                          {/* File Details */}
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75 }}>
-                              <Box
-                                sx={{
-                                  p: 0.85,
-                                  borderRadius: 1.75,
-                                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                                  border: '1px solid rgba(255, 255, 255, 0.07)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                {getFileIcon(report.original_filename)}
-                              </Box>
-                              <Box sx={{ minWidth: 0 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <Typography
-                                    variant="body2"
-                                    fontWeight={600}
-                                    sx={{
-                                      color: '#F1F5F9',
-                                      maxWidth: { xs: 200, sm: 320, md: 400 },
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {report.original_filename}
-                                  </Typography>
-                                  <Chip
-                                    label={format}
-                                    size="small"
-                                    sx={{
-                                      height: 18,
-                                      fontSize: '0.62rem',
-                                      fontWeight: 700,
-                                      bgcolor: 'rgba(255,255,255,0.05)',
-                                      color: '#94A3B8',
-                                    }}
-                                  />
-                                </Box>
-                                <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>
-                                  Agency: {report.agency_name || 'Standard Client (CERT-In Audit)'}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </TableCell>
-
-                          {/* File Size */}
-                          <TableCell>
-                            <Typography
-                              variant="body2"
-                              sx={{ color: '#94A3B8', fontWeight: 500, fontVariantNumeric: 'tabular-nums', fontSize: '0.8rem' }}
-                            >
-                              {(report.file_size / 1024).toFixed(1)} KB
-                            </Typography>
-                          </TableCell>
-
-                          {/* Status Badge */}
-                          <TableCell>
-                            <Chip
-                              label={statusPalette[report.upload_status]?.label || report.upload_status}
-                              color={muiStatusColor[report.upload_status] || 'default'}
-                              size="small"
-                              sx={{
-                                fontWeight: 700,
-                                fontSize: '0.7rem',
-                                height: 24,
-                                borderRadius: 1.5,
-                              }}
-                            />
-                          </TableCell>
-
-                          {/* Ingestion Date */}
-                          <TableCell>
-                            <Typography
-                              variant="body2"
-                              sx={{ color: '#94A3B8', fontSize: '0.78rem', fontVariantNumeric: 'tabular-nums' }}
-                            >
-                              {new Date(report.created_at).toLocaleDateString(undefined, {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </Typography>
-                          </TableCell>
-
-                          {/* Quick Actions */}
-                          <TableCell align="right">
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-                              <Tooltip title="View Standardized Report Findings" arrow>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  startIcon={<Visibility sx={{ fontSize: 13 }} />}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/reports/${report.report_id}`);
-                                  }}
-                                  sx={{
-                                    color: '#00D4FF',
-                                    borderColor: 'rgba(0, 212, 255, 0.35)',
-                                    bgcolor: 'rgba(0, 212, 255, 0.05)',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 600,
-                                    py: 0.3,
-                                    px: 1.2,
-                                    borderRadius: 1.5,
-                                    textTransform: 'none',
-                                    '&:hover': {
-                                      bgcolor: 'rgba(0, 212, 255, 0.15)',
-                                      borderColor: '#00D4FF',
-                                    },
-                                  }}
-                                >
-                                  Inspect
-                                </Button>
-                              </Tooltip>
-
-                              <Tooltip title="Download original report file" arrow>
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => handleDownload(report.report_id, report.original_filename, e)}
-                                  sx={{
-                                    color: '#00E676',
-                                    bgcolor: 'rgba(0, 230, 118, 0.08)',
-                                    p: 0.75,
-                                    borderRadius: 1.5,
-                                    '&:hover': { bgcolor: 'rgba(0, 230, 118, 0.2)' },
-                                  }}
-                                >
-                                  <Download sx={{ fontSize: 16 }} />
-                                </IconButton>
-                              </Tooltip>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-
-                        {/* Expandable Inspection Drawer Row */}
-                        <TableRow>
-                          <TableCell colSpan={6} sx={{ p: 0, borderBottom: isExpanded ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                              <Box
-                                sx={{
-                                  p: 2.5,
-                                  backgroundColor: 'rgba(7, 11, 18, 0.8)',
-                                  borderLeft: '3px solid #00D4FF',
-                                  display: 'flex',
-                                  flexDirection: { xs: 'column', md: 'row' },
-                                  justifyContent: 'space-between',
-                                  alignItems: { xs: 'flex-start', md: 'center' },
-                                  gap: 2,
-                                }}
-                              >
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600 }}>
-                                      REPORT ID:
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ color: '#F1F5F9', fontFamily: 'monospace' }}>
-                                      {report.report_id}
-                                    </Typography>
-                                  </Box>
-
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600 }}>
-                                      PIPELINE STATUS:
-                                    </Typography>
-                                    <Chip
-                                      label="VLM Pass 1 Transcribed • Schema Validated"
-                                      size="small"
-                                      sx={{
-                                        height: 20,
-                                        fontSize: '0.65rem',
-                                        bgcolor: 'rgba(0, 230, 118, 0.1)',
-                                        color: '#00E676',
-                                        fontWeight: 600,
-                                      }}
-                                    />
-                                    <Chip
-                                      label="Malware Clean"
-                                      size="small"
-                                      sx={{
-                                        height: 20,
-                                        fontSize: '0.65rem',
-                                        bgcolor: 'rgba(0, 212, 255, 0.1)',
-                                        color: '#00D4FF',
-                                        fontWeight: 600,
-                                      }}
-                                    />
-                                  </Box>
-                                </Box>
-
-                                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<Security sx={{ fontSize: 14 }} />}
-                                    onClick={() => navigate(`/reports/${report.report_id}`)}
-                                    sx={{
-                                      color: '#00D4FF',
-                                      borderColor: 'rgba(0, 212, 255, 0.4)',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 600,
-                                      textTransform: 'none',
-                                      borderRadius: 1.5,
-                                    }}
-                                  >
-                                    View Security Findings
-                                  </Button>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<OpenInNew sx={{ fontSize: 14 }} />}
-                                    onClick={() => navigate('/reports')}
-                                    sx={{
-                                      color: '#94A3B8',
-                                      borderColor: 'rgba(255, 255, 255, 0.12)',
-                                      fontSize: '0.75rem',
-                                      textTransform: 'none',
-                                      borderRadius: 1.5,
-                                    }}
-                                  >
-                                    Full Registry
-                                  </Button>
-                                </Box>
-                              </Box>
-                            </Collapse>
-                          </TableCell>
-                        </TableRow>
-                      </React.Fragment>
+                      <Chip
+                        key={st}
+                        label={label}
+                        size="small"
+                        onClick={() => setStatusFilter(st)}
+                        sx={{
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          height: 26,
+                          cursor: 'pointer',
+                          backgroundColor: isActive
+                            ? isLight
+                              ? 'rgba(2, 132, 199, 0.1)'
+                              : 'rgba(0, 212, 255, 0.15)'
+                            : isLight
+                            ? '#F1F5F9'
+                            : 'rgba(255, 255, 255, 0.03)',
+                          color: isActive ? primaryColor : textSecondary,
+                          border: isActive
+                            ? isLight
+                              ? '1px solid rgba(2, 132, 199, 0.35)'
+                              : '1px solid rgba(0, 212, 255, 0.4)'
+                            : isLight
+                            ? '1px solid rgba(15, 23, 42, 0.08)'
+                            : '1px solid rgba(255, 255, 255, 0.06)',
+                          '&:hover': {
+                            backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.1)',
+                            color: primaryColor,
+                          },
+                        }}
+                      />
                     );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                  })}
+                </Box>
+
+                {/* Search Box */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    backgroundColor: isLight ? '#F1F5F9' : 'rgba(7, 11, 18, 0.6)',
+                    border: isLight ? '1px solid rgba(15, 23, 42, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: 2,
+                    px: 1.25,
+                    py: 0.35,
+                    width: { xs: '100%', sm: 220 },
+                    transition: 'all 0.2s',
+                    '&:focus-within': {
+                      borderColor: primaryColor,
+                      boxShadow: isLight ? '0 0 10px rgba(2, 132, 199, 0.15)' : '0 0 10px rgba(0, 212, 255, 0.15)',
+                    },
+                  }}
+                >
+                  <Search sx={{ color: textSecondary, fontSize: 16, mr: 0.75 }} />
+                  <InputBase
+                    placeholder="Filter table..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    sx={{
+                      color: textPrimary,
+                      fontSize: '0.78rem',
+                      width: '100%',
+                      '& input::placeholder': { color: textSecondary },
+                    }}
+                  />
+                  {searchQuery && (
+                    <IconButton size="small" onClick={() => setSearchQuery('')} sx={{ p: 0.25, color: textSecondary }}>
+                      <Clear sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  )}
+                </Box>
+
+                <Button
+                  size="small"
+                  endIcon={<ArrowForward sx={{ fontSize: 14 }} />}
+                  onClick={() => navigate('/reports')}
+                  sx={{
+                    color: primaryColor,
+                    fontSize: '0.75rem',
+                    fontWeight: 650,
+                    textTransform: 'none',
+                    whiteSpace: 'nowrap',
+                    '&:hover': { backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.08)' },
+                  }}
+                >
+                  View Explorer
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Table Content */}
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: isLight ? '#F8FAFC' : 'rgba(7, 11, 18, 0.65)' }}>
+                    <TableCell sx={{ width: 48 }}></TableCell>
+                    <TableCell sx={{ color: textSecondary, fontWeight: 700 }}>Report File & Agency</TableCell>
+                    <TableCell sx={{ color: textSecondary, fontWeight: 700 }}>Size</TableCell>
+                    <TableCell sx={{ color: textSecondary, fontWeight: 700 }}>Validation State</TableCell>
+                    <TableCell sx={{ color: textSecondary, fontWeight: 700 }}>Ingestion Timestamp</TableCell>
+                    <TableCell align="right" sx={{ color: textSecondary, fontWeight: 700 }}>Quick Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredUploads.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <InsertDriveFile sx={{ fontSize: 44, mb: 1, color: textSecondary, opacity: 0.6 }} />
+                          <Typography variant="body2" sx={{ color: textSecondary, fontWeight: 650 }}>
+                            No audit reports match your current filter
+                          </Typography>
+                          {(statusFilter !== 'ALL' || searchQuery) && (
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                setStatusFilter('ALL');
+                                setSearchQuery('');
+                              }}
+                              sx={{ mt: 1.5, color: primaryColor, fontSize: '0.75rem', textTransform: 'none' }}
+                            >
+                              Clear all filters
+                            </Button>
+                          )}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredUploads.map((report) => {
+                      const isExpanded = expandedRowId === report.report_id;
+                      const format = report.original_filename?.split('.').pop()?.toUpperCase() || 'FILE';
+
+                      return (
+                        <React.Fragment key={report.report_id}>
+                          <TableRow
+                            onClick={() => setExpandedRowId(isExpanded ? null : report.report_id)}
+                            sx={{
+                              cursor: 'pointer',
+                              backgroundColor: isExpanded
+                                ? isLight
+                                  ? 'rgba(2, 132, 199, 0.04)'
+                                  : 'rgba(0, 212, 255, 0.03)'
+                                : 'transparent',
+                              transition: 'background-color 0.18s ease',
+                              '&:hover': {
+                                backgroundColor: isLight ? 'rgba(2, 132, 199, 0.04)' : 'rgba(0, 212, 255, 0.05)',
+                              },
+                            }}
+                          >
+                            {/* Accordion Expand Arrow */}
+                            <TableCell sx={{ pl: 2, pr: 0 }}>
+                              <IconButton size="small" sx={{ color: textSecondary }}>
+                                {isExpanded ? <ExpandLess sx={{ fontSize: 18 }} /> : <ExpandMore sx={{ fontSize: 18 }} />}
+                              </IconButton>
+                            </TableCell>
+
+                            {/* File Details */}
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75 }}>
+                                <Box
+                                  sx={{
+                                    p: 0.85,
+                                    borderRadius: 1.75,
+                                    backgroundColor: isLight ? '#F1F5F9' : 'rgba(255, 255, 255, 0.03)',
+                                    border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.07)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  {getFileIcon(report.original_filename, isLight)}
+                                </Box>
+                                <Box sx={{ minWidth: 0 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={650}
+                                      sx={{
+                                        color: textPrimary,
+                                        maxWidth: { xs: 200, sm: 320, md: 400 },
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      {report.original_filename}
+                                    </Typography>
+                                    <Chip
+                                      label={format}
+                                      size="small"
+                                      sx={{
+                                        height: 18,
+                                        fontSize: '0.62rem',
+                                        fontWeight: 700,
+                                        bgcolor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.05)',
+                                        color: textSecondary,
+                                      }}
+                                    />
+                                  </Box>
+                                  <Typography variant="caption" sx={{ color: textSecondary, display: 'block' }}>
+                                    Agency: {report.agency_name || 'Standard Client (CERT-In Audit)'}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </TableCell>
+
+                            {/* File Size */}
+                            <TableCell>
+                              <Typography
+                                variant="body2"
+                                sx={{ color: textSecondary, fontWeight: 500, fontVariantNumeric: 'tabular-nums', fontSize: '0.8rem' }}
+                              >
+                                {(report.file_size / 1024).toFixed(1)} KB
+                              </Typography>
+                            </TableCell>
+
+                            {/* Status Badge */}
+                            <TableCell>
+                              <Chip
+                                label={statusPalette[report.upload_status]?.label || report.upload_status}
+                                color={muiStatusColor[report.upload_status] || 'default'}
+                                size="small"
+                                sx={{
+                                  fontWeight: 700,
+                                  fontSize: '0.7rem',
+                                  height: 24,
+                                  borderRadius: 1.5,
+                                }}
+                              />
+                            </TableCell>
+
+                            {/* Ingestion Date */}
+                            <TableCell>
+                              <Typography
+                                variant="body2"
+                                sx={{ color: textSecondary, fontSize: '0.78rem', fontVariantNumeric: 'tabular-nums' }}
+                              >
+                                {new Date(report.created_at).toLocaleDateString(undefined, {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </Typography>
+                            </TableCell>
+
+                            {/* Quick Actions */}
+                            <TableCell align="right">
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                                <Tooltip title="View Standardized Report Findings" arrow>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<Visibility sx={{ fontSize: 13 }} />}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/reports/${report.report_id}`);
+                                    }}
+                                    sx={{
+                                      color: primaryColor,
+                                      borderColor: isLight ? 'rgba(2, 132, 199, 0.35)' : 'rgba(0, 212, 255, 0.35)',
+                                      bgcolor: isLight ? 'rgba(2, 132, 199, 0.06)' : 'rgba(0, 212, 255, 0.05)',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 650,
+                                      py: 0.3,
+                                      px: 1.2,
+                                      borderRadius: 1.5,
+                                      textTransform: 'none',
+                                      '&:hover': {
+                                        bgcolor: isLight ? 'rgba(2, 132, 199, 0.14)' : 'rgba(0, 212, 255, 0.15)',
+                                        borderColor: primaryColor,
+                                      },
+                                    }}
+                                  >
+                                    Inspect
+                                  </Button>
+                                </Tooltip>
+
+                                <Tooltip title="Download original report file" arrow>
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => handleDownload(report.report_id, report.original_filename, e)}
+                                    sx={{
+                                      color: successColor,
+                                      bgcolor: isLight ? 'rgba(5, 150, 105, 0.08)' : 'rgba(0, 230, 118, 0.08)',
+                                      p: 0.75,
+                                      borderRadius: 1.5,
+                                      '&:hover': {
+                                        bgcolor: isLight ? 'rgba(5, 150, 105, 0.18)' : 'rgba(0, 230, 118, 0.2)',
+                                      },
+                                    }}
+                                  >
+                                    <Download sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+
+                          {/* Expandable Inspection Drawer Row */}
+                          <TableRow>
+                            <TableCell
+                              colSpan={6}
+                              sx={{
+                                p: 0,
+                                borderBottom: isExpanded
+                                  ? isLight
+                                    ? '1px solid rgba(15, 23, 42, 0.08)'
+                                    : '1px solid rgba(255,255,255,0.06)'
+                                  : 'none',
+                              }}
+                            >
+                              <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                                <Box
+                                  sx={{
+                                    p: 2.5,
+                                    backgroundColor: isLight ? '#F8FAFC' : 'rgba(7, 11, 18, 0.8)',
+                                    borderLeft: `3px solid ${primaryColor}`,
+                                    display: 'flex',
+                                    flexDirection: { xs: 'column', md: 'row' },
+                                    justifyContent: 'space-between',
+                                    alignItems: { xs: 'flex-start', md: 'center' },
+                                    gap: 2,
+                                  }}
+                                >
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Typography variant="caption" sx={{ color: textSecondary, fontWeight: 700 }}>
+                                        REPORT ID:
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ color: textPrimary, fontFamily: 'monospace' }}>
+                                        {report.report_id}
+                                      </Typography>
+                                    </Box>
+
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Typography variant="caption" sx={{ color: textSecondary, fontWeight: 700 }}>
+                                        PIPELINE STATUS:
+                                      </Typography>
+                                      <Chip
+                                        label="VLM Pass 1 Transcribed • Schema Validated"
+                                        size="small"
+                                        sx={{
+                                          height: 20,
+                                          fontSize: '0.65rem',
+                                          bgcolor: isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(0, 230, 118, 0.1)',
+                                          color: successColor,
+                                          fontWeight: 700,
+                                        }}
+                                      />
+                                      <Chip
+                                        label="Malware Clean"
+                                        size="small"
+                                        sx={{
+                                          height: 20,
+                                          fontSize: '0.65rem',
+                                          bgcolor: isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0, 212, 255, 0.1)',
+                                          color: primaryColor,
+                                          fontWeight: 700,
+                                        }}
+                                      />
+                                    </Box>
+                                  </Box>
+
+                                  <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      startIcon={<Security sx={{ fontSize: 14 }} />}
+                                      onClick={() => navigate(`/reports/${report.report_id}`)}
+                                      sx={{
+                                        color: primaryColor,
+                                        borderColor: isLight ? 'rgba(2, 132, 199, 0.4)' : 'rgba(0, 212, 255, 0.4)',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 650,
+                                        textTransform: 'none',
+                                        borderRadius: 1.5,
+                                      }}
+                                    >
+                                      View Security Findings
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      startIcon={<OpenInNew sx={{ fontSize: 14 }} />}
+                                      onClick={() => navigate('/reports')}
+                                      sx={{
+                                        color: textSecondary,
+                                        borderColor: isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255, 255, 255, 0.12)',
+                                        fontSize: '0.75rem',
+                                        textTransform: 'none',
+                                        borderRadius: 1.5,
+                                      }}
+                                    >
+                                      Full Registry
+                                    </Button>
+                                  </Box>
+                                </Box>
+                              </Collapse>
+                            </TableCell>
+                          </TableRow>
+                        </React.Fragment>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── 5. Real-Time System Audit & Operational Activity Stream ── */}
@@ -1824,326 +2130,441 @@ function DashboardPage() {
           className="fade-in-up"
           sx={{
             mt: activeHubTab === 'COMBINED' ? 3.5 : 0,
-            backgroundColor: 'rgba(13, 21, 39, 0.7)',
+            backgroundColor: cardBg,
             backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
+            border: cardBorder,
+            boxShadow: cardShadow,
             borderRadius: 3,
           }}
         >
           <CardContent sx={{ p: 0 }}>
-          {/* Header */}
-          <Box
-            sx={{
-              p: 2.5,
-              display: 'flex',
-              flexDirection: { xs: 'column', md: 'row' },
-              justifyContent: 'space-between',
-              alignItems: { xs: 'flex-start', md: 'center' },
-              gap: 2,
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box
-                sx={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 2,
-                  bgcolor: 'rgba(0, 230, 118, 0.12)',
-                  border: '1px solid rgba(0, 230, 118, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#00E676',
-                }}
-              >
-                <Security sx={{ fontSize: 22 }} />
-              </Box>
-              <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="h6" fontWeight={700} sx={{ fontSize: '0.98rem', color: '#F1F5F9' }}>
-                    Live Security & Operational Audit Stream
-                  </Typography>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                      px: 0.9,
-                      py: 0.2,
-                      borderRadius: 1,
-                      backgroundColor: 'rgba(0, 230, 118, 0.1)',
-                      border: '1px solid rgba(0, 230, 118, 0.3)',
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        backgroundColor: '#00E676',
-                        boxShadow: '0 0 6px #00E676',
-                      }}
-                    />
-                    <Typography variant="caption" sx={{ color: '#00E676', fontWeight: 800, fontSize: '0.62rem' }}>
-                      LIVE
-                    </Typography>
-                  </Box>
-                </Box>
-                <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-                  Real-time event tracking across report pipelines, logins, administrative changes, and security gates
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* Category Filter Chips & Navigation */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-              {[
-                { key: 'ALL', label: 'All Operations' },
-                { key: 'FILES', label: 'Uploads & Files' },
-                { key: 'AUTH', label: 'Auth & Access' },
-                { key: 'PIPELINE', label: 'AI Pipeline' },
-                { key: 'SECURITY', label: 'Security Alerts' },
-              ].map((cat) => {
-                const isActive = activityCategory === cat.key;
-                return (
-                  <Chip
-                    key={cat.key}
-                    label={cat.label}
-                    size="small"
-                    onClick={() => setActivityCategory(cat.key)}
-                    sx={{
-                      cursor: 'pointer',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      backgroundColor: isActive ? 'rgba(0, 212, 255, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                      color: isActive ? '#00D4FF' : '#94A3B8',
-                      border: isActive ? '1px solid rgba(0, 212, 255, 0.4)' : '1px solid rgba(255, 255, 255, 0.05)',
-                    }}
-                  />
-                );
-              })}
-
-              <Tooltip title="Refresh dashboard feed" arrow>
-                <IconButton
-                  size="small"
-                  onClick={fetchStats}
+            {/* Header */}
+            <Box
+              sx={{
+                p: 2.5,
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                justifyContent: 'space-between',
+                alignItems: { xs: 'flex-start', md: 'center' },
+                gap: 2,
+                borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
                   sx={{
-                    color: '#00D4FF',
-                    backgroundColor: 'rgba(0, 212, 255, 0.08)',
-                    border: '1px solid rgba(0, 212, 255, 0.25)',
-                    p: 0.6,
-                    borderRadius: 1.5,
+                    width: 38,
+                    height: 38,
+                    borderRadius: 2,
+                    bgcolor: isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(0, 230, 118, 0.12)',
+                    border: isLight ? '1px solid rgba(5, 150, 105, 0.25)' : '1px solid rgba(0, 230, 118, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: successColor,
                   }}
                 >
-                  <Refresh sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-
-              <Button
-                size="small"
-                variant="outlined"
-                endIcon={<ArrowForward sx={{ fontSize: 13 }} />}
-                onClick={() => navigate('/audit-logs')}
-                sx={{
-                  color: '#00D4FF',
-                  borderColor: 'rgba(0, 212, 255, 0.35)',
-                  bgcolor: 'rgba(0, 212, 255, 0.06)',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  py: 0.4,
-                  px: 1.25,
-                  borderRadius: 1.5,
-                  textTransform: 'none',
-                  '&:hover': {
-                    bgcolor: 'rgba(0, 212, 255, 0.15)',
-                    borderColor: '#00D4FF',
-                  },
-                }}
-              >
-                Full Audit Trail
-              </Button>
-            </Box>
-          </Box>
-
-          {/* Activity Stream Table */}
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}>
-                  <TableCell sx={{ color: '#94A3B8', fontWeight: 700, fontSize: '0.72rem', py: 1.25, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    ACTION TYPE
-                  </TableCell>
-                  <TableCell sx={{ color: '#94A3B8', fontWeight: 700, fontSize: '0.72rem', py: 1.25, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    OPERATOR
-                  </TableCell>
-                  <TableCell sx={{ color: '#94A3B8', fontWeight: 700, fontSize: '0.72rem', py: 1.25, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    STATUS
-                  </TableCell>
-                  <TableCell sx={{ color: '#94A3B8', fontWeight: 700, fontSize: '0.72rem', py: 1.25, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    RESOURCE / DETAILS
-                  </TableCell>
-                  <TableCell sx={{ color: '#94A3B8', fontWeight: 700, fontSize: '0.72rem', py: 1.25, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    TIME
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: '#94A3B8', fontWeight: 700, fontSize: '0.72rem', py: 1.25, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    INSPECT
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredActivity.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} sx={{ py: 4, textAlign: 'center' }}>
-                      <Security sx={{ fontSize: 32, color: '#64748B', mb: 1 }} />
-                      <Typography variant="body2" sx={{ color: '#94A3B8' }}>
-                        No audit activities recorded for this filter category yet.
+                  <Security sx={{ fontSize: 22 }} />
+                </Box>
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ fontSize: '0.98rem', color: textPrimary }}>
+                      Live Security & Operational Audit Stream
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        px: 0.9,
+                        py: 0.2,
+                        borderRadius: 1,
+                        backgroundColor: isLight ? 'rgba(5, 150, 105, 0.1)' : 'rgba(0, 230, 118, 0.1)',
+                        border: isLight ? '1px solid rgba(5, 150, 105, 0.25)' : '1px solid rgba(0, 230, 118, 0.3)',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          backgroundColor: successColor,
+                          boxShadow: `0 0 6px ${successColor}`,
+                        }}
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{ color: successColor, fontWeight: 800, fontSize: '0.62rem' }}
+                      >
+                        LIVE
                       </Typography>
+                    </Box>
+                  </Box>
+                  <Typography variant="caption" sx={{ color: textSecondary }}>
+                    Real-time event tracking across report pipelines, logins, administrative changes, and security gates
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Category Filter Chips & Navigation */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'ALL', label: 'All Operations' },
+                  { key: 'FILES', label: 'Uploads & Files' },
+                  { key: 'AUTH', label: 'Auth & Access' },
+                  { key: 'PIPELINE', label: 'AI Pipeline' },
+                  { key: 'SECURITY', label: 'Security Alerts' },
+                ].map((cat) => {
+                  const isActive = activityCategory === cat.key;
+                  return (
+                    <Chip
+                      key={cat.key}
+                      label={cat.label}
+                      size="small"
+                      onClick={() => setActivityCategory(cat.key)}
+                      sx={{
+                        cursor: 'pointer',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        backgroundColor: isActive
+                          ? isLight
+                            ? 'rgba(2, 132, 199, 0.1)'
+                            : 'rgba(0, 212, 255, 0.15)'
+                          : isLight
+                          ? '#F1F5F9'
+                          : 'rgba(255, 255, 255, 0.02)',
+                        color: isActive ? primaryColor : textSecondary,
+                        border: isActive
+                          ? isLight
+                            ? '1px solid rgba(2, 132, 199, 0.35)'
+                            : '1px solid rgba(0, 212, 255, 0.4)'
+                          : isLight
+                          ? '1px solid rgba(15, 23, 42, 0.08)'
+                          : '1px solid rgba(255, 255, 255, 0.05)',
+                      }}
+                    />
+                  );
+                })}
+
+                <Tooltip title="Refresh dashboard feed" arrow>
+                  <IconButton
+                    size="small"
+                    onClick={fetchStats}
+                    sx={{
+                      color: primaryColor,
+                      backgroundColor: isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(0, 212, 255, 0.08)',
+                      border: isLight ? '1px solid rgba(2, 132, 199, 0.25)' : '1px solid rgba(0, 212, 255, 0.25)',
+                      p: 0.6,
+                      borderRadius: 1.5,
+                    }}
+                  >
+                    <Refresh sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+
+                <Button
+                  size="small"
+                  variant="outlined"
+                  endIcon={<ArrowForward sx={{ fontSize: 13 }} />}
+                  onClick={() => navigate('/audit-logs')}
+                  sx={{
+                    color: primaryColor,
+                    borderColor: isLight ? 'rgba(2, 132, 199, 0.35)' : 'rgba(0, 212, 255, 0.35)',
+                    bgcolor: isLight ? 'rgba(2, 132, 199, 0.06)' : 'rgba(0, 212, 255, 0.06)',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    py: 0.4,
+                    px: 1.25,
+                    borderRadius: 1.5,
+                    textTransform: 'none',
+                    '&:hover': {
+                      bgcolor: isLight ? 'rgba(2, 132, 199, 0.14)' : 'rgba(0, 212, 255, 0.15)',
+                      borderColor: primaryColor,
+                    },
+                  }}
+                >
+                  Full Audit Trail
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Activity Stream Table */}
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: isLight ? '#F8FAFC' : 'rgba(0, 0, 0, 0.3)' }}>
+                    <TableCell
+                      sx={{
+                        color: textSecondary,
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        py: 1.25,
+                        borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      ACTION TYPE
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: textSecondary,
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        py: 1.25,
+                        borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      OPERATOR
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: textSecondary,
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        py: 1.25,
+                        borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      STATUS
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: textSecondary,
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        py: 1.25,
+                        borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      RESOURCE / DETAILS
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: textSecondary,
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        py: 1.25,
+                        borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      TIME
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        color: textSecondary,
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        py: 1.25,
+                        borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      INSPECT
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filteredActivity.map((log) => {
-                    const cfg = getActionMeta(log.action);
-                    const isSuccess = log.status === 'SUCCESS';
-                    const ip = log.details?.ip_address || log.details?.ip || '';
-                    const resourceName =
-                      log.details?.filename ||
-                      log.details?.resource ||
-                      log.details?.name ||
-                      log.details?.created_username ||
-                      log.details?.target_username ||
-                      (log.report_id ? `Report: ${log.report_id.substring(0, 8)}...` : null);
+                </TableHead>
+                <TableBody>
+                  {filteredActivity.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} sx={{ py: 4, textAlign: 'center' }}>
+                        <Security sx={{ fontSize: 32, color: textSecondary, mb: 1 }} />
+                        <Typography variant="body2" sx={{ color: textSecondary }}>
+                          No audit activities recorded for this filter category yet.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredActivity.map((log) => {
+                      const cfg = getActionMeta(log.action, isLight);
+                      const isSuccess = log.status === 'SUCCESS';
+                      const ip = log.details?.ip_address || log.details?.ip || '';
+                      const resourceName =
+                        log.details?.filename ||
+                        log.details?.resource ||
+                        log.details?.name ||
+                        log.details?.created_username ||
+                        log.details?.target_username ||
+                        (log.report_id ? `Report: ${log.report_id.substring(0, 8)}...` : null);
 
-                    return (
-                      <TableRow
-                        key={log.log_id}
-                        hover
-                        onClick={() => setSelectedAuditLog(log)}
-                        sx={{
-                          cursor: 'pointer',
-                          borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
-                          '&:hover': { backgroundColor: 'rgba(0, 212, 255, 0.04)' },
-                        }}
-                      >
-                        {/* Action Badge */}
-                        <TableCell sx={{ py: 1.25 }}>
-                          <Box
-                            sx={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 0.75,
-                              px: 1,
-                              py: 0.35,
-                              borderRadius: 1.5,
-                              backgroundColor: cfg.bg,
-                              border: `1px solid ${cfg.border}`,
-                              color: cfg.color,
-                              fontWeight: 700,
-                              fontSize: '0.7rem',
-                            }}
-                          >
-                            {cfg.icon}
-                            <span>{cfg.label}</span>
-                          </Box>
-                        </TableCell>
-
-                        {/* Operator */}
-                        <TableCell sx={{ py: 1.25 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Avatar
+                      return (
+                        <TableRow
+                          key={log.log_id}
+                          hover
+                          onClick={() => setSelectedAuditLog(log)}
+                          sx={{
+                            cursor: 'pointer',
+                            borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.04)' : '1px solid rgba(255, 255, 255, 0.03)',
+                            '&:hover': {
+                              backgroundColor: isLight ? 'rgba(2, 132, 199, 0.04)' : 'rgba(0, 212, 255, 0.04)',
+                            },
+                          }}
+                        >
+                          {/* Action Badge */}
+                          <TableCell sx={{ py: 1.25 }}>
+                            <Box
                               sx={{
-                                width: 22,
-                                height: 22,
-                                fontSize: '0.65rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 0.75,
+                                px: 1,
+                                py: 0.35,
+                                borderRadius: 1.5,
+                                backgroundColor: cfg.bg,
+                                border: `1px solid ${cfg.border}`,
+                                color: cfg.color,
                                 fontWeight: 700,
-                                bgcolor: log.username === 'admin' ? 'rgba(0, 212, 255, 0.2)' : 'rgba(124, 77, 255, 0.2)',
-                                color: log.username === 'admin' ? '#00D4FF' : '#7C4DFF',
+                                fontSize: '0.7rem',
                               }}
                             >
-                              {(log.username || 'S')[0].toUpperCase()}
-                            </Avatar>
-                            <Typography variant="body2" sx={{ fontWeight: 600, color: '#F1F5F9', fontSize: '0.78rem' }}>
-                              {log.username || 'System'}
-                            </Typography>
-                          </Box>
-                        </TableCell>
+                              {cfg.icon}
+                              <span>{cfg.label}</span>
+                            </Box>
+                          </TableCell>
 
-                        {/* Status */}
-                        <TableCell sx={{ py: 1.25 }}>
-                          <Chip
-                            icon={isSuccess ? <CheckCircle sx={{ fontSize: '12px !important' }} /> : <Warning sx={{ fontSize: '12px !important' }} />}
-                            label={log.status}
-                            size="small"
-                            sx={{
-                              height: 20,
-                              fontWeight: 700,
-                              fontSize: '0.65rem',
-                              backgroundColor: isSuccess ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 23, 68, 0.12)',
-                              color: isSuccess ? '#00E676' : '#FF1744',
-                              border: `1px solid ${isSuccess ? 'rgba(0, 230, 118, 0.3)' : 'rgba(255, 23, 68, 0.35)'}`,
-                            }}
-                          />
-                        </TableCell>
-
-                        {/* Details */}
-                        <TableCell sx={{ py: 1.25, maxWidth: 300 }}>
-                          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                            {resourceName && (
-                              <Typography variant="body2" noWrap sx={{ color: '#E2E8F0', fontWeight: 600, fontSize: '0.76rem' }}>
-                                {resourceName}
+                          {/* Operator */}
+                          <TableCell sx={{ py: 1.25 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Avatar
+                                sx={{
+                                  width: 22,
+                                  height: 22,
+                                  fontSize: '0.65rem',
+                                  fontWeight: 700,
+                                  bgcolor:
+                                    log.username === 'admin'
+                                      ? isLight
+                                        ? 'rgba(2, 132, 199, 0.15)'
+                                        : 'rgba(0, 212, 255, 0.2)'
+                                      : isLight
+                                      ? 'rgba(99, 102, 241, 0.15)'
+                                      : 'rgba(124, 77, 255, 0.2)',
+                                  color:
+                                    log.username === 'admin'
+                                      ? primaryColor
+                                      : isLight
+                                      ? '#6366F1'
+                                      : '#7C4DFF',
+                                }}
+                              >
+                                {(log.username || 'S')[0].toUpperCase()}
+                              </Avatar>
+                              <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 650, color: textPrimary, fontSize: '0.78rem' }}
+                              >
+                                {log.username || 'System'}
                               </Typography>
-                            )}
-                            <Typography variant="caption" noWrap sx={{ color: '#64748B', fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                              {ip ? `IP: ${ip} • ` : ''}
-                              {log.details?.reason || JSON.stringify(log.details || {}).substring(0, 60)}
-                            </Typography>
-                          </Box>
-                        </TableCell>
+                            </Box>
+                          </TableCell>
 
-                        {/* Timestamp */}
-                        <TableCell sx={{ py: 1.25 }}>
-                          <Tooltip title={new Date(log.created_at).toLocaleString()} arrow>
-                            <Typography variant="body2" sx={{ color: '#94A3B8', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}>
-                              {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </Typography>
-                          </Tooltip>
-                        </TableCell>
+                          {/* Status */}
+                          <TableCell sx={{ py: 1.25 }}>
+                            <Chip
+                              icon={
+                                isSuccess ? (
+                                  <CheckCircle sx={{ fontSize: '12px !important' }} />
+                                ) : (
+                                  <Warning sx={{ fontSize: '12px !important' }} />
+                                )
+                              }
+                              label={log.status}
+                              size="small"
+                              sx={{
+                                height: 20,
+                                fontWeight: 700,
+                                fontSize: '0.65rem',
+                                backgroundColor: isSuccess
+                                  ? isLight
+                                    ? 'rgba(5, 150, 105, 0.1)'
+                                    : 'rgba(0, 230, 118, 0.1)'
+                                  : isLight
+                                  ? 'rgba(220, 38, 38, 0.1)'
+                                  : 'rgba(255, 23, 68, 0.12)',
+                                color: isSuccess ? successColor : errorColor,
+                                border: `1px solid ${
+                                  isSuccess
+                                    ? isLight
+                                      ? 'rgba(5, 150, 105, 0.25)'
+                                      : 'rgba(0, 230, 118, 0.3)'
+                                    : isLight
+                                    ? 'rgba(220, 38, 38, 0.25)'
+                                    : 'rgba(255, 23, 68, 0.35)'
+                                }`,
+                              }}
+                            />
+                          </TableCell>
 
-                        {/* Quick Inspect Button */}
-                        <TableCell align="right" sx={{ py: 1.25 }}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<Visibility sx={{ fontSize: 12 }} />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedAuditLog(log);
-                            }}
-                            sx={{
-                              color: '#00D4FF',
-                              borderColor: 'rgba(0, 212, 255, 0.3)',
-                              bgcolor: 'rgba(0, 212, 255, 0.05)',
-                              fontSize: '0.68rem',
-                              fontWeight: 600,
-                              py: 0.2,
-                              px: 0.9,
-                              borderRadius: 1.5,
-                              '&:hover': { bgcolor: 'rgba(0, 212, 255, 0.15)', borderColor: '#00D4FF' },
-                            }}
-                          >
-                            Inspect
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                          {/* Details */}
+                          <TableCell sx={{ py: 1.25, maxWidth: 300 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                              {resourceName && (
+                                <Typography
+                                  variant="body2"
+                                  noWrap
+                                  sx={{ color: textPrimary, fontWeight: 650, fontSize: '0.76rem' }}
+                                >
+                                  {resourceName}
+                                </Typography>
+                              )}
+                              <Typography
+                                variant="caption"
+                                noWrap
+                                sx={{ color: textSecondary, fontFamily: 'monospace', fontSize: '0.7rem' }}
+                              >
+                                {ip ? `IP: ${ip} • ` : ''}
+                                {log.details?.reason || JSON.stringify(log.details || {}).substring(0, 60)}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+
+                          {/* Timestamp */}
+                          <TableCell sx={{ py: 1.25 }}>
+                            <Tooltip title={new Date(log.created_at).toLocaleString()} arrow>
+                              <Typography
+                                variant="body2"
+                                sx={{ color: textSecondary, fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                              >
+                                {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </Typography>
+                            </Tooltip>
+                          </TableCell>
+
+                          {/* Quick Inspect Button */}
+                          <TableCell align="right" sx={{ py: 1.25 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<Visibility sx={{ fontSize: 12 }} />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAuditLog(log);
+                              }}
+                              sx={{
+                                color: primaryColor,
+                                borderColor: isLight ? 'rgba(2, 132, 199, 0.3)' : 'rgba(0, 212, 255, 0.3)',
+                                bgcolor: isLight ? 'rgba(2, 132, 199, 0.05)' : 'rgba(0, 212, 255, 0.05)',
+                                fontSize: '0.68rem',
+                                fontWeight: 650,
+                                py: 0.2,
+                                px: 0.9,
+                                borderRadius: 1.5,
+                                '&:hover': {
+                                  bgcolor: isLight ? 'rgba(2, 132, 199, 0.12)' : 'rgba(0, 212, 255, 0.15)',
+                                  borderColor: primaryColor,
+                                },
+                              }}
+                            >
+                              Inspect
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── 6. Event Inspector Drawer ── */}
@@ -2154,10 +2575,10 @@ function DashboardPage() {
         PaperProps={{
           sx: {
             width: { xs: '100%', sm: 520 },
-            backgroundColor: '#070B12',
-            borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+            backgroundColor: isLight ? '#FFFFFF' : '#070B12',
+            borderLeft: isLight ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(255, 255, 255, 0.1)',
             p: 3,
-            boxShadow: '-10px 0 40px rgba(0, 0, 0, 0.7)',
+            boxShadow: isLight ? '-10px 0 40px rgba(15, 23, 42, 0.12)' : '-10px 0 40px rgba(0, 0, 0, 0.7)',
           },
         }}
       >
@@ -2173,50 +2594,80 @@ function DashboardPage() {
                     color={selectedAuditLog.status === 'SUCCESS' ? 'success' : 'error'}
                     sx={{ fontWeight: 800, fontSize: '0.68rem', height: 22 }}
                   />
-                  <Typography variant="caption" sx={{ color: '#94A3B8', fontFamily: 'monospace' }}>
+                  <Typography variant="caption" sx={{ color: textSecondary, fontFamily: 'monospace' }}>
                     {selectedAuditLog.log_id}
                   </Typography>
                 </Box>
-                <Typography variant="h5" fontWeight={800} sx={{ color: '#FFFFFF' }}>
+                <Typography variant="h5" fontWeight={800} sx={{ color: textPrimary }}>
                   {selectedAuditLog.action}
                 </Typography>
               </Box>
-              <IconButton size="small" onClick={() => setSelectedAuditLog(null)} sx={{ color: '#94A3B8' }}>
+              <IconButton size="small" onClick={() => setSelectedAuditLog(null)} sx={{ color: textSecondary }}>
                 <Close sx={{ fontSize: 20 }} />
               </IconButton>
             </Box>
 
-            <Divider sx={{ mb: 2.5, borderColor: 'rgba(255, 255, 255, 0.08)' }} />
+            <Divider
+              sx={{
+                mb: 2.5,
+                borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)',
+              }}
+            />
 
             {/* Context Cards */}
             <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              <Box sx={{ p: 2, borderRadius: 2, backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                <Typography variant="caption" sx={{ color: '#00D4FF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 1.5 }}>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  backgroundColor: isLight ? '#F8FAFC' : 'rgba(255, 255, 255, 0.02)',
+                  border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: primaryColor,
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    display: 'block',
+                    mb: 1.5,
+                  }}
+                >
                   Event Identity & Network Context
                 </Typography>
                 <Grid container spacing={1.5}>
                   <Grid item xs={6}>
-                    <Typography variant="caption" sx={{ color: '#64748B' }}>Operator / Actor:</Typography>
-                    <Typography variant="body2" fontWeight={600} sx={{ color: '#F1F5F9' }}>
+                    <Typography variant="caption" sx={{ color: textSecondary }}>
+                      Operator / Actor:
+                    </Typography>
+                    <Typography variant="body2" fontWeight={650} sx={{ color: textPrimary }}>
                       {selectedAuditLog.username || 'System Service'}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
-                    <Typography variant="caption" sx={{ color: '#64748B' }}>Client IP Address:</Typography>
-                    <Typography variant="body2" sx={{ color: '#00E676', fontFamily: 'monospace' }}>
+                    <Typography variant="caption" sx={{ color: textSecondary }}>
+                      Client IP Address:
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: successColor, fontFamily: 'monospace', fontWeight: 600 }}>
                       {selectedAuditLog.details?.ip_address || selectedAuditLog.details?.ip || 'Internal System'}
                     </Typography>
                   </Grid>
                   <Grid item xs={12}>
-                    <Typography variant="caption" sx={{ color: '#64748B' }}>Execution Timestamp:</Typography>
-                    <Typography variant="body2" sx={{ color: '#E2E8F0', fontVariantNumeric: 'tabular-nums' }}>
+                    <Typography variant="caption" sx={{ color: textSecondary }}>
+                      Execution Timestamp:
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: textPrimary, fontVariantNumeric: 'tabular-nums' }}>
                       {new Date(selectedAuditLog.created_at).toUTCString()}
                     </Typography>
                   </Grid>
                   {selectedAuditLog.report_id && (
                     <Grid item xs={12}>
-                      <Typography variant="caption" sx={{ color: '#64748B' }}>Report Reference ID:</Typography>
-                      <Typography variant="body2" sx={{ color: '#00D4FF', fontFamily: 'monospace' }}>
+                      <Typography variant="caption" sx={{ color: textSecondary }}>
+                        Report Reference ID:
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: primaryColor, fontFamily: 'monospace', fontWeight: 600 }}>
                         {selectedAuditLog.report_id}
                       </Typography>
                     </Grid>
@@ -2227,7 +2678,10 @@ function DashboardPage() {
               {/* JSON Payload */}
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="caption" sx={{ color: '#00D4FF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: primaryColor, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                  >
                     Forensic Payload (JSON)
                   </Typography>
                   <Button
@@ -2239,7 +2693,7 @@ function DashboardPage() {
                       setTimeout(() => setCopiedAuditPayload(false), 2000);
                     }}
                     sx={{
-                      color: copiedAuditPayload ? '#00E676' : '#94A3B8',
+                      color: copiedAuditPayload ? successColor : textSecondary,
                       fontSize: '0.7rem',
                       textTransform: 'none',
                     }}
@@ -2251,11 +2705,11 @@ function DashboardPage() {
                   sx={{
                     p: 2,
                     borderRadius: 2,
-                    backgroundColor: '#030712',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    backgroundColor: isLight ? '#0F172A' : '#030712',
+                    border: isLight ? '1px solid rgba(15, 23, 42, 0.15)' : '1px solid rgba(255, 255, 255, 0.08)',
                     fontFamily: 'monospace',
                     fontSize: '0.78rem',
-                    color: '#00E676',
+                    color: '#34D399',
                     overflowX: 'auto',
                     maxHeight: 280,
                   }}
@@ -2268,15 +2722,21 @@ function DashboardPage() {
             </Box>
 
             {/* Footer */}
-            <Box sx={{ pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <Box
+              sx={{
+                pt: 2,
+                borderTop: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
               <Button
                 fullWidth
                 variant="outlined"
                 onClick={() => setSelectedAuditLog(null)}
                 sx={{
-                  color: '#94A3B8',
-                  borderColor: 'rgba(255, 255, 255, 0.15)',
+                  color: textSecondary,
+                  borderColor: isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(255, 255, 255, 0.15)',
                   borderRadius: 2,
+                  fontWeight: 650,
                 }}
               >
                 Close Inspector

@@ -24,6 +24,7 @@ import {
   Pagination,
   CircularProgress,
   Collapse,
+  useTheme,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -226,6 +227,9 @@ const BatchHistoryPanel = () => {
   const failedFiles = activeBatch?.failed_files || activeBatchItems?.filter((i) => i.status === 'FAILED').length || 0;
   const progressPct = totalFiles > 0 ? Math.round(((completedFiles + failedFiles) / totalFiles) * 100) : 0;
 
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* ---------------------------------------------------- */}
@@ -234,10 +238,10 @@ const BatchHistoryPanel = () => {
       {activeBatchId && activeBatch && (
         <Card
           sx={{
-            background: 'linear-gradient(135deg, rgba(10, 14, 23, 0.95), rgba(15, 23, 42, 0.95))',
-            border: '1px solid rgba(0, 212, 255, 0.4)',
+            background: isLight ? '#FFFFFF' : 'linear-gradient(135deg, rgba(10, 14, 23, 0.95), rgba(15, 23, 42, 0.95))',
+            border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(0, 212, 255, 0.4)',
             borderRadius: 3,
-            boxShadow: '0 8px 32px rgba(0, 212, 255, 0.15)',
+            boxShadow: isLight ? '0 4px 20px -2px rgba(15, 23, 42, 0.05)' : '0 8px 32px rgba(0, 212, 255, 0.15)',
             position: 'relative',
             overflow: 'hidden',
           }}
@@ -480,15 +484,15 @@ const BatchHistoryPanel = () => {
       {/* ---------------------------------------------------- */}
       <Card
         sx={{
-          background: 'rgba(15, 23, 42, 0.75)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          background: isLight ? '#FFFFFF' : 'rgba(15, 23, 42, 0.75)',
+          border: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: 2,
         }}
       >
         <CardContent sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
             <Box>
-              <Typography variant="h6" fontWeight={600} color="#FFFFFF">
+              <Typography variant="h6" fontWeight={600} color={isLight ? '#0F172A' : '#FFFFFF'}>
                 Batch Processing History
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -521,7 +525,7 @@ const BatchHistoryPanel = () => {
               <TableContainer component={Paper} sx={{ background: 'transparent', boxShadow: 'none' }}>
                 <Table size="small">
                   <TableHead>
-                    <TableRow sx={{ '& th': { borderColor: 'rgba(255,255,255,0.08)', color: 'text.secondary', fontWeight: 600 } }}>
+                    <TableRow sx={{ '& th': { bgcolor: isLight ? '#F1F5F9' : undefined, borderColor: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)', color: isLight ? '#475569' : 'text.secondary', fontWeight: 600 } }}>
                       <TableCell>Batch Name / ID</TableCell>
                       <TableCell>Created At</TableCell>
                       <TableCell>Source</TableCell>
@@ -539,9 +543,9 @@ const BatchHistoryPanel = () => {
                       const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
                       return (
-                        <TableRow key={batch.batch_id} hover sx={{ '& td': { borderColor: 'rgba(255,255,255,0.05)', py: 1.5 } }}>
+                        <TableRow key={batch.batch_id} hover sx={{ '& td': { borderColor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.05)', py: 1.5 } }}>
                           <TableCell>
-                            <Typography variant="body2" fontWeight={600} color="#FFFFFF">
+                            <Typography variant="body2" fontWeight={600} color={isLight ? '#0F172A' : '#FFFFFF'}>
                               {batch.name || `Batch ${batch.batch_id.slice(0, 8)}`}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
@@ -557,13 +561,13 @@ const BatchHistoryPanel = () => {
                               label={batch.source_type === 'SERVER_PATH' ? 'Server Path' : 'Upload'}
                               icon={batch.source_type === 'SERVER_PATH' ? <FolderOpen fontSize="small" /> : <CloudUpload fontSize="small" />}
                               sx={{
-                                background: batch.source_type === 'SERVER_PATH' ? 'rgba(0, 212, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                                color: batch.source_type === 'SERVER_PATH' ? '#00D4FF' : 'text.primary',
+                                background: batch.source_type === 'SERVER_PATH' ? (isLight ? 'rgba(2, 132, 199, 0.1)' : 'rgba(0, 212, 255, 0.1)') : (isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.05)'),
+                                color: batch.source_type === 'SERVER_PATH' ? (isLight ? '#0284C7' : '#00D4FF') : 'text.primary',
                                 fontSize: '0.75rem',
                               }}
                             />
                           </TableCell>
-                          <TableCell align="center" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
+                          <TableCell align="center" sx={{ color: isLight ? '#0F172A' : '#FFFFFF', fontWeight: 600 }}>
                             {total}
                           </TableCell>
                           <TableCell align="center">
