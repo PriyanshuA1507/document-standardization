@@ -1,5 +1,13 @@
 # models package
-from app.models import user, report, audit, agency, clustering, trend_analysis, anomaly
+from app.models import user, report, audit, agency, clustering, trend_analysis, anomaly, batch
+
+from app.models.batch import (
+    BatchJob,
+    BatchItem,
+    BatchStatus,
+    BatchItemStatus,
+    BatchSourceType,
+)
 
 from app.models.clustering import (
     ClusteringRun,

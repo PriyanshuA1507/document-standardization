@@ -34,7 +34,10 @@ def decrypt_pdf(file_bytes: bytes, password: str) -> bytes:
     if not reader.is_encrypted:
         return file_bytes
         
-    reader.decrypt(password)
+    decrypt_result = reader.decrypt(password)
+    if decrypt_result == 0:
+        raise ValueError("Invalid password for PDF")
+
     writer = PdfWriter()
     
     for page in reader.pages:

@@ -71,6 +71,7 @@ class ReportOut(BaseModel):
     partial_duplicate: Optional[PartialDuplicateOut] = None
     storage: Optional[FileStorageOut] = None
     agency: Optional[AgencyOut] = None
+    batch_id: Optional[UUID] = None
     has_pipeline_data: bool = False
 
     model_config = {"from_attributes": True}
@@ -104,6 +105,7 @@ class ReportOut(BaseModel):
             partial_duplicate=report.partial_duplicate,
             storage=report.storage,
             agency=report.agency,
+            batch_id=getattr(report, 'batch_id', None),
             has_pipeline_data=_has_data,
         )
 

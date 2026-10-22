@@ -235,6 +235,75 @@ async def upload_local_file(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Upload processing failed: {str(e)}")
 
 
+@router.post("/decrypt-file")
+async def decrypt_file_endpoint(
+    file: UploadFile = File(...),
+    password: Optional[str] = Form(None),
+    bulk_passwords: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Pre-flight decrypt an encrypted report file.
+    Returns the plaintext decrypted file bytes directly.
+    If the file is not encrypted, returns original bytes.
+    """
+    contents = await file.read()
+    from app.utils.file_utils import validate_extension
+    ext_valid, extension = validate_extension(file.filename)
+    if not ext_valid:
+        raise HTTPException(status_code=400, detail="Invalid file format")
+
+    passwords_to_try = []
+    if password:
+        passwords_to_try.append(password)
+    if bulk_passwords:
+        try:
+            parsed = json.loads(bulk_passwords)
+            if isinstance(parsed, list):
+                for p in parsed:
+                    if p and p not in passwords_to_try:
+                        passwords_to_try.append(str(p))
+        except Exception:
+            pass
+
+    from app.utils.encryption_utils import is_pdf_encrypted, decrypt_pdf, is_docx_encrypted, decrypt_docx
+    from fastapi.responses import Response
+
+    if extension == ".pdf":
+        if is_pdf_encrypted(contents):
+            if not passwords_to_try:
+                raise HTTPException(status_code=400, detail="PASSWORD_REQUIRED")
+            decrypted = False
+            for pwd in passwords_to_try:
+                try:
+                    contents = decrypt_pdf(contents, pwd)
+                    decrypted = True
+                    break
+                except Exception:
+                    continue
+            if not decrypted:
+                raise HTTPException(status_code=400, detail="INVALID_PASSWORD")
+        return Response(content=contents, media_type="application/pdf")
+
+    elif extension in (".docx", ".doc"):
+        if is_docx_encrypted(contents):
+            if not passwords_to_try:
+                raise HTTPException(status_code=400, detail="PASSWORD_REQUIRED")
+            decrypted = False
+            for pwd in passwords_to_try:
+                try:
+                    contents = decrypt_docx(contents, pwd)
+                    decrypted = True
+                    break
+                except Exception:
+                    continue
+            if not decrypted:
+                raise HTTPException(status_code=400, detail="INVALID_PASSWORD")
+        return Response(content=contents, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+    return Response(content=contents, media_type="application/octet-stream")
+
+
 @router.get("", response_model=ReportListOut)
 async def list_reports(
     skip: int = Query(0, ge=0),

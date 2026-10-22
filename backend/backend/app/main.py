@@ -7,11 +7,12 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.routers import auth, users, reports, audit_logs, agencies, pipeline, analytics, ml_analytics, clustering, trend_analysis, report_images, anomaly
+from app.routers import auth, users, reports, audit_logs, agencies, pipeline, analytics, ml_analytics, clustering, trend_analysis, report_images, anomaly, batches
 from app.services.auth_service import seed_roles_and_admin
+from app.services.batch_service import resume_interrupted_batches
 
 # Import all models so Alembic can discover them
-from app.models import user, report, audit, trend_analysis as trend_analysis_model, anomaly as anomaly_model  # noqa: F401
+from app.models import user, report, audit, trend_analysis as trend_analysis_model, anomaly as anomaly_model, batch as batch_model  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -51,6 +52,9 @@ async def lifespan(app: FastAPI):
             )
             await session.commit()
             logger.info("Orphaned runs cleaned up on startup successfully")
+
+            # Resume any in-progress batch processing jobs
+            await resume_interrupted_batches()
     except Exception as e:
         logger.error(f"Failed during startup initialization: {e}")
     yield
@@ -86,6 +90,7 @@ app.include_router(clustering.router)
 app.include_router(trend_analysis.router)
 app.include_router(report_images.router)
 app.include_router(anomaly.router)
+app.include_router(batches.router)
 
 
 

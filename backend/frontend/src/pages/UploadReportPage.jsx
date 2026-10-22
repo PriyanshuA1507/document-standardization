@@ -4,12 +4,13 @@ import {
   Box, Card, CardContent, Typography, LinearProgress, Alert, Chip, Paper, Button, Dialog, DialogTitle, DialogContent, DialogContentText, TextField, DialogActions, FormControl, InputLabel, Select, MenuItem, Tabs, Tab, RadioGroup, FormControlLabel, Radio, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Backdrop
 } from '@mui/material';
 import {
-  CloudUpload, CheckCircle, Error as ErrorIcon, Description, Lock as LockIcon, PlayArrow, Folder, TableChart, Autorenew, Pending, Cancel, Download
+  CloudUpload, CheckCircle, Error as ErrorIcon, Description, Lock as LockIcon, PlayArrow, Folder, TableChart, Autorenew, Pending, Cancel, Download, FolderZip
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import api from '../api/axios';
 import * as XLSX from 'xlsx';
 import { useBulkUpload } from '../contexts/BulkUploadContext';
+import BatchHistoryPanel from '../components/BatchHistoryPanel';
 
 function UploadReportPage() {
   // Cache buster: v4-folder-loading
@@ -33,13 +34,16 @@ function UploadReportPage() {
   // Bulk Upload state
   const [excelFile, setExcelFile] = useState(null);
   const [pdfFiles, setPdfFiles] = useState([]);
+  const [zipFile, setZipFile] = useState(null);
   const [batchMode, setBatchMode] = useState('batch4');
   
   // Use global context for bulk tracking
   const {
       bulkFilesData, setBulkFilesData, bulkProgress, bulkTotal, bulkRunning, bulkFinished, setBulkFinished,
       bulkStartTime, bulkEndTime, bulkPaused, etaSeconds,
-      startBulkUpload, pauseBulkUpload, resumeBulkUpload, resetBulkState
+      startBulkUpload, pauseBulkUpload, resumeBulkUpload, resetBulkState,
+      startServerBatch, activeBatchId, activeBatch, pauseBatch, resumeBatch, cancelBatch, retryFailedBatch,
+      isStagingBatch, stagingDetails, uploadTransferProgress, uploadTransferStats,
     } = useBulkUpload();
   const [generatingExcel, setGeneratingExcel] = useState(false);
   const [generatedExcelUrl, setGeneratedExcelUrl] = useState(null);
@@ -342,6 +346,20 @@ function UploadReportPage() {
     // Yield to let UI update
     await new Promise(r => setTimeout(r, 150));
 
+    // Check if user uploaded / dropped a ZIP archive
+    const zip = filesArrayRaw.find(f => f.name.toLowerCase().endsWith('.zip'));
+    if (zip) {
+      setZipFile(zip);
+      setPdfFiles([]);
+      setBulkFilesData([]);
+      setExtractedPasswords([]);
+      setTxtFileNames([]);
+      setFolderLoading(false);
+      enqueueSnackbar(`ZIP archive "${zip.name}" ready for upload!`, { variant: 'info' });
+      return;
+    }
+
+    setZipFile(null);
     const pdfDocFiles = [];
     const txtFiles = [];
 
@@ -544,8 +562,8 @@ function UploadReportPage() {
   };
 
   const handleBulkLaunch = async () => {
-    if (pdfFiles.length === 0) {
-      enqueueSnackbar('Please select a folder with valid files first', {variant: 'warning'});
+    if (pdfFiles.length === 0 && !serverPath && !zipFile) {
+      enqueueSnackbar('Please select a folder, ZIP archive, or specify a server path first', {variant: 'warning'});
       return;
     }
 
@@ -580,9 +598,85 @@ function UploadReportPage() {
 
     const concurrency = batchMode === 'batch32' ? 32 : (batchMode === 'batch16' ? 16 : (batchMode === 'batch8' ? 8 : (batchMode === 'batch4' ? 4 : (batchMode === 'batch2' ? 2 : 1))));
     
-    // Call the context function
-    startBulkUpload(bulkFilesData, passwordMap, selectedAgency, concurrency, extractedPasswords);
-    setPdfFiles([]); // Free memory!
+    const isServerFolder = Boolean(serverPath && (pdfFiles.length === 0 || pdfFiles[0]?.isLocal));
+
+    try {
+      if (zipFile) {
+        await startServerBatch({
+          zipFile,
+          agencyId: selectedAgency,
+          concurrency,
+          passwordMap,
+          bulkPasswords: extractedPasswords,
+          name: `ZIP Batch (${zipFile.name})`,
+        });
+        setZipFile(null);
+        setTabValue(2); // Auto switch to Batch History & Monitor tab
+        return;
+      }
+
+      if (isServerFolder) {
+        const folderName = serverPath.split('/').pop().split('\\').pop() || serverPath;
+        await startServerBatch({
+          serverPath: serverPath,
+          agencyId: selectedAgency,
+          concurrency,
+          passwordMap,
+          bulkPasswords: extractedPasswords,
+          name: `Server Folder (${folderName})`,
+        });
+      } else {
+        // Pre-flight: Decrypt any password-protected files in the frontend before staging to server
+        let filesToUpload = pdfFiles;
+        const hasProtected = bulkFilesData.some(d => d.protected === 'Yes');
+        if (hasProtected) {
+          enqueueSnackbar('Unlocking password-protected files before server staging...', { variant: 'info' });
+          const unlockedList = [];
+          for (const fileObj of pdfFiles) {
+            const itemData = bulkFilesData.find(d => d.name === fileObj.name);
+            if (itemData?.protected === 'Yes') {
+              const baseName = fileObj.name.substring(0, fileObj.name.lastIndexOf('.')).toLowerCase();
+              const specificPwd = passwordMap[baseName] || passwordMap[fileObj.name.toLowerCase()];
+
+              const formData = new FormData();
+              formData.append('file', fileObj);
+              if (specificPwd) formData.append('password', specificPwd);
+              if (extractedPasswords && extractedPasswords.length > 0) {
+                formData.append('bulk_passwords', JSON.stringify(extractedPasswords));
+              }
+
+              try {
+                const decRes = await api.post('/api/reports/decrypt-file', formData, {
+                  responseType: 'blob',
+                });
+                const decryptedBlob = decRes.data;
+                const unlockedFile = new File([decryptedBlob], fileObj.name, { type: fileObj.type || 'application/pdf' });
+                unlockedList.push(unlockedFile);
+              } catch (decErr) {
+                const errDetail = decErr.response?.data?.detail || 'Decryption failed';
+                throw new Error(`File '${fileObj.name}' is password-protected and could not be unlocked with available passwords. (${errDetail})`);
+              }
+            } else {
+              unlockedList.push(fileObj);
+            }
+          }
+          filesToUpload = unlockedList;
+        }
+
+        await startServerBatch({
+          files: filesToUpload,
+          agencyId: selectedAgency,
+          concurrency,
+          passwordMap,
+          bulkPasswords: extractedPasswords,
+          name: `Upload Batch (${filesToUpload.length} files)`,
+        });
+      }
+      setPdfFiles([]); // Free memory!
+      setTabValue(2); // Auto switch to Batch History & Monitor tab
+    } catch (err) {
+      // Error notification handled in startServerBatch
+    }
   };
 
   const renderStatusChip = (status) => {
@@ -642,7 +736,25 @@ function UploadReportPage() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
         <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
           <Tab label="Single Upload" />
-          <Tab label="Bulk Upload" />
+          <Tab label="New Bulk Upload" />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <span>Batch History & Monitor</span>
+                {bulkRunning && (
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: '#00E676',
+                      boxShadow: '0 0 8px #00E676',
+                    }}
+                  />
+                )}
+              </Box>
+            }
+          />
         </Tabs>
       </Box>
 
@@ -738,6 +850,19 @@ function UploadReportPage() {
       {tabValue === 1 && (
         <Card className="fade-in-up">
           <CardContent sx={{ p: 4 }}>
+            {activeBatchId && bulkRunning && (
+              <Alert
+                severity="info"
+                action={
+                  <Button color="inherit" size="small" onClick={() => setTabValue(2)}>
+                    View Live Monitor
+                  </Button>
+                }
+                sx={{ mb: 3, borderRadius: 2 }}
+              >
+                An active server batch "{activeBatch?.name || activeBatchId}" is currently running in the background.
+              </Alert>
+            )}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               
               <Box>
@@ -836,8 +961,90 @@ function UploadReportPage() {
                       {folderLoading ? 'Reading Files...' : 'Select Files'}
                       <input type="file" multiple hidden accept=".pdf,.doc,.docx" onChange={handleFolderSelect} disabled={bulkRunning || folderLoading} />
                     </Button>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={folderLoading ? <CircularProgress size={18} color="inherit" /> : <FolderZip />}
+                      disabled={bulkRunning || folderLoading}
+                      sx={{ borderColor: 'rgba(0, 212, 255, 0.4)', color: '#00D4FF' }}
+                    >
+                      {folderLoading ? 'Reading Files...' : 'Select ZIP Archive'}
+                      <input
+                        type="file"
+                        accept=".zip,application/zip,application/x-zip-compressed"
+                        hidden
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setZipFile(e.target.files[0]);
+                            setPdfFiles([]);
+                            setBulkFilesData([]);
+                            setExtractedPasswords([]);
+                            setTxtFileNames([]);
+                            e.target.value = null;
+                            enqueueSnackbar(`ZIP archive "${e.target.files[0].name}" selected!`, { variant: 'info' });
+                          }
+                        }}
+                        disabled={bulkRunning || folderLoading}
+                      />
+                    </Button>
                   </Box>
                 </Box>
+
+                {zipFile && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      mt: 3,
+                      p: 3,
+                      borderRadius: 2,
+                      background: 'rgba(0, 212, 255, 0.06)',
+                      border: '1px solid rgba(0, 212, 255, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 2,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <FolderZip sx={{ fontSize: 44, color: '#00D4FF' }} />
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#00D4FF' }}>
+                          {zipFile.name}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 0.5, flexWrap: 'wrap' }}>
+                          <Chip
+                            size="small"
+                            label={`${(zipFile.size / (1024 * 1024)).toFixed(2)} MB`}
+                            variant="outlined"
+                            sx={{ borderColor: 'rgba(0, 212, 255, 0.4)', color: '#00D4FF', fontWeight: 600 }}
+                          />
+                          <Chip
+                            size="small"
+                            label="Recursive Subdirectories"
+                            color="info"
+                            sx={{ fontWeight: 600 }}
+                          />
+                          <Chip
+                            size="small"
+                            label="Auto Password Harvesting (.txt & .docx)"
+                            color="success"
+                            sx={{ fontWeight: 600 }}
+                          />
+                        </Box>
+                      </Box>
+                    </Box>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      onClick={() => setZipFile(null)}
+                      disabled={bulkRunning}
+                    >
+                      Remove ZIP
+                    </Button>
+                  </Paper>
+                )}
 
                 {folderLoading && (
                   <Paper elevation={0} sx={{ mt: 2, p: 3, borderRadius: 2, background: 'rgba(0, 212, 255, 0.05)', border: '1px solid rgba(0, 212, 255, 0.15)', display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -881,8 +1088,21 @@ function UploadReportPage() {
               </Box>
 
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  <Button variant="contained" color="primary" size="large" startIcon={<PlayArrow />} onClick={handleBulkLaunch} disabled={bulkRunning || pdfFiles.length === 0}>
-                    {bulkRunning && !bulkPaused ? 'Running...' : 'Launch Bulk Processing'}
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    startIcon={isStagingBatch ? <CircularProgress size={20} color="inherit" /> : <PlayArrow />}
+                    onClick={handleBulkLaunch}
+                    disabled={bulkRunning || isStagingBatch || (pdfFiles.length === 0 && !serverPath && !zipFile)}
+                  >
+                    {isStagingBatch
+                      ? (zipFile ? 'Staging ZIP Archive...' : 'Staging Batch on Server...')
+                      : zipFile
+                      ? 'Launch ZIP Processing'
+                      : bulkRunning && !bulkPaused
+                      ? 'Running...'
+                      : 'Launch Bulk Processing'}
                   </Button>
                   
                   {bulkRunning && !bulkFinished && !bulkPaused && (
@@ -907,6 +1127,29 @@ function UploadReportPage() {
                     </Typography>
                   )}
                 </Box>
+
+                {uploadTransferProgress !== null && (
+                  <Box sx={{ mt: 2, p: 2, borderRadius: 2, background: 'rgba(0, 212, 255, 0.08)', border: '1px solid rgba(0, 212, 255, 0.25)' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2" color="#00D4FF" fontWeight={600}>
+                        Uploading files to server staging ({uploadTransferProgress}%)...
+                      </Typography>
+                      <Typography variant="body2" color="#00D4FF" fontWeight={600}>
+                        {uploadTransferProgress}%
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={uploadTransferProgress}
+                      sx={{
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                        '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg, #00D4FF, #00E676)' }
+                      }}
+                    />
+                  </Box>
+                )}
 
               {/* Progress and Detailed Tracking Table */}
               {(bulkRunning || bulkFinished || bulkFilesData.length > 0) && (
@@ -955,17 +1198,115 @@ function UploadReportPage() {
         </Card>
       )}
 
-      {/* Password Dialog for Single Upload */}
-      <Dialog open={passwordRequired} onClose={handlePasswordCancel} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><LockIcon color="primary" /> Password Required</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>This file is encrypted. Please enter the password to unlock and upload it.</DialogContentText>
-          <TextField autoFocus margin="dense" label="File Password" type="password" fullWidth variant="outlined" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()} error={error === 'Incorrect password. Please try again.'} helperText={error === 'Incorrect password. Please try again.' ? error : ''} />
+      {/* --- BATCH HISTORY & MONITOR TAB --- */}
+      {tabValue === 2 && (
+        <Box className="fade-in-up">
+          <BatchHistoryPanel />
+        </Box>
+      )}
+
+      {/* Batch Staging Modal Dialog */}
+      <Dialog
+        open={isStagingBatch}
+        disableEscapeKeyDown
+        PaperProps={{
+          sx: {
+            background: 'rgba(10, 14, 23, 0.96)',
+            border: '1px solid rgba(0, 212, 255, 0.4)',
+            borderRadius: 3,
+            p: 3,
+            minWidth: 420,
+            maxWidth: 520,
+            textAlign: 'center',
+            boxShadow: '0 16px 48px rgba(0, 0, 0, 0.8), 0 0 32px rgba(0, 212, 255, 0.25)',
+            backdropFilter: 'blur(16px)',
+          },
+        }}
+      >
+        <DialogContent sx={{ p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
+            <CircularProgress
+              variant={uploadTransferProgress !== null ? 'determinate' : 'indeterminate'}
+              value={uploadTransferProgress !== null ? uploadTransferProgress : undefined}
+              size={76}
+              thickness={4}
+              sx={{
+                color: '#00D4FF',
+                filter: 'drop-shadow(0 0 10px rgba(0, 212, 255, 0.7))',
+              }}
+            />
+            {uploadTransferProgress !== null && (
+              <Box
+                sx={{
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  right: 0,
+                  position: 'absolute',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Typography variant="body2" component="div" fontWeight={700} sx={{ color: '#00D4FF', fontSize: '1rem' }}>
+                  {`${uploadTransferProgress}%`}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          <Typography variant="h6" fontWeight={700} color="#FFFFFF" sx={{ mb: 1 }}>
+            Staging Batch on Server
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 440, lineHeight: 1.6 }}>
+            Please wait while your files are securely uploaded and prepared on the server. For large batches or folders, this may take a moment.
+          </Typography>
+
+          <Box sx={{ width: '100%', mb: 2.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="caption" sx={{ color: '#00D4FF', fontWeight: 600 }}>
+                {stagingDetails || 'Uploading files...'}
+              </Typography>
+              {uploadTransferStats && (
+                <Typography variant="caption" color="text.secondary">
+                  {uploadTransferStats.loadedMB} MB / {uploadTransferStats.totalMB} MB
+                </Typography>
+              )}
+            </Box>
+            <LinearProgress
+              variant={uploadTransferProgress !== null ? 'determinate' : 'indeterminate'}
+              value={uploadTransferProgress !== null ? uploadTransferProgress : undefined}
+              sx={{
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                '& .MuiLinearProgress-bar': {
+                  background: 'linear-gradient(90deg, #00D4FF, #00E676)',
+                },
+              }}
+            />
+          </Box>
+
+          <Paper
+            elevation={0}
+            sx={{
+              width: '100%',
+              p: 1.8,
+              borderRadius: 2,
+              background: 'rgba(0, 230, 118, 0.06)',
+              border: '1px solid rgba(0, 230, 118, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <CheckCircle sx={{ color: '#00E676', fontSize: 22, flexShrink: 0 }} />
+            <Typography variant="caption" sx={{ color: '#E2E8F0', textAlign: 'left', lineHeight: 1.4 }}>
+              Once staged, processing continues entirely in the background. You can safely close or leave this page anytime.
+            </Typography>
+          </Paper>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handlePasswordCancel} color="inherit">Cancel, Download</Button>
-          <Button onClick={handlePasswordSubmit} variant="contained" disabled={!passwordInput || uploading}>{uploading ? 'Unlocking...' : 'Unlock & Upload'}</Button>
-        </DialogActions>
       </Dialog>
     </Box>
   );

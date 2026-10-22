@@ -28,6 +28,7 @@ async def upload_report(
     filename: str,
     user_id: uuid.UUID,
     agency_id: Optional[uuid.UUID] = None,
+    batch_id: Optional[uuid.UUID] = None,
 ) -> Dict[str, Any]:
     """
     Full upload workflow:
@@ -121,6 +122,7 @@ async def upload_report(
             sha256_hash=sha256_hash,
             page_count=None,
             upload_status=UploadStatus.REJECTED,
+            batch_id=batch_id,
         )
         db.add(report)
         await db.flush()
@@ -220,6 +222,7 @@ async def upload_report(
         page_count=page_count,
         upload_status=UploadStatus.UPLOADED,
         agency_id=agency_id,
+        batch_id=batch_id,
     )
     db.add(report)
     await db.flush()
@@ -369,10 +372,59 @@ async def get_report_by_id(
 async def delete_report(
     db: AsyncSession, report_id: uuid.UUID, user_id: uuid.UUID
 ) -> bool:
-    """Delete a report permanently from storage and DB."""
+    """Delete a report permanently from storage and DB, and sync batch items."""
     report = await get_report_by_id(db, report_id)
     if not report:
         return False
+
+    # Sync with batch processing: Delete associated BatchItem and update BatchJob counts
+    try:
+        from app.models.batch import BatchItem, BatchJob, BatchItemStatus
+        from app.services.batch_service import broadcaster
+
+        batch_item_res = await db.execute(
+            select(BatchItem).where(BatchItem.report_id == report_id)
+        )
+        batch_items = batch_item_res.scalars().all()
+        for item in batch_items:
+            batch_id = item.batch_id
+            # Decrement parent BatchJob stats
+            batch_res = await db.execute(
+                select(BatchJob).where(BatchJob.batch_id == batch_id)
+            )
+            batch = batch_res.scalar_one_or_none()
+            if batch:
+                if item.status == BatchItemStatus.SUCCESS:
+                    batch.completed_files = max(0, (batch.completed_files or 1) - 1)
+                elif item.status == BatchItemStatus.FAILED:
+                    batch.failed_files = max(0, (batch.failed_files or 1) - 1)
+                batch.total_files = max(0, (batch.total_files or 1) - 1)
+
+            # If staged raw file still exists in SeaweedFS, delete it
+            if item.stored_file_path and item.stored_file_path.startswith("raw_batches/"):
+                try:
+                    delete_file(item.stored_file_path)
+                except Exception:
+                    pass
+
+            # Delete the BatchItem
+            await db.delete(item)
+
+            if batch:
+                await broadcaster.broadcast(
+                    batch_id,
+                    "batch_update",
+                    {
+                        "batch_id": str(batch_id),
+                        "status": batch.status.value,
+                        "total_files": batch.total_files,
+                        "completed_files": batch.completed_files,
+                        "failed_files": batch.failed_files,
+                    },
+                )
+    except Exception as batch_sync_err:
+        import logging
+        logging.getLogger(__name__).warning(f"Error syncing batch items on report delete: {batch_sync_err}")
 
     # Delete from storage
     if report.storage and report.storage.encrypted_file_path:
