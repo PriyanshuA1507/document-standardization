@@ -9,7 +9,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.clustering import ClusteringType
-from app.services import clustering_service
+from app.services import clustering_service, audit_service
 
 router = APIRouter(prefix="/api/clustering", tags=["Clustering"])
 
@@ -59,6 +59,14 @@ async def run_vulnerability_clustering(
     run = await clustering_service.trigger_vulnerability_clustering(
         db, user_id=current_user.user_id, config=cfg
     )
+    await audit_service.create_audit_log(
+        db,
+        action="CLUSTERING_RUN",
+        status="SUCCESS",
+        user_id=current_user.user_id,
+        details={"run_id": str(run.run_id), "type": "VULNERABILITY", "algorithm": run.algorithm_version},
+    )
+    await db.commit()
     return {
         "status": "success",
         "message": f"{run.algorithm_version} clustering job has been queued.",
@@ -90,6 +98,14 @@ async def run_report_clustering(
     run = await clustering_service.trigger_report_clustering(
         db, user_id=current_user.user_id, config=cfg
     )
+    await audit_service.create_audit_log(
+        db,
+        action="CLUSTERING_RUN",
+        status="SUCCESS",
+        user_id=current_user.user_id,
+        details={"run_id": str(run.run_id), "type": "REPORT", "algorithm": run.algorithm_version},
+    )
+    await db.commit()
     return {
         "status": "success",
         "message": f"{run.algorithm_version} report clustering job has been queued.",

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload, defer
 
@@ -319,16 +319,20 @@ async def get_reports(
     )
 
     if search:
-        query = query.where(
-            Report.original_filename.ilike(f"%{search}%")
+        search_filter = or_(
+            Report.original_filename.ilike(f"%{search}%"),
+            Report.sha256_hash.ilike(f"%{search}%"),
         )
+        query = query.where(search_filter)
 
     # Count total
     count_query = select(func.count(Report.report_id))
     if search:
-        count_query = count_query.where(
-            Report.original_filename.ilike(f"%{search}%")
+        search_filter = or_(
+            Report.original_filename.ilike(f"%{search}%"),
+            Report.sha256_hash.ilike(f"%{search}%"),
         )
+        count_query = count_query.where(search_filter)
     count_result = await db.execute(count_query)
     total = count_result.scalar() or 0
 
@@ -456,13 +460,13 @@ async def _create_audit_log(
     status: str,
     details: Optional[Dict] = None,
 ):
-    """Create an audit log entry."""
-    log = AuditLog(
-        user_id=user_id,
-        report_id=report_id,
+    """Create an audit log entry using central audit service."""
+    from app.services import audit_service
+    await audit_service.create_audit_log(
+        db=db,
         action=action,
         status=status,
+        user_id=user_id,
+        report_id=report_id,
         details=details,
     )
-    db.add(log)
-    await db.flush()

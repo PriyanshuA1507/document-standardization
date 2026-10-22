@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.services import anomaly_service
+from app.services import anomaly_service, audit_service
 
 router = APIRouter(prefix="/api/anomaly", tags=["Anomaly Detection"])
 
@@ -48,6 +48,17 @@ async def run_anomaly_detection(
     run = await anomaly_service.trigger_anomaly_detection(
         db, user_id=current_user.user_id, config=cfg
     )
+    await audit_service.create_audit_log(
+        db,
+        action="ANOMALY_RUN",
+        status="SUCCESS",
+        user_id=current_user.user_id,
+        details={
+            "run_id": str(run.run_id),
+            "algorithm_mode": run.parameters.get("algorithm_mode", "ENSEMBLE") if run.parameters else "ENSEMBLE",
+        },
+    )
+    await db.commit()
     return {
         "status": "success",
         "message": f"Anomaly detection job [{run.parameters.get('algorithm_mode', 'ENSEMBLE')}] queued.",

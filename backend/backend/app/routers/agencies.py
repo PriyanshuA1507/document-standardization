@@ -8,7 +8,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_roles
 from app.models.user import User
 from app.schemas.agency import AgencyCreate, AgencyUpdate, AgencyOut, AgencyListOut, AgencyStatsOut
-from app.services import agency_service
+from app.services import agency_service, audit_service
 
 router = APIRouter(prefix="/api/agencies", tags=["Agencies"])
 
@@ -22,8 +22,28 @@ async def create_agency(
     """Create a new agency (admin only)."""
     try:
         agency = await agency_service.create_agency(db, agency_in)
+        await audit_service.create_audit_log(
+            db,
+            action="AGENCY_CREATE",
+            status="SUCCESS",
+            user_id=current_user.user_id,
+            details={
+                "agency_id": str(agency.agency_id),
+                "name": agency.name,
+                "agency_code": agency.agency_code,
+            },
+        )
+        await db.commit()
         return agency
     except ValueError as e:
+        await audit_service.create_audit_log(
+            db,
+            action="AGENCY_CREATE",
+            status="FAILED",
+            user_id=current_user.user_id,
+            details={"name": agency_in.name, "reason": str(e)},
+        )
+        await db.commit()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
@@ -65,6 +85,7 @@ async def get_agency_stats(
     stats = await agency_service.get_agency_stats(db, agency_id)
     return stats
 
+
 @router.put("/{agency_id}", response_model=AgencyOut)
 async def update_agency(
     agency_id: uuid.UUID,
@@ -77,6 +98,14 @@ async def update_agency(
         agency = await agency_service.update_agency(db, agency_id, agency_in)
         if not agency:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agency not found")
+        await audit_service.create_audit_log(
+            db,
+            action="AGENCY_UPDATE",
+            status="SUCCESS",
+            user_id=current_user.user_id,
+            details={"agency_id": str(agency_id), "name": agency.name},
+        )
+        await db.commit()
         return agency
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -90,9 +119,19 @@ async def delete_agency(
 ):
     """Delete an agency (admin only)."""
     try:
+        agency = await agency_service.get_agency_by_id(db, agency_id)
+        agency_name = agency.name if agency else str(agency_id)
         success = await agency_service.delete_agency(db, agency_id)
         if not success:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agency not found")
+        await audit_service.create_audit_log(
+            db,
+            action="AGENCY_DELETE",
+            status="SUCCESS",
+            user_id=current_user.user_id,
+            details={"agency_id": str(agency_id), "name": agency_name},
+        )
+        await db.commit()
         return {"message": "Agency deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

@@ -7,7 +7,7 @@ from app.database import get_db
 from app.dependencies import require_roles, get_current_user
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate, UserOut, UserListOut, ProfileUpdate
-from app.services import user_service
+from app.services import user_service, audit_service
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -31,6 +31,14 @@ async def update_my_profile(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
+        await audit_service.create_audit_log(
+            db,
+            action="PROFILE_UPDATE",
+            status="SUCCESS",
+            user_id=current_user.user_id,
+            details={"email": profile_data.email, "full_name": profile_data.full_name},
+        )
+        await db.commit()
         return UserOut.from_orm_with_roles(user)
     except ValueError as e:
         raise HTTPException(
@@ -70,8 +78,29 @@ async def create_user(
             full_name=user_data.full_name,
             role_names=user_data.roles,
         )
+        await audit_service.create_audit_log(
+            db,
+            action="USER_CREATE",
+            status="SUCCESS",
+            user_id=current_user.user_id,
+            details={
+                "created_user_id": str(user.user_id),
+                "created_username": user.username,
+                "email": user.email,
+                "roles": user_data.roles,
+            },
+        )
+        await db.commit()
         return UserOut.from_orm_with_roles(user)
     except ValueError as e:
+        await audit_service.create_audit_log(
+            db,
+            action="USER_CREATE",
+            status="FAILED",
+            user_id=current_user.user_id,
+            details={"attempted_username": user_data.username, "reason": str(e)},
+        )
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -100,6 +129,20 @@ async def update_user(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
+        await audit_service.create_audit_log(
+            db,
+            action="USER_UPDATE",
+            status="SUCCESS",
+            user_id=current_user.user_id,
+            details={
+                "target_user_id": str(user_id),
+                "target_username": user.username,
+                "email": user_data.email,
+                "is_active": user_data.is_active,
+                "roles": user_data.roles,
+            },
+        )
+        await db.commit()
         return UserOut.from_orm_with_roles(user)
     except ValueError as e:
         raise HTTPException(
@@ -121,10 +164,24 @@ async def delete_user(
             detail="Cannot deactivate your own account",
         )
 
+    user = await user_service.get_user_by_id(db, user_id)
+    target_username = user.username if user else str(user_id)
+
     success = await user_service.delete_user(db, user_id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
+    await audit_service.create_audit_log(
+        db,
+        action="USER_DELETE",
+        status="SUCCESS",
+        user_id=current_user.user_id,
+        details={
+            "deactivated_user_id": str(user_id),
+            "deactivated_username": target_username,
+        },
+    )
+    await db.commit()
     return {"message": "User deactivated successfully"}

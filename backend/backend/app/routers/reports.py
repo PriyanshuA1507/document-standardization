@@ -9,7 +9,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_roles
 from app.models.user import User
 from app.schemas.report import ReportOut, ReportListOut, UploadResponse
-from app.services import report_service
+from app.services import report_service, audit_service
 from app.config import settings
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
@@ -383,6 +383,20 @@ async def download_report(
         # Replace the original extension with .pdf for the download name
         base_name = os.path.splitext(download_filename)[0]
         download_filename = f"{base_name}.pdf"
+
+    await audit_service.create_audit_log(
+        db,
+        action="REPORT_DOWNLOAD",
+        status="SUCCESS",
+        user_id=current_user.user_id,
+        report_id=report.report_id,
+        details={
+            "filename": download_filename,
+            "original_filename": report.original_filename,
+            "file_size": len(file_data),
+        },
+    )
+    await db.commit()
 
     return Response(
         content=file_data,

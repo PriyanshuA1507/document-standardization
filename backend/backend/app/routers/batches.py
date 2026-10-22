@@ -27,7 +27,7 @@ from app.schemas.batch import (
     BatchListResponse,
     BatchItemOut,
 )
-from app.services import batch_service
+from app.services import batch_service, audit_service
 
 router = APIRouter(prefix="/api/batches", tags=["Batches"])
 
@@ -53,6 +53,14 @@ async def create_batch_from_server_path(
             password_map=req.password_map,
             bulk_passwords=req.bulk_passwords,
         )
+        await audit_service.create_audit_log(
+            db,
+            action="BATCH_CREATE",
+            status="SUCCESS",
+            user_id=current_user.user_id,
+            details={"batch_id": str(batch.batch_id), "name": batch.name, "total_files": batch.total_files, "source": "server_path"},
+        )
+        await db.commit()
         return BatchJobOut(
             batch_id=batch.batch_id,
             name=batch.name,
@@ -126,6 +134,14 @@ async def create_batch_from_upload(
             password_map=parsed_password_map,
             bulk_passwords=parsed_bulk_passwords,
         )
+        await audit_service.create_audit_log(
+            db,
+            action="BATCH_CREATE",
+            status="SUCCESS",
+            user_id=current_user.user_id,
+            details={"batch_id": str(batch.batch_id), "name": batch.name, "total_files": batch.total_files, "source": "upload"},
+        )
+        await db.commit()
         return BatchJobOut(
             batch_id=batch.batch_id,
             name=batch.name,
@@ -466,6 +482,14 @@ async def cancel_batch(
     if not batch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Batch not found")
     await batch_service.cancel_batch(batch_id)
+    await audit_service.create_audit_log(
+        db,
+        action="BATCH_CANCEL",
+        status="SUCCESS",
+        user_id=current_user.user_id,
+        details={"batch_id": str(batch_id), "name": batch.name},
+    )
+    await db.commit()
     return {"message": "Batch cancelled successfully and queued files deleted"}
 
 
@@ -513,6 +537,14 @@ async def delete_batch(
 
     try:
         await batch_service.delete_batch(db, batch_id)
+        await audit_service.create_audit_log(
+            db,
+            action="BATCH_DELETE",
+            status="SUCCESS",
+            user_id=current_user.user_id,
+            details={"batch_id": str(batch_id), "name": batch.name},
+        )
+        await db.commit()
         return {"message": "Batch deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

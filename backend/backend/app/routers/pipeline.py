@@ -19,7 +19,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.report import ReportsData, DetailedObservation, ReportImage, ObservationSeverity, ObservationStatus, ObservationImpact, ObservationLikelihood, ObservationNewRepeat
-from app.services import report_service
+from app.services import report_service, audit_service
 from app.config import settings
 
 router = APIRouter(prefix="/api/reports", tags=["Pipeline"])
@@ -68,6 +68,16 @@ async def run_pipeline(
         file_data = decrypt_file(encrypted_data)
     else:
         file_data = encrypted_data
+
+    await audit_service.create_audit_log(
+        db,
+        action="PIPELINE_START",
+        status="SUCCESS",
+        user_id=current_user.user_id,
+        report_id=report.report_id,
+        details={"filename": report.original_filename},
+    )
+    await db.commit()
 
     # 4. Forward to AI Pipeline service
     pipeline_url = f"{settings.AI_PIPELINE_URL}/run"
@@ -191,6 +201,19 @@ async def run_pipeline(
                                     session.add(obs)
                                 await session.commit()
 
+                                await audit_service.create_audit_log(
+                                    session,
+                                    action="PIPELINE_SUCCESS",
+                                    status="SUCCESS",
+                                    user_id=current_user.user_id,
+                                    report_id=report_id,
+                                    details={
+                                        "filename": report.original_filename,
+                                        "findings_count": len(vulns),
+                                    },
+                                )
+                                await session.commit()
+
                             # Always ensure ReportImage records are synced from manifest
                             from app.routers.report_images import sync_report_images_from_dict, sync_report_images_from_seaweedfs
                             if final_manifest:
@@ -200,9 +223,39 @@ async def run_pipeline(
 
 
             except httpx.HTTPStatusError as e:
-                yield f"data: {json.dumps({'type': 'error', 'message': f'AI Pipeline service returned an error: {e.response.text}'})}\n\n"
+                err_msg = f"AI Pipeline service returned an error: {e.response.text}"
+                try:
+                    from app.database import AsyncSessionLocal
+                    async with AsyncSessionLocal() as session:
+                        await audit_service.create_audit_log(
+                            session,
+                            action="PIPELINE_FAILED",
+                            status="FAILED",
+                            user_id=current_user.user_id,
+                            report_id=report_id,
+                            details={"reason": err_msg, "filename": report.original_filename},
+                        )
+                        await session.commit()
+                except Exception:
+                    pass
+                yield f"data: {json.dumps({'type': 'error', 'message': err_msg})}\n\n"
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to communicate with AI Pipeline service: {str(e)}'})}\n\n"
+                err_msg = f"Failed to communicate with AI Pipeline service: {str(e)}"
+                try:
+                    from app.database import AsyncSessionLocal
+                    async with AsyncSessionLocal() as session:
+                        await audit_service.create_audit_log(
+                            session,
+                            action="PIPELINE_FAILED",
+                            status="FAILED",
+                            user_id=current_user.user_id,
+                            report_id=report_id,
+                            details={"reason": err_msg, "filename": report.original_filename},
+                        )
+                        await session.commit()
+                except Exception:
+                    pass
+                yield f"data: {json.dumps({'type': 'error', 'message': err_msg})}\n\n"
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
     except Exception as e:

@@ -145,21 +145,23 @@ export default function MLAnalyticsDashboardPage() {
           action={
             <Button
               size="small"
-              variant="contained"
+              variant="outlined"
               onClick={() => setCurrentTab(1)}
-              endIcon={<ArrowForward sx={{ fontSize: 14 }} />}
+              endIcon={<ArrowForward sx={{ fontSize: 13 }} />}
               sx={{
-                bgcolor: 'rgba(0, 212, 255, 0.15)',
+                borderColor: 'rgba(0, 212, 255, 0.3)',
+                bgcolor: 'rgba(0, 212, 255, 0.08)',
                 color: '#00D4FF',
-                fontWeight: 700,
+                fontWeight: 600,
                 fontSize: '0.72rem',
                 py: 0.3,
                 px: 1.2,
                 borderRadius: 1.5,
-                '&:hover': { bgcolor: '#00D4FF', color: '#0B1120' }
+                whiteSpace: 'nowrap',
+                '&:hover': { bgcolor: 'rgba(0, 212, 255, 0.16)', borderColor: '#00D4FF' }
               }}
             >
-              Open Full Page
+              Full View
             </Button>
           }
         >
@@ -247,21 +249,23 @@ export default function MLAnalyticsDashboardPage() {
           action={
             <Button
               size="small"
-              variant="contained"
+              variant="outlined"
               onClick={() => setCurrentTab(2)}
-              endIcon={<ArrowForward sx={{ fontSize: 14 }} />}
+              endIcon={<ArrowForward sx={{ fontSize: 13 }} />}
               sx={{
-                bgcolor: 'rgba(255, 23, 68, 0.15)',
+                borderColor: 'rgba(255, 23, 68, 0.35)',
+                bgcolor: 'rgba(255, 23, 68, 0.08)',
                 color: '#FF1744',
-                fontWeight: 700,
+                fontWeight: 600,
                 fontSize: '0.72rem',
                 py: 0.3,
                 px: 1.2,
                 borderRadius: 1.5,
-                '&:hover': { bgcolor: '#FF1744', color: '#FFF' }
+                whiteSpace: 'nowrap',
+                '&:hover': { bgcolor: 'rgba(255, 23, 68, 0.16)', borderColor: '#FF1744' }
               }}
             >
-              Open Full Page
+              Full View
             </Button>
           }
         >
