@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer, Text, Enum, Date, SmallInteger, Numeric
+    Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer, Text, Enum, Date, SmallInteger, Numeric, Index
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import relationship
@@ -305,13 +305,16 @@ class ReportImage(Base):
     it came from and records where it is stored in SeaweedFS.
     """
     __tablename__ = "report_images"
+    __table_args__ = (
+        Index("idx_report_images_report", "report_id"),
+        Index("idx_report_images_sha256", "sha256"),
+    )
 
     image_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     report_id = Column(
         UUID(as_uuid=True),
         ForeignKey("reports.report_id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
 
     # Image identity & tag
@@ -320,7 +323,7 @@ class ReportImage(Base):
     figure = Column(SmallInteger, nullable=False, default=0)  # 1-based fig index (0 = layout)
 
     # Storage location
-    sha256 = Column(String(64), nullable=False, index=True)   # content hash (dedup key)
+    sha256 = Column(String(64), nullable=False)               # content hash (dedup key)
     seaweed_path = Column(String(500), nullable=False)        # path in SeaweedFS filer
 
     # Image metadata
